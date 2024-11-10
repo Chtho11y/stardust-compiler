@@ -12,7 +12,7 @@
 
 %token<str> INT NAME
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 
 %type<node> program
@@ -28,8 +28,15 @@
 %type<node> ident literal
 
 %right ASSIGN
-%left ADD SUB
+%left OR
+%left AND
+%left BITOR
+%left XOR
+%left BITAND
+%left LT GT LE GE EQ NEQ
+%left ADD SUB NOT
 %left MUL DIV MOD
+%left DOT
 %%
 
 program:
@@ -39,7 +46,7 @@ program:
 ext_decl:
     {$$ = new AstNode(ExtDecl);}
     | ext_decl SEMI {$$ = $1;}
-    |  ext_decl single_decl {$$ = $1; $$->append($2);} 
+    | ext_decl single_decl {$$ = $1; $$->append($2);} 
     ;
 
 single_decl: var_decl | func_decl | struct_decl;
@@ -164,6 +171,11 @@ control_stmt:
         $$->append($3);
         $$->append($5);        
     }
+    | TWHILE expr_with_comma block{
+        $$ = new AstNode(WhileStmt);
+        $$->append($2);
+        $$->append($3);       
+    }
     ;
 
 ident: NAME {$$ = new AstNode(Identifier, *$1); free($1);};
@@ -216,45 +228,35 @@ expr_with_comma:
         $$->append($1);
         $$->append($3);
    }
+    ;
 
 expr: item
-    | expr ASSIGN expr{
-        $$ = new OperatorNode(op_type::Assign);
-        $$->append($1);
-        $$->append($3);
-    } 
-    | expr ADD expr{
-        $$ = new OperatorNode(op_type::Add);
-        $$->append($1);
-        $$->append($3);
-    }
-    | expr SUB expr{
-        $$ = new OperatorNode(op_type::Sub);
-        $$->append($1);
-        $$->append($3);
-    }
-    | expr MUL expr{
-        $$ = new OperatorNode(op_type::Mul);
-        $$->append($1);
-        $$->append($3);
-    }
-    | expr DIV expr{
-        $$ = new OperatorNode(op_type::Div);
-        $$->append($1);
-        $$->append($3);
-    }
-    | expr MOD expr{
-        $$ = new OperatorNode(op_type::Mod);
-        $$->append($1);
-        $$->append($3);
-    }
+    | ADD expr{$$ = new OperatorNode(op_type::Pos, $2);}
+    | SUB expr{$$ = new OperatorNode(op_type::Neg, $2);}
+    | NOT expr{$$ = new OperatorNode(op_type::Not, $2);}
+    | expr ASSIGN expr  {$$ = new OperatorNode(op_type::Assign, $1, $3);} 
+    | expr ADD expr     {$$ = new OperatorNode(op_type::Add, $1, $3);}
+    | expr SUB expr     {$$ = new OperatorNode(op_type::Sub, $1, $3);}
+    | expr MUL expr     {$$ = new OperatorNode(op_type::Mul, $1, $3);}
+    | expr DIV expr     {$$ = new OperatorNode(op_type::Div, $1, $3);}
+    | expr MOD expr     {$$ = new OperatorNode(op_type::Mod, $1, $3);}
+    | expr BITAND expr  {$$ = new OperatorNode(op_type::BitAnd, $1, $3);}
+    | expr BITOR expr   {$$ = new OperatorNode(op_type::BitOr, $1, $3);}
+    | expr XOR expr     {$$ = new OperatorNode(op_type::Xor, $1, $3);}
+    | expr EQ expr      {$$ = new OperatorNode(op_type::Eq, $1, $3);}
+    | expr NEQ expr     {$$ = new OperatorNode(op_type::Neq, $1, $3);}
+    | expr LE expr      {$$ = new OperatorNode(op_type::Le, $1, $3);}
+    | expr GE expr      {$$ = new OperatorNode(op_type::Ge, $1, $3);}
+    | expr LT expr      {$$ = new OperatorNode(op_type::Lt, $1, $3);}
+    | expr GT expr      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
     ;
 
 item: ident 
     | literal
     | block_ret
+    | control_stmt
     | LP expr_with_comma RP {$$ = $2;}
-    | item LBRACKET item RBRACKET {
+    | item LBRACKET expr_with_comma RBRACKET {
         $$ = new OperatorNode(op_type::At);
         $$->append($1);
         $$->append($3);
@@ -264,7 +266,11 @@ item: ident
         $$->append($1);
         $$->append($3);
     }
-    | control_stmt
+    | item DOT ident{
+        $$ = new OperatorNode(op_type::Access);
+        $$->append($1);
+        $$->append($3);
+    }
     ;
 
 func_args:

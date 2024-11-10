@@ -7,7 +7,10 @@ AstNode* create_node_from(node_type type, AstNode* ch){
 }
 
 std::string ast_node_name[200];
-std::string ast_op_name[] = {"Add", "Sub", "Mul", "Div", "Mod", "And", "Or", "Assign", "At", "Call", "Comma"};
+std::string ast_op_name[] = {"Add", "Sub", "Mul", "Div", "Mod", "And", "Or",
+                             "BitAnd", "BitOr", "Xor", "Eq", "Neq", "Le", "Ge", "Lt", "Gt",
+                             "Assign", "At", "Call", "Comma", "Access",
+                             "Pos", "Neg", "Not"};
 
 void ast_info_init(){
     ast_node_name[Program]      = "Program";
@@ -30,6 +33,7 @@ void ast_info_init(){
     ast_node_name[IntLiteral]   = "IntLiteral";
     ast_node_name[DoubleLiteral]= "DoubleLiteral";
     ast_node_name[IfStmt]       = "Statement-If";
+    ast_node_name[WhileStmt]    = "Statement-While";
 }
 
 std::string get_node_name(AstNode* node){
@@ -38,4 +42,12 @@ std::string get_node_name(AstNode* node){
 
 std::string OperatorNode::get_op_name(OperatorNode* node){
     return ast_op_name[(int)(node->type)];
+}
+
+std::shared_ptr<VarType> ast_to_type(AstNode* node){
+    
+}
+
+void build_sym_table(AstNode* node){
+
 }

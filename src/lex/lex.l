@@ -27,6 +27,7 @@ struct {return make_token(TSTRUCT);}
 let {return make_token(TLET);}
 if  {return make_token(TIF);}
 else {return make_token(TELSE);}
+while {return make_token(TWHILE);}
 
 
 {letter_}({letter_}|{digit})* {return make_token(NAME, true);}
@@ -50,6 +51,15 @@ else {return make_token(TELSE);}
 "." {return make_token(DOT);}
 ">" {return make_token(GT);}
 "<" {return make_token(LT);}
+">=" {return make_token(GE);}
+"<=" {return make_token(LE);}
+"==" {return make_token(EQ);}
+"!=" {return make_token(NEQ);}
+"&&" {return make_token(AND);}
+"||" {return make_token(OR);}
+"&" {return make_token(BITAND);}
+"|" {return make_token(BITOR);}
+"^" {return make_token(XOR);}
 "=" {return make_token(ASSIGN);}
 %%
 

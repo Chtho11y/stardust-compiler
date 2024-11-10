@@ -1,0 +1,7 @@
+build/
+backup/
+.vscode/
+test/
+
+syntax.txt
+*.backup

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "parse.h"
+#include "var_type.h"
+#include <map>
 #include <vector>
 
 enum node_type{
@@ -12,11 +14,14 @@ enum node_type{
     Identifier,
     IntLiteral,
     DoubleLiteral,
-    IfStmt
+    IfStmt, WhileStmt
 };
 
 enum class op_type{
-    Add, Sub, Mul, Div, Mod, And, Or, Assign, At, Call, Comma
+    Add, Sub, Mul, Div, Mod, And, Or,
+    BitAnd, BitOr, Xor, Eq, Neq, Le, Ge, Lt, Gt,
+    Assign, At, Call, Comma, Access,
+    Pos, Neg, Not
 };
 
 struct AstNode{
@@ -25,6 +30,7 @@ struct AstNode{
     Locator loc;
     AstNode* parent;
     std::vector<AstNode*> ch;
+    std::map<std::string, VarInfo> var_table;
 
     AstNode(){
         parent = nullptr;
@@ -59,6 +65,12 @@ struct OperatorNode: AstNode{
 
     OperatorNode(op_type type):AstNode(Operator), type(type){}
 
+    OperatorNode(op_type type, AstNode* ch1, AstNode* ch2 = nullptr):AstNode(Operator), type(type){
+        append(ch1);
+        if(ch2)
+            append(ch2);
+    }
+
     static std::string get_op_name(OperatorNode* node);
 
     std::string op_name(){
@@ -86,8 +98,26 @@ struct Adaptor<VarDecl>{
     }
 };
 
+template<>
+struct Adaptor<StructDecl>{
+    std::string id;
+    AstNode *init_val;
+    AstNode *type;
+    Adaptor(AstNode* rt){
+        if(rt->type != VarDecl){
+            throw "adaptor type mismatch";
+        }
+        id = rt->ch[0]->str;
+        type = rt->ch[1];
+        init_val = rt->ch[2];
+    }
+};
+
 void ast_info_init();
 AstNode* create_node_from(node_type type, AstNode* ch);
 std::string get_node_name(AstNode* node);
+
+std::shared_ptr<VarType> ast_to_type(AstNode* node);
+void build_sym_table(AstNode* node);
 
 extern AstNode* program_root;
