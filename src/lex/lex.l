@@ -28,8 +28,10 @@ let {return make_token(TLET);}
 if  {return make_token(TIF);}
 else {return make_token(TELSE);}
 while {return make_token(TWHILE);}
+as {return make_token(TAS);}
 
-
+true {return make_token(TTRUE, true);}
+false {return make_token(TFALSE, true);}
 {letter_}({letter_}|{digit})* {return make_token(NAME, true);}
 {digit}({digit})* {return make_token(INT, true);}
 

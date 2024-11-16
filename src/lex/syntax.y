@@ -10,7 +10,7 @@
     int token_id;
 };
 
-%token<str> INT NAME
+%token<str> INT NAME TTRUE TFALSE
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
@@ -24,7 +24,7 @@
 %type<node> block block_no_ret block_ret
 %type<node> stmts stmt control_stmt
 %type<node> expr expr_with_comma func_params func_param func_args
-%type<node> item
+%type<node> item sub_item
 %type<node> ident literal
 
 %right ASSIGN
@@ -34,17 +34,19 @@
 %left XOR
 %left BITAND
 %left LT GT LE GE EQ NEQ
-%left ADD SUB NOT
+%left ADD SUB
 %left MUL DIV MOD
+%left NOT
+%left TAS
 %left DOT
 %%
 
 program:
-    ext_decl {program_root = create_node_from(Program, $1);}
+    ext_decl {program_root = new BlockNode(Program); program_root->append($1);}
     ;
 
 ext_decl:
-    {$$ = new AstNode(ExtDecl);}
+    {$$ = new BlockNode(ExtDecl);}
     | ext_decl SEMI {$$ = $1;}
     | ext_decl single_decl {$$ = $1; $$->append($2);} 
     ;
@@ -94,7 +96,6 @@ struct_members:
 struct_member:
     ident COLON type_desc{
         $$ = new AstNode(VarDecl);
-        $$->append(new AstNode(ConstDesc, "1"));
         $$->append($1);
         $$->append($3);
     }
@@ -132,7 +133,6 @@ func_params:
 func_param:
     ident COLON type_desc{
         $$ = new AstNode(VarDecl);
-        $$->append(new AstNode(ConstDesc, "1"));
         $$->append($1);
         $$->append($3);
     }
@@ -145,11 +145,15 @@ block_no_ret:
     ;
 
 block_ret:
-    LBRACE stmts expr_with_comma RBRACE {$$ = create_node_from(StmtsRet, $2); $$->append($3);}
+    LBRACE stmts expr_with_comma RBRACE {
+        $$ = $2;
+        $$->type = StmtsRet;
+        $$->append($3);
+    }
     ;
 
 stmts:
-     {$$ = new AstNode(Stmts);}
+     {$$ = new BlockNode(Stmts);}
     |stmts stmt{$$ = $1; $$->append($2);} 
     ;
 
@@ -182,6 +186,8 @@ ident: NAME {$$ = new AstNode(Identifier, *$1); free($1);};
 
 literal:
       INT {$$ = new AstNode(IntLiteral, *$1); free($1);}
+    | TTRUE {$$ = new AstNode(BoolLiteral, *$1); free($1);}
+    | TFALSE{$$ = new AstNode(BoolLiteral, *$1); free($1);}
     ;
 
 opt_type_desc:
@@ -195,9 +201,9 @@ type_desc: type_desc_no_func
         $$->append($3);
     }
     ;
-
+    
 type_desc_no_func: type_item 
-    |type_desc_no_func MUL {
+    |type_desc_no_func MUL{
         $$ = create_node_from(TypeDesc, $1); 
         $$->str = "*";
     } 
@@ -230,9 +236,9 @@ expr_with_comma:
    }
     ;
 
-expr: item
-    | ADD expr{$$ = new OperatorNode(op_type::Pos, $2);}
-    | SUB expr{$$ = new OperatorNode(op_type::Neg, $2);}
+expr: sub_item
+    | ADD expr %prec NOT{$$ = new OperatorNode(op_type::Pos, $2);}
+    | SUB expr %prec NOT{$$ = new OperatorNode(op_type::Neg, $2);}
     | NOT expr{$$ = new OperatorNode(op_type::Not, $2);}
     | expr ASSIGN expr  {$$ = new OperatorNode(op_type::Assign, $1, $3);} 
     | expr ADD expr     {$$ = new OperatorNode(op_type::Add, $1, $3);}
@@ -249,6 +255,13 @@ expr: item
     | expr GE expr      {$$ = new OperatorNode(op_type::Ge, $1, $3);}
     | expr LT expr      {$$ = new OperatorNode(op_type::Lt, $1, $3);}
     | expr GT expr      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
+    | expr AND expr      {$$ = new OperatorNode(op_type::And, $1, $3);}
+    | expr OR expr      {$$ = new OperatorNode(op_type::Or, $1, $3);}
+    ;
+
+sub_item:
+     item
+    |sub_item TAS type_desc{$$ = new OperatorNode(op_type::Convert, $1, $3);}
     ;
 
 item: ident 
@@ -256,12 +269,12 @@ item: ident
     | block_ret
     | control_stmt
     | LP expr_with_comma RP {$$ = $2;}
-    | item LBRACKET expr_with_comma RBRACKET {
+    | item LBRACKET expr_with_comma RBRACKET %prec DOT{
         $$ = new OperatorNode(op_type::At);
         $$->append($1);
         $$->append($3);
     }
-    | item LP func_args RP{
+    | item LP func_args RP %prec DOT{
         $$ = new OperatorNode(op_type::Call);
         $$->append($1);
         $$->append($3);

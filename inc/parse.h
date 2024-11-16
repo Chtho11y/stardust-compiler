@@ -4,7 +4,11 @@
 #include <vector>
 
 struct Locator{
-    int line_st, line_ed, row_l, row_r;
+    int line_st = 0, line_ed = 0, row_l = 0, row_r = 0;
+
+    bool has_value()const {
+        return row_l != row_r;
+    }
 };
 
 struct Token{
