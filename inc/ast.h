@@ -115,13 +115,18 @@ struct Adaptor<VarDecl>{
     AstNode *init_val;
     AstNode *type;
     std::shared_ptr<VarType> type_info;
+    bool is_const;
+
     Adaptor(AstNode* rt){
         if(rt->type != VarDecl){
             throw "adaptor type mismatch";
         }
-        id = rt->ch[0]->str;
-        type = rt->ch[1];
-        init_val = rt->ch[2];
+        is_const = rt->ch[0]->str == "const";
+        id = rt->ch[1]->str;
+        type = rt->ch[2];
+        if(rt->ch.size() > 3)
+            init_val = rt->ch[3];
+        else init_val = nullptr;
 
         type_info = ast_to_type(type);
         

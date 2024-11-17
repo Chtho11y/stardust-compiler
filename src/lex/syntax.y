@@ -12,7 +12,7 @@
 
 %token<str> INT NAME TTRUE TFALSE
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 
 %type<node> program
@@ -56,18 +56,26 @@ single_decl: var_decl | func_decl | struct_decl;
 var_decl:
     const_desc ident opt_type_desc ASSIGN expr SEMI{
         $$ = new AstNode(VarDecl); 
+        $$->append($1);
         $$->append($2); 
         $$->append($3);
         $$->append($5);
      }
-    | const_desc ident opt_type_desc SEMI{
+    |const_desc ident opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
+        $$->append($1);
         $$->append($2); 
         $$->append($3);
      }
     ;
 
-const_desc: TLET {$$ = nullptr;};
+const_desc: 
+    TCONST {
+        $$ = new AstNode(ConstDesc, "const");
+    }
+    | TLET {
+        $$ = new AstNode(ConstDesc, "let");
+    };
 
 struct_decl:
     TSTRUCT ident LBRACE struct_members RBRACE{
@@ -174,6 +182,12 @@ control_stmt:
         $$->append($2);
         $$->append($3);
         $$->append($5);        
+    }
+    | TIF expr_with_comma block TELSE control_stmt {
+        $$ = new AstNode(IfStmt);
+        $$->append($2);
+        $$->append($3);
+        $$->append($5);
     }
     | TWHILE expr_with_comma block{
         $$ = new AstNode(WhileStmt);
