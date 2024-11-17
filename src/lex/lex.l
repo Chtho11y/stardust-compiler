@@ -46,6 +46,7 @@ return {return make_token(TRETURN);}
 true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}
 {letter_}({letter_}|{digit})* {return make_token(NAME, true);}
+({letter_}|{digit})+ {return make_token(INVALID_NAME, true);}
 {digit}({digit})* {return make_token(INT, true);}
 
 "->" {return make_token(ARROW);}
@@ -76,14 +77,22 @@ false {return make_token(TFALSE, true);}
 "|" {return make_token(BITOR);}
 "^" {return make_token(XOR);}
 "=" {return make_token(ASSIGN);}
+[/][*] {append_error("Unclosed comments!", CurrentCursor);}
+. {append_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
 %%
 
 int make_token(int type, bool set_val){
+    CurrentCursor = {lines, lines, last, last + yyleng - 1};
     if(set_val){
-        auto res = new Token{yytext, type, {lines, lines, last, last + yyleng - 1}};
+        auto res = new Token{yytext, type, CurrentCursor};
         yylval.str = res;
     }
+    else {
+        // auto res = new Token{nullptr, type, {lines, lines, last, last + yyleng - 1}};
+        // yylval.str = res;
+    }
     last += yyleng;
+    
     return type;
 }
 
