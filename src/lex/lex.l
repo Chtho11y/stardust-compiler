@@ -40,6 +40,8 @@ else {return make_token(TELSE);}
 while {return make_token(TWHILE);}
 as {return make_token(TAS);}
 const {return make_token(TCONST);}
+break {return make_token(TBREAK);}
+return {return make_token(TRETURN);}
 
 true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}
