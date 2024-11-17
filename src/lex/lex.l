@@ -20,6 +20,16 @@ digit [0-9]
 
 \n {++lines; last = 0;}
 "//"[^\n]* {/*skip*/}
+[/][*][^*]*[*]+([^*/][^*]*[*]+)*[/] { //multi-line comments
+    int L = strlen(yytext);
+    for (int i = 0; i < L; i++) {
+        if (yytext[i] == '\n')
+            ++lines, last = 0;
+        else
+            last += 1;
+    }
+    
+}
 [\t\r ]+ {last += yyleng;}
 
 func {return make_token(TFUNC);}
@@ -29,6 +39,7 @@ if  {return make_token(TIF);}
 else {return make_token(TELSE);}
 while {return make_token(TWHILE);}
 as {return make_token(TAS);}
+const {return make_token(TCONST);}
 
 true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}
