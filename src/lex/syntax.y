@@ -12,7 +12,7 @@
 
 %token<str> INT NAME TTRUE TFALSE
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 
 %type<node> program
@@ -23,7 +23,7 @@
 %type<node> const_desc opt_type_desc type_desc type_desc_no_func type_item type_list
 %type<node> type_list_bk
 %type<node> block block_no_ret block_ret
-%type<node> stmts stmt control_stmt
+%type<node> stmts stmt control_stmt return_stmt
 %type<node> expr expr_with_comma func_params func_param func_args
 %type<node> item sub_item
 %type<node> ident literal
@@ -211,8 +211,17 @@ stmts:
     |stmts stmt{$$ = $1; $$->append($2);} 
     ;
 
+return_stmt: 
+    TRETURN SEMI{$$ = new AstNode(Stmt, "return");}
+    | TRETURN expr_with_comma SEMI{
+        $$ = new AstNode(Stmt, "return");
+        $$->append($1);
+    }
+
 stmt: var_decl
     | block_no_ret
+    | TBREAK SEMI{$$ = new AstNode(Stmt, "break");}
+    | return_stmt {$$ = $1}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr_with_comma SEMI {$$ = $1;}
     ;
