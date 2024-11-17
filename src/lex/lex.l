@@ -46,8 +46,8 @@ return {return make_token(TRETURN);}
 true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}
 {letter_}({letter_}|{digit})* {return make_token(NAME, true);}
-({letter_}|{digit})+ {return make_token(INVALID_NAME, true);}
 {digit}({digit})* {return make_token(INT, true);}
+({letter_}|{digit})+ {return make_token(INVALID_NAME, true);}
 
 "->" {return make_token(ARROW);}
 ":" {return make_token(COLON);}

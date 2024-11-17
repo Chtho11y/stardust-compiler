@@ -21,6 +21,7 @@
 %type<node> program
 %type<node> ext_decl single_decl
 %type<node> var_decl func_decl struct_decl
+%type<node> struct_decl_ident func_decl_ident func_decl_ret_type
 %type<node> struct_members struct_member
 %type<node> array_instance array_objects struct_instance struct_instance_members struct_instance_member
 %type<node> const_desc opt_type_desc type_desc type_desc_no_func type_item type_list
@@ -64,13 +65,17 @@ var_decl:
         $$->append($2); 
         $$->append($3);
         $$->append($5);
-     }
+    }
     | const_desc ident opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
         $$->append($1);
         $$->append($2); 
         $$->append($3);
-     }
+    }
+    | const_desc error SEMI {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid variable declaration!");
+    }
     ;
 
 const_desc: 
@@ -81,27 +86,56 @@ const_desc:
         $$ = new AstNode(ConstDesc, "let");
     };
 
-struct_decl:
-    TSTRUCT ident LBRACE struct_members RBRACE{
+struct_decl_ident:
+    TSTRUCT ident {
         $$ = new AstNode(StructDecl);
         $$->append($2);
-        $$->append($4);
+    }
+    | TSTRUCT error {
+        $$ = new AstNode(StructDecl);
+        $$->append(new AstNode(Err));
+        set_error_message("Missing struct identifier!");
     }
 
-    | TSTRUCT ident LBRACE struct_members COMMA RBRACE{
+
+struct_decl:
+    struct_decl_ident LBRACE struct_members RBRACE {
         $$ = new AstNode(StructDecl);
-        $$->append($2);
-        $$->append($4);
+        $$->append($1);
+        $$->append($3);
     }
+    | TSTRUCT error {
+        // $$ = new AstNode(StructDecl);
+        // $$->append($1);
+        // $$->append(new AstNode(StructMem));
+        $$ = new AstNode(Err);
+        set_error_message("Invalid struct declaration!");
+    }
+
+    // | TSTRUCT ident LBRACE struct_members COMMA RBRACE{
+    //     $$ = new AstNode(StructDecl);
+    //     $$->append($2);
+    //     $$->append($4);
+    // }
     ;
 
-struct_members:
-    struct_member{
+struct_members: {
+        $$ = new AstNode(StructMem);
+    }
+    | 
+    struct_member {
         $$ = create_node_from(StructMem, $1);
     }
     | struct_members COMMA struct_member{
         $$ = $1;
         $$->append($3);
+    }
+    | struct_members COMMA {
+        $$ = $1;
+    }
+    | error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid struct member!");
     }
     ;
 
@@ -113,21 +147,55 @@ struct_member:
     }
     ;
 
-func_decl:
-    TFUNC ident LP func_params RP block{
+func_decl_ident:
+    TFUNC ident {
         $$ = new AstNode(FuncDecl);
         $$->append($2);
-        $$->append($4);
-        $$->append(new AstNode(TypeDesc, "#auto"));
+    }
+    | TFUNC error {
+        $$ = new AstNode(FuncDecl);
+        $$->append(new AstNode(Err));
+        set_error_message("Missing function identifier!");
+    }
+    ;
+func_decl_ret_type: {
+        $$ = new AstNode(TypeDesc, "#auto");
+    }
+    | ARROW type_desc {
+        $$ = $2;
+    }
+    | ARROW error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid function return type");
+    }
+    ;
+func_decl:
+    // func_decl_ident LP func_params RP block{
+    //     $$ = $1;
+    //     $$->append($3);
+    //     $$->append(new AstNode(TypeDesc, "#auto"));
+    //     $$->append($5);
+    // }
+
+    // | func_decl_ident LP func_params RP ARROW type_desc block{
+    //     $$ = $1;
+    //     $$->append($3);
+    //     $$->append($6);
+    //     $$->append($7);
+    // }
+    func_decl_ident LP func_params RP func_decl_ret_type block {
+        $$ = $1;
+        $$->append($3);
+        $$->append($5);
         $$->append($6);
     }
-
-    | TFUNC ident LP func_params RP ARROW type_desc block{
-        $$ = new AstNode(FuncDecl);
-        $$->append($2);
-        $$->append($4);
-        $$->append($7);
-        $$->append($8);
+    | func_decl_ident LP func_params RP func_decl_ret_type error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid function body");
+    }
+    | TFUNC error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid function declaration!");
     }
     ;
 
@@ -139,6 +207,10 @@ func_params:
     }
     |func_param{
         $$ = create_node_from(FuncParams, $1);
+    }
+    | error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid function parameters!");
     }
     ;
 
@@ -256,7 +328,7 @@ control_stmt:
 
 ident: 
     NAME {$$ = new AstNode(Identifier, *$1); free($1);};
-    | INVALID_NAME error{append_error(std::string("Invalid identifier: ") + $1->val, CurrentCursor); free($1);}
+    | INVALID_NAME error{set_error_message(std::string("Invalid identifier: ") + $1->val); free($1);}
 
 literal:
       INT {$$ = new AstNode(IntLiteral, *$1); free($1);}
@@ -372,6 +444,7 @@ func_args:
 
 %%
 void yyerror(const char *s) {
+    append_error(CurrentCursor);
     // fprintf(stderr, "[Syntax error]: %s (row %d line %d).\n", loc.row_l, loc.line_st);
     // fprintf(stderr, "%s\n", s);
 }

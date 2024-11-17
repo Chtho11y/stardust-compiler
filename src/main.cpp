@@ -68,10 +68,12 @@ int main(){
     yyparse();
     std::string s;
     
-    build_sym_table(program_root, program_root->var_table);
-    print(program_root, 0);
-
+    // build_sym_table(program_root, program_root->var_table);
     auto& err = get_error_list();
+    if (!err.size())
+        print(program_root, 0);
+
+    // auto& err = get_error_list();
     for(auto [s, loc]: err)
-        std::cout << s << std::endl;
+        std::cout << s << " (" << loc.line_st << ", " << loc.col_l << ") " << std::endl;
 }

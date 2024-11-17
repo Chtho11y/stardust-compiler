@@ -17,7 +17,8 @@ enum node_type{
     IntLiteral,
     BoolLiteral,
     DoubleLiteral,
-    IfStmt, WhileStmt
+    IfStmt, WhileStmt,
+    Err
 };
 
 enum class op_type{

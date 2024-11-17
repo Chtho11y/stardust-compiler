@@ -4,10 +4,10 @@
 #include <vector>
 
 struct Locator{
-    int line_st = 0, line_ed = 0, row_l = 0, row_r = 0;
+    int line_st = 0, line_ed = 0, col_l = 0, col_r = 0;
 
     bool has_value()const {
-        return row_l != row_r;
+        return col_l != col_r;
     }
 };
 
