@@ -19,6 +19,7 @@
 %type<node> ext_decl single_decl
 %type<node> var_decl func_decl struct_decl
 %type<node> struct_members struct_member
+%type<node> array_instance array_objects struct_instance struct_instance_members struct_instance_member
 %type<node> const_desc opt_type_desc type_desc type_desc_no_func type_item type_list
 %type<node> type_list_bk
 %type<node> block block_no_ret block_ret
@@ -146,6 +147,51 @@ func_param:
     }
     ;
 
+array_objects:
+    {$$ = new AstNode(ArrayInstance);}
+    | expr {
+        $$ = new AstNode(ArrayInstance);
+        $$->append($1);
+    }
+    | array_objects COMMA expr {
+        $$ = $1;
+        $$->append($3);
+    }
+    ;
+
+array_instance: 
+    LBRACKET array_objects RBRACKET {
+        $$ = $2;
+    }
+    ;
+
+struct_instance_member:
+    ident COLON expr {
+        $$ = new AstNode(StructInstanceMem);
+        $$->append($1);
+        $$->append($3);
+    }
+    ;
+
+struct_instance_members:
+    struct_instance_member {
+        $$ = new AstNode(StructInstanceMems);
+        $$->append($1);
+    }
+    | struct_instance_members COMMA struct_instance_member {
+        $$ = $1;
+        $$->append($3);
+    }
+    | struct_instance_members COMMA {
+        $$ = $1;
+    }
+    ;
+struct_instance: 
+    TSTRUCT LP struct_instance_members RP {
+        $$ = new AstNode(StructInstance);
+        $$->append($3);
+    }
+    ;
 block: block_no_ret | block_ret;
 
 block_no_ret:
@@ -280,6 +326,8 @@ sub_item:
 
 item: ident 
     | literal
+    | array_instance
+    | struct_instance
     | block_ret
     | control_stmt
     | LP expr_with_comma RP {$$ = $2;}
