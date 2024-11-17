@@ -326,6 +326,8 @@ expr: sub_item
     | expr GT expr      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
     | expr AND expr      {$$ = new OperatorNode(op_type::And, $1, $3);}
     | expr OR expr      {$$ = new OperatorNode(op_type::Or, $1, $3);}
+    | MUL item {$$ = new OperatorNode(op_type::DeRef, $2);}
+    | BITAND item {$$ = new OperatorNode(op_type::Ref, $2);}
     ;
 
 sub_item:

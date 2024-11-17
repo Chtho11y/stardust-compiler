@@ -24,7 +24,8 @@ enum class op_type{
     Add, Sub, Mul, Div, Mod, And, Or,
     BitAnd, BitOr, Xor, Eq, Neq, Le, Ge, Lt, Gt,
     Assign, At, Call, Comma, Access,
-    Pos, Neg, Not, Convert
+    Pos, Neg, Not, Convert,
+    Ref, DeRef
 };
 
 struct AstNode{
