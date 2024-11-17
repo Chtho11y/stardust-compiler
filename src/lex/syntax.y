@@ -171,6 +171,12 @@ control_stmt:
         $$->append($3);
         $$->append($5);        
     }
+    | TIF expr_with_comma block TELSE control_stmt {
+        $$ = new AstNode(IfStmt);
+        $$->append($2);
+        $$->append($3);
+        $$->append($5);
+    }
     | TWHILE expr_with_comma block{
         $$ = new AstNode(WhileStmt);
         $$->append($2);
