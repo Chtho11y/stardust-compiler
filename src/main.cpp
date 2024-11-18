@@ -37,6 +37,8 @@ void print(AstNode* rt, int dep){
         }
     }else{
         std::cout << get_node_name(rt);
+        if(rt->ret_var_type)
+            std::cout << "("  << rt->ret_var_type->to_string()<< ")";
         if(rt->str.size()){
             std::cout << ": " << rt->str;
         }else if(rt->type == Operator){
@@ -59,9 +61,8 @@ void print(AstNode* rt, int dep){
     }
 }
 
-int main(){
+int main(){ 
     ast_info_init();
-    init_type_pool();
 
     auto file = fopen("../test/test.sd", "r");
     set_input(file);

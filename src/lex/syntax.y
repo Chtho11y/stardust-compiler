@@ -215,13 +215,13 @@ return_stmt:
     TRETURN SEMI{$$ = new AstNode(Stmt, "return");}
     | TRETURN expr_with_comma SEMI{
         $$ = new AstNode(Stmt, "return");
-        $$->append($1);
+        $$->append($2);
     }
 
 stmt: var_decl
     | block_no_ret
     | TBREAK SEMI{$$ = new AstNode(Stmt, "break");}
-    | return_stmt {$$ = $1}
+    | return_stmt {$$ = $1;}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr_with_comma SEMI {$$ = $1;}
     ;

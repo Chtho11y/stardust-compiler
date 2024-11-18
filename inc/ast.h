@@ -34,6 +34,8 @@ struct AstNode{
     AstNode* parent;
     std::vector<AstNode*> ch;
 
+    var_type_ptr ret_var_type = nullptr;
+
     bool is_block = false;
 
     AstNode(){
@@ -101,11 +103,14 @@ struct BlockNode: AstNode{
 };
 
 void ast_info_init();
+void op_impl_init();
 AstNode* create_node_from(node_type type, AstNode* ch);
 std::string get_node_name(AstNode* node);
 
 std::shared_ptr<VarType> ast_to_type(AstNode* node);
 std::shared_ptr<VarType> build_sym_table(AstNode* node, sym_table& table);
+
+std::shared_ptr<VarType> op_type_eval(op_type op, std::vector<std::shared_ptr<VarType>> args);
 
 template<node_type type>
 struct Adaptor{};
@@ -122,11 +127,13 @@ struct Adaptor<VarDecl>{
         if(rt->type != VarDecl){
             throw "adaptor type mismatch";
         }
-        is_const = rt->ch[0]->str == "const";
-        id = rt->ch[1]->str;
-        type = rt->ch[2];
-        if(rt->ch.size() > 3)
-            init_val = rt->ch[3];
+        int p = 0;
+        if(rt->ch[0]->type == ConstDesc)
+            is_const = rt->ch[p++]->str == "const";
+        id = rt->ch[p++]->str;
+        type = rt->ch[p++];
+        if(rt->ch.size() > p)
+            init_val = rt->ch[p];
         else init_val = nullptr;
 
         type_info = ast_to_type(type);
@@ -163,6 +170,18 @@ struct Adaptor<StructDecl>{
             Adaptor<VarDecl> var(ch);
             type_info->member.emplace_back(var.id, var.type_info);
         }
+    }
+
+    Adaptor<StructDecl>& check_type(){
+        int cnt = type_info->member.size();
+        for(int i = 0; i < cnt; ++i)
+            for(int j = i + 1; j < cnt; ++j)
+                if(type_info->member[i].first == type_info->member[j].first){
+                    auto nam = type_info->member[i].first;
+                    append_error("member \'"+ nam + "\' is defined twice.");
+                    type_info = nullptr;
+                }
+        return *this;
     }
 };
 

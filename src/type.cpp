@@ -3,7 +3,8 @@
 #include <map>
 #include <memory>
 
-std::map<std::string, std::shared_ptr<VarType>> type_pool;
+std::map<std::string, var_type_ptr> type_pool;
+std::vector<std::shared_ptr<PrimType>> prim_type_list;
 
 void init_type_pool(){
     for(int i = 8; i <= 64; i <<= 1){
@@ -14,27 +15,35 @@ void init_type_pool(){
     type_pool["float32"] = std::make_shared<PrimType>(PrimType::Float, 32);
     type_pool["float64"] = std::make_shared<PrimType>(PrimType::Float, 64);
     type_pool["char"] = std::make_shared<PrimType>(PrimType::Char, 8);
-    type_pool["int"] = std::make_shared<PrimType>(PrimType::Int, 32);
     type_pool["bool"] = std::make_shared<PrimType>(PrimType::Bool, 8);
+
+    for(auto [s, p]: type_pool)
+        prim_type_list.push_back(std::dynamic_pointer_cast<PrimType>(p));
+
+    type_pool["int"] = type_pool["int32"];
 
     type_pool["void"] = std::make_shared<VoidType>();
     type_pool["#err"] = std::make_shared<ErrorType>();
 }
 
-std::shared_ptr<VarType> get_type(std::string name){
+std::vector<std::shared_ptr<PrimType>>& get_prim_list(){
+    return prim_type_list;
+}
+
+var_type_ptr get_type(std::string name){
     if(type_pool.count(name))
         return type_pool[name];
     return std::make_shared<ErrorType>();
 }
 
-bool set_type(std::string name, std::shared_ptr<VarType> type){
+bool set_type(std::string name, var_type_ptr type){
     if(type_pool.count(name))
         return false;
     type_pool[name] = type;
     return true;
 }
 
-bool is_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to){
+bool is_convertable(var_type_ptr from, var_type_ptr to){
 
     // std::cout << "cmp: " << from->to_string() << ", " << to->to_string() << std::endl;
     if(to->is_error() || from->is_error() || from->is_same(to.get())){
@@ -58,7 +67,7 @@ bool is_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to){
     return false;
 }
 
-bool is_force_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to){
+bool is_force_convertable(var_type_ptr from, var_type_ptr to){
     if(to->is_error() || from->is_error() || to->is_same(from.get())){
         return true;
     }else if(to->is_prim()){
@@ -69,12 +78,12 @@ bool is_force_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType
     return false;
 }
 
-void require_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to){
+void require_convertable(var_type_ptr from, var_type_ptr to){
     if(!is_convertable(from, to))
         append_error("Cannot convert type \'" + from->to_string() + "\' to \'" + to->to_string() + "\'.");
 }
 
-std::shared_ptr<VarType> greater_type(std::shared_ptr<VarType> a, std::shared_ptr<VarType> b){
+var_type_ptr greater_type(var_type_ptr a, var_type_ptr b){
     if(a->is_error() || b->is_error())
         return get_type("#err");
     if(is_convertable(a, b))

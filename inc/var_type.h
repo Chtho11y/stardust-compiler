@@ -27,16 +27,6 @@ struct VarType{
     bool is_auto() const{return is_type(Auto);}
 };
 
-void init_type_pool();
-std::shared_ptr<VarType> get_type(std::string name);
-bool set_type(std::string name, std::shared_ptr<VarType> type);
-
-bool is_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to);
-bool is_force_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to);
-void require_convertable(std::shared_ptr<VarType> from, std::shared_ptr<VarType> to);
-std::shared_ptr<VarType> greater_type(std::shared_ptr<VarType> a, std::shared_ptr<VarType> b);
-
-
 struct VoidType: VarType{
     VoidType(): VarType(Void){};
 
@@ -226,3 +216,15 @@ struct VarInfo{
     std::string name;
     std::shared_ptr<VarType> type;
 };
+
+using var_type_ptr = std::shared_ptr<VarType>;
+
+void init_type_pool();
+var_type_ptr get_type(std::string name);
+std::vector<std::shared_ptr<PrimType>>& get_prim_list();
+bool set_type(std::string name, var_type_ptr type);
+
+bool is_convertable(var_type_ptr from, var_type_ptr to);
+bool is_force_convertable(var_type_ptr from, var_type_ptr to);
+void require_convertable(var_type_ptr from, var_type_ptr to);
+var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
