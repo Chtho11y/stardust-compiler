@@ -2,6 +2,8 @@
     // #include "lex.yy.cpp"
     #include "parse.h"
     #include "ast.h"
+    #include "context.h"
+    Locator CurrentCursor;
     void yyerror(const char*);
 %}
 %union{
@@ -10,10 +12,11 @@
     int token_id;
 };
 
-%token<str> INT NAME TTRUE TFALSE
+%token<str> INT NAME INVALID_NAME TTRUE TFALSE
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
+%token<token_id> UNCLOSED_COMMENT
 
 %type<node> program
 %type<node> ext_decl single_decl
@@ -216,11 +219,13 @@ return_stmt:
     | TRETURN expr_with_comma SEMI{
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
+        $$->append($2);
     }
 
 stmt: var_decl
     | block_no_ret
     | TBREAK SEMI{$$ = new AstNode(Stmt, "break");}
+    | return_stmt {$$ = $1;}
     | return_stmt {$$ = $1;}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr_with_comma SEMI {$$ = $1;}
@@ -251,7 +256,9 @@ control_stmt:
     }
     ;
 
-ident: NAME {$$ = new AstNode(Identifier, *$1); free($1);};
+ident: 
+    NAME {$$ = new AstNode(Identifier, *$1); free($1);};
+    | INVALID_NAME error{append_error(std::string("Invalid identifier: ") + $1->val, CurrentCursor); free($1);}
 
 literal:
       INT {$$ = new AstNode(IntLiteral, *$1); free($1);}
@@ -326,6 +333,8 @@ expr: sub_item
     | expr GT expr      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
     | expr AND expr      {$$ = new OperatorNode(op_type::And, $1, $3);}
     | expr OR expr      {$$ = new OperatorNode(op_type::Or, $1, $3);}
+    | MUL item {$$ = new OperatorNode(op_type::DeRef, $2);}
+    | BITAND item {$$ = new OperatorNode(op_type::Ref, $2);}
     ;
 
 sub_item:
@@ -365,5 +374,6 @@ func_args:
 
 %%
 void yyerror(const char *s) {
-    fprintf(stderr, "%s\n", s);
+    // fprintf(stderr, "[Syntax error]: %s (row %d line %d).\n", loc.row_l, loc.line_st);
+    // fprintf(stderr, "%s\n", s);
 }
