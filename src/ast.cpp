@@ -22,7 +22,7 @@ std::string ast_node_name[] = {
 std::string ast_op_name[] = {"Add", "Sub", "Mul", "Div", "Mod", "And", "Or",
                              "BitAnd", "BitOr", "Xor", "Eq", "Neq", "Le", "Ge", "Lt", "Gt",
                              "Assign", "At", "Call", "Comma", "Access",
-                             "Pos", "Neg", "Not", "Convert"};
+                             "Pos", "Neg", "Not", "Convert", "Ref", "Deref"};
 
 void ast_info_init(){
     init_type_pool();

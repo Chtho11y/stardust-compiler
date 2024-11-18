@@ -61,6 +61,26 @@ void print(AstNode* rt, int dep){
     }
 }
 
+void plain_print(AstNode* rt, int dep){
+    for(int i = 0; i < dep; ++i)
+        std::cout << " ";
+
+    if(rt == nullptr){
+        std::cout << "null" << std::endl;
+        return;
+    }
+
+    std::cout << get_node_name(rt);
+    if(rt->str.size()){
+        std::cout << ": " << rt->str;
+    }if(rt->type == Operator){
+        std::cout << ": " << static_cast<OperatorNode*>(rt)->op_name();
+    }
+    std::cout << std::endl;
+    for(auto ch: rt->ch)
+        plain_print(ch, dep + 2);
+}
+
 int main(){ 
     ast_info_init();
 
@@ -69,10 +89,13 @@ int main(){
     yyparse();
     std::string s;
     
+    plain_print(program_root, 0);
     build_sym_table(program_root, program_root->var_table);
     print(program_root, 0);
 
     auto& err = get_error_list();
     for(auto [s, loc]: err)
         std::cout << s << std::endl;
+    int i = 0;
+    
 }

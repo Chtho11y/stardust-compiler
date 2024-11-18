@@ -42,29 +42,31 @@ void impl_int_op(op_type id, int size, var_type_ptr ret = nullptr){
 
     for(auto t: prims){
         if(t->pr_kind != PrimType::Int)
-            break;
+            continue;
 
         impl_op(id, size, t, ret);
     }
 }
 
 void op_impl_init(){
-    for(int i = (int)op_type::Add; i < (int)op_type::Mod; ++i)
+    for(int i = (int)op_type::Add; i <= (int)op_type::Mod; ++i)
         impl_prim_op((op_type)i, 2);
     
     auto logic_op = {op_type::And, op_type::Or, op_type::Not};
     for(auto op: logic_op)
         impl_op(op, 2, get_type("bool"));
     
-    for(int i = (int)op_type::BitAnd; i < (int)op_type::Xor; ++i)
+    for(int i = (int)op_type::BitAnd; i <= (int)op_type::Xor; ++i)
         impl_int_op((op_type)i, 2);
 
-    for(int i = (int)op_type::Eq; i < (int)op_type::Gt; ++i)
+    for(int i = (int)op_type::Eq; i <= (int)op_type::Gt; ++i)
         impl_int_op((op_type)i, 2, get_type("bool"));
     
     impl_prim_op(op_type::Pos, 2);
     impl_prim_op(op_type::Neg, 2);    
 }
+
+// #include<iostream>
 
 var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args){
     switch (op)
@@ -132,7 +134,7 @@ var_type_ptr op_type_eval(op_type op, std::vector<var_type_ptr> args){
                 else nw += 114514;
             }
         }
-        // if(op == op_type::Add)
+        // if(op == op_type::Gt)
         //     std::cout << impl.ret->to_string() << ": " << nw << std::endl;
         if(nw < weight){
             id = cur;

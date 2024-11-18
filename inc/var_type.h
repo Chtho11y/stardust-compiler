@@ -208,7 +208,7 @@ struct StructType: VarType{
 
     bool is_same(VarType* type) const{
         auto st = dynamic_cast<StructType*>(type);
-        return id == st->id;
+        return st && id == st->id;
     }
 };
 

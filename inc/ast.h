@@ -221,4 +221,14 @@ struct Adaptor<FuncDecl>{
     }
 };
 
+struct ast_context{
+    std::vector<AstNode*> while_env;
+    std::vector<AstNode*> func_env;
+    var_type_ptr expect_type;
+
+    ast_context():expect_type(nullptr){};
+
+    
+};
+
 extern BlockNode* program_root;

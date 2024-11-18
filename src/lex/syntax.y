@@ -25,9 +25,9 @@
 %type<node> array_instance array_objects struct_instance struct_instance_members struct_instance_member
 %type<node> const_desc opt_type_desc type_desc type_desc_no_func type_item type_list
 %type<node> type_list_bk
-%type<node> block block_no_ret block_ret
+%type<node> block
 %type<node> stmts stmt control_stmt return_stmt
-%type<node> expr expr_with_comma func_params func_param func_args
+%type<node> expr expr_with_comma func_params func_param func_args full_expr
 %type<node> item sub_item
 %type<node> ident literal
 
@@ -58,14 +58,14 @@ ext_decl:
 single_decl: var_decl | func_decl | struct_decl;
 
 var_decl:
-    const_desc ident opt_type_desc ASSIGN expr SEMI{
+    const_desc ident opt_type_desc ASSIGN full_expr SEMI{
         $$ = new AstNode(VarDecl); 
         $$->append($1);
         $$->append($2); 
         $$->append($3);
         $$->append($5);
      }
-    |const_desc ident opt_type_desc SEMI{
+    | const_desc ident opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
         $$->append($1);
         $$->append($2); 
@@ -195,14 +195,11 @@ struct_instance:
         $$->append($3);
     }
     ;
-block: block_no_ret | block_ret;
 
-block_no_ret:
-    LBRACE stmts RBRACE {$$ = $2;}
-    ;
 
-block_ret:
-    LBRACE stmts expr_with_comma RBRACE {
+block:
+      LBRACE stmts RBRACE {$$ = $2;}
+    | LBRACE stmts expr_with_comma RBRACE {
         $$ = $2;
         $$->type = StmtsRet;
         $$->append($3);
@@ -219,13 +216,12 @@ return_stmt:
     | TRETURN expr_with_comma SEMI{
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
-        $$->append($2);
     }
 
 stmt: var_decl
-    | block_no_ret
+    | block
+    | control_stmt
     | TBREAK SEMI{$$ = new AstNode(Stmt, "break");}
-    | return_stmt {$$ = $1;}
     | return_stmt {$$ = $1;}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr_with_comma SEMI {$$ = $1;}
@@ -303,19 +299,32 @@ type_item:
     | type_list_bk 
     ;
 
+full_expr:
+      expr_with_comma
+    | sub_item
+    ;
+
 expr_with_comma:
     expr
     | expr COMMA expr_with_comma{
         $$ = new OperatorNode(op_type::Comma);
         $$->append($1);
         $$->append($3);
-   }
+    }
+    | sub_item COMMA expr_with_comma{
+        $$ = new OperatorNode(op_type::Comma);
+        $$->append($1);
+        $$->append($3);        
+    }
     ;
 
-expr: sub_item
+expr: item
     | ADD expr %prec NOT{$$ = new OperatorNode(op_type::Pos, $2);}
     | SUB expr %prec NOT{$$ = new OperatorNode(op_type::Neg, $2);}
     | NOT expr{$$ = new OperatorNode(op_type::Not, $2);}
+    | MUL expr %prec NOT{$$ = new OperatorNode(op_type::DeRef, $2);}
+    | BITAND expr %prec NOT{$$ = new OperatorNode(op_type::Ref, $2);}
+    | expr TAS type_desc{$$ = new OperatorNode(op_type::Convert, $1, $3);}
     | expr ASSIGN expr  {$$ = new OperatorNode(op_type::Assign, $1, $3);} 
     | expr ADD expr     {$$ = new OperatorNode(op_type::Add, $1, $3);}
     | expr SUB expr     {$$ = new OperatorNode(op_type::Sub, $1, $3);}
@@ -333,22 +342,40 @@ expr: sub_item
     | expr GT expr      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
     | expr AND expr      {$$ = new OperatorNode(op_type::And, $1, $3);}
     | expr OR expr      {$$ = new OperatorNode(op_type::Or, $1, $3);}
-    | MUL item {$$ = new OperatorNode(op_type::DeRef, $2);}
-    | BITAND item {$$ = new OperatorNode(op_type::Ref, $2);}
+
+    | ADD sub_item %prec NOT{$$ = new OperatorNode(op_type::Pos, $2);}
+    | SUB sub_item %prec NOT{$$ = new OperatorNode(op_type::Neg, $2);}
+    | NOT sub_item{$$ = new OperatorNode(op_type::Not, $2);}
+    | MUL sub_item %prec NOT{$$ = new OperatorNode(op_type::DeRef, $2);}
+    | BITAND sub_item %prec NOT{$$ = new OperatorNode(op_type::Ref, $2);}
+    | sub_item TAS type_desc{$$ = new OperatorNode(op_type::Convert, $1, $3);}
+    | sub_item ASSIGN expr  {$$ = new OperatorNode(op_type::Assign, $1, $3);} 
+    | expr ADD sub_item     {$$ = new OperatorNode(op_type::Add, $1, $3);}
+    | expr SUB sub_item     {$$ = new OperatorNode(op_type::Sub, $1, $3);}
+    | expr MUL sub_item     {$$ = new OperatorNode(op_type::Mul, $1, $3);}
+    | expr DIV sub_item     {$$ = new OperatorNode(op_type::Div, $1, $3);}
+    | expr MOD sub_item     {$$ = new OperatorNode(op_type::Mod, $1, $3);}
+    | expr BITAND sub_item  {$$ = new OperatorNode(op_type::BitAnd, $1, $3);}
+    | expr BITOR sub_item   {$$ = new OperatorNode(op_type::BitOr, $1, $3);}
+    | expr XOR sub_item     {$$ = new OperatorNode(op_type::Xor, $1, $3);}
+    | expr EQ sub_item      {$$ = new OperatorNode(op_type::Eq, $1, $3);}
+    | expr NEQ sub_item     {$$ = new OperatorNode(op_type::Neq, $1, $3);}
+    | expr LE sub_item      {$$ = new OperatorNode(op_type::Le, $1, $3);}
+    | expr GE sub_item      {$$ = new OperatorNode(op_type::Ge, $1, $3);}
+    | expr LT sub_item      {$$ = new OperatorNode(op_type::Lt, $1, $3);}
+    | expr GT sub_item      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
+    | expr AND sub_item      {$$ = new OperatorNode(op_type::And, $1, $3);}
+    | expr OR sub_item      {$$ = new OperatorNode(op_type::Or, $1, $3);}
     ;
 
-sub_item:
-     item
-    |sub_item TAS type_desc{$$ = new OperatorNode(op_type::Convert, $1, $3);}
-    ;
+sub_item: block | control_stmt;
 
 item: ident 
     | literal
     | array_instance
     | struct_instance
-    | block_ret
-    | control_stmt
     | LP expr_with_comma RP {$$ = $2;}
+    | LP sub_item RP {$$ = $2;}
     | item LBRACKET expr_with_comma RBRACKET %prec DOT{
         $$ = new OperatorNode(op_type::At);
         $$->append($1);
@@ -375,5 +402,5 @@ func_args:
 %%
 void yyerror(const char *s) {
     // fprintf(stderr, "[Syntax error]: %s (row %d line %d).\n", loc.row_l, loc.line_st);
-    // fprintf(stderr, "%s\n", s);
+    fprintf(stderr, "%s\n", s); 
 }
