@@ -4,10 +4,11 @@
     #include "ast.h"
     #include "context.h"
     Locator CurrentCursor;
+    bool EOF_FLAG = false;
     void yyerror(const char*);
     #define yyerrok1 (yyerrstatus=1)
     #define echo_error(s) \
-        set_error_message(s);
+        set_error_message(s)
 %}
 %union{
     Token* str;
@@ -16,6 +17,7 @@
 };
 
 %token<str> INT NAME INVALID_NAME TTRUE TFALSE
+%token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
@@ -112,11 +114,16 @@ struct_decl:
         $$->append($3);
         yyerrok;
     }
-    | struct_decl_ident LBRACE struct_members error SEMI {
+    | struct_decl_ident LBRACE struct_members error SEMI{
         $$ = new AstNode(Err);
         echo_error("Missing }");
         yyerrok;
     }
+    // | struct_decl_ident LBRACE struct_members error E0F{
+    //     $$ = new AstNode(Err);
+    //     echo_error("Missing }");
+    //     yyerrok;
+    // }
     | struct_decl_ident error {
         $$ = new AstNode(Err);
         echo_error("Invalid struct declaration!");
@@ -141,6 +148,7 @@ struct_members: {
     | struct_members COMMA {yyerrok;} struct_member{
         $$ = $1;
         $$->append($4);
+        yyerrok;
     }
     | struct_members COMMA {
         $$ = $1;
@@ -148,7 +156,11 @@ struct_members: {
     }
     | struct_members error {
         $$ = $1;
-        echo_error("Invalid struct member!");
+        if (yychar == YYEOF) {
+            echo_error("Missing }");
+        }
+        else 
+            echo_error("Invalid struct member!");
         // yyerrok;
     }
     ;
@@ -291,7 +303,7 @@ array_instance:
         yyerrok;
     }
     | LBRACKET array_objects error SEMI {
-        echo_error("Missing ]");
+        echo_error("Missing ]!");
         yyerrok;
     }
     ;
@@ -302,6 +314,10 @@ struct_instance_member:
         $$->append($1);
         $$->append($3);
     }
+    | ident error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid struct instance member!");
+    }
     ;
 
 struct_instance_members: {
@@ -311,18 +327,24 @@ struct_instance_members: {
     struct_instance_member {
         $$ = new AstNode(StructInstanceMems);
         $$->append($1);
+        yyerrok;
     }
-    | struct_instance_members COMMA struct_instance_member {
+    | struct_instance_members COMMA {yyerrok;} struct_instance_member {
         $$ = $1;
-        $$->append($3);
+        $$->append($4);
+        yyerrok;
     }
     | struct_instance_members COMMA {
         $$ = $1;
-    }
-    | error {
-        $$ = new AstNode(Err);
-        set_error_message("Invalid struct instance element!");
         yyerrok;
+    }
+    | struct_instance_members error {
+        $$ = new AstNode(Err);
+        if (yychar == YYEOF)
+            echo_error("Missing }");
+        else 
+            echo_error("Invalid struct instance element!");
+        // yyerrok;
     }
     ;
 struct_instance: 
@@ -336,10 +358,17 @@ struct_instance:
         yyerrok;
     }
     ;
-block: block_no_ret | block_ret;
+block: block_no_ret 
+    | block_ret
+    ;
 
 block_no_ret:
-    LBRACE stmts RBRACE {$$ = $2;}
+    LBRACE stmts RBRACE {$$ = $2;} 
+    | LBRACE stmts error RBRACE{
+        echo_error("Invalid ending of block!");
+        $$ = $2;
+        yyerrok;
+    }
     ;
 
 block_ret:
@@ -352,11 +381,17 @@ block_ret:
 
 stmts:
      {$$ = new BlockNode(Stmts);}
-    | stmts stmt{$$ = $1; $$->append($2);}
-    | error {
-        $$ = new AstNode(Err);
+    | stmts stmt {$$ = $1; $$->append($2);}
+    | stmts error SEMI{
+        $$ = $1;
         set_error_message("Invalid statement!");
+        yyerrok;
     } 
+    // | stmts error {
+    //     $$ = $1;
+    //     set_error_message("Invalid statement!");
+    //     // yyerrok;
+    // } 
     ;
 
 return_stmt: 
@@ -364,6 +399,11 @@ return_stmt:
     | TRETURN expr_with_comma SEMI{
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
+    }
+    | TRETURN error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid return!");
+        yyerrok;
     }
 
 stmt: var_decl
@@ -397,21 +437,46 @@ control_stmt:
         $$->append($2);
         $$->append($3);       
     }
+    | TIF error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid if!");
+        yyerrok;
+    }
+    | TWHILE error {
+        $$ = new AstNode(Err);
+        echo_error("Inavlid while");
+        yyerrok;
+    }
+    | TELSE error{
+        $$ = new AstNode(Err);
+        echo_error("Unmatched else!");
+        yyerrok;
+    }// todo: detailed control stmt error
     ;
 
 ident: 
     NAME {$$ = new AstNode(Identifier, *$1); free($1);};
-    | INVALID_NAME error{set_error_message(std::string("Invalid identifier: ") + $1->val); free($1);}
+    | INVALID_NAME error{echo_error(std::string("Invalid identifier: ") + $1->val); free($1);}
 
 literal:
       INT {$$ = new AstNode(IntLiteral, *$1); free($1);}
     | TTRUE {$$ = new AstNode(BoolLiteral, *$1); free($1);}
     | TFALSE{$$ = new AstNode(BoolLiteral, *$1); free($1);}
+    | HEX {$$ = new AstNode(IntLiteral, *$1); free($1);}
+    | BINARY {$$ = new AstNode(IntLiteral, *$1); free($1);}
+    | FLOAT {$$ = new AstNode(IntLiteral, *$1); free($1);}
+    | CHAR {$$ = new AstNode(IntLiteral, *$1); free($1);}
+    | STRING {$$ = new AstNode(IntLiteral, *$1); free($1);}
     ;
 
 opt_type_desc:
     {$$ = new AstNode(TypeDesc, "#auto");}
     |COLON type_desc {$$ = $2;};
+    | COLON error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid type!");
+        yyerrok;
+    }
 
 type_desc: type_desc_no_func 
     | type_list_bk ARROW type_desc{
@@ -448,41 +513,69 @@ type_item:
 
 expr_with_comma:
     expr
-    | expr COMMA expr_with_comma{
+    | expr_with_comma {yyerrok;} COMMA expr{
         $$ = new OperatorNode(op_type::Comma);
         $$->append($1);
-        $$->append($3);
-   }
+        $$->append($4);
+        yyerrok;
+    }
+    | expr_with_comma error {
+        $$ = $1;
+        echo_error("Invalid comma expression!");
+    }
     ;
 
 expr: sub_item
     | ADD expr %prec NOT{$$ = new OperatorNode(op_type::Pos, $2);}
+    | ADD error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | SUB expr %prec NOT{$$ = new OperatorNode(op_type::Neg, $2);}
+    | SUB error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | NOT expr{$$ = new OperatorNode(op_type::Not, $2);}
+    | NOT error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr ASSIGN expr  {$$ = new OperatorNode(op_type::Assign, $1, $3);} 
+    | expr ASSIGN error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr ADD expr     {$$ = new OperatorNode(op_type::Add, $1, $3);}
+    | expr ADD error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr SUB expr     {$$ = new OperatorNode(op_type::Sub, $1, $3);}
+    | expr SUB error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr MUL expr     {$$ = new OperatorNode(op_type::Mul, $1, $3);}
+    | expr MUL error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr DIV expr     {$$ = new OperatorNode(op_type::Div, $1, $3);}
+    | expr DIV error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr MOD expr     {$$ = new OperatorNode(op_type::Mod, $1, $3);}
+    | expr MOD error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr BITAND expr  {$$ = new OperatorNode(op_type::BitAnd, $1, $3);}
+    | expr BITAND error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr BITOR expr   {$$ = new OperatorNode(op_type::BitOr, $1, $3);}
+    | expr BITOR error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr XOR expr     {$$ = new OperatorNode(op_type::Xor, $1, $3);}
+    | expr XOR error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr EQ expr      {$$ = new OperatorNode(op_type::Eq, $1, $3);}
+    | expr EQ error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr NEQ expr     {$$ = new OperatorNode(op_type::Neq, $1, $3);}
+    | expr NEQ error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr LE expr      {$$ = new OperatorNode(op_type::Le, $1, $3);}
+    | expr LE error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr GE expr      {$$ = new OperatorNode(op_type::Ge, $1, $3);}
+    | expr GE error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr LT expr      {$$ = new OperatorNode(op_type::Lt, $1, $3);}
+    | expr LT error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr GT expr      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
+    | expr GT error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr AND expr      {$$ = new OperatorNode(op_type::And, $1, $3);}
+    | expr AND error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | expr OR expr      {$$ = new OperatorNode(op_type::Or, $1, $3);}
+    | expr OR error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | MUL item {$$ = new OperatorNode(op_type::DeRef, $2);}
+    | MUL error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     | BITAND item {$$ = new OperatorNode(op_type::Ref, $2);}
+    | BITAND error {$$ = new AstNode(Err); echo_error("Invalid expression!");}
     ;
 
 sub_item:
      item
     |sub_item TAS type_desc{$$ = new OperatorNode(op_type::Convert, $1, $3);}
+    |sub_item TAS error {$$ = new AstNode(Err); echo_error("Invalid type conversion"); }
     ;
 
 item: ident 
@@ -492,15 +585,30 @@ item: ident
     | block_ret
     | control_stmt
     | LP expr_with_comma RP {$$ = $2;}
+    | LP expr_with_comma error SEMI {
+        echo_error("Missing )");
+        $$ = $2;
+        yyerrok;
+    }
     | item LBRACKET expr_with_comma RBRACKET %prec DOT{
         $$ = new OperatorNode(op_type::At);
         $$->append($1);
         $$->append($3);
     }
+    | item LBRACKET expr_with_comma SEMI {
+        echo_error("Missing ]");
+        $$ = $3;
+        yyerrok;
+    }
     | item LP func_args RP %prec DOT{
         $$ = new OperatorNode(op_type::Call);
         $$->append($1);
         $$->append($3);
+    }
+    | item LP func_args SEMI {
+        echo_error("Missing )");
+        $$ = new AstNode(Err);
+        yyerrok;
     }
     | item DOT ident{
         $$ = new OperatorNode(op_type::Access);
@@ -512,7 +620,11 @@ item: ident
 func_args:
     {$$ = new AstNode(FuncArgs);}
     | expr {$$ = create_node_from(FuncArgs, $1);}
-    | func_args COMMA expr {$$ = $1; $$->append($3);}
+    | func_args {yyerrok;} COMMA expr {$$ = $1; $$->append($4); yyerrok;}
+    | func_args error {
+        $$ = $1;
+        echo_error("Invalid function argument!");
+    }
     ;
 
 %%
