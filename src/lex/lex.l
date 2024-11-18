@@ -77,7 +77,7 @@ false {return make_token(TFALSE, true);}
 "|" {return make_token(BITOR);}
 "^" {return make_token(XOR);}
 "=" {return make_token(ASSIGN);}
-[/][*] {append_error("Unclosed comments!", CurrentCursor);}
+[/][*].* {append_error("Unclosed comments!", CurrentCursor);}
 . {append_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
 %%
 

@@ -5,6 +5,9 @@
     #include "context.h"
     Locator CurrentCursor;
     void yyerror(const char*);
+    #define yyerrok1 (yyerrstatus=1)
+    #define echo_error(s) \
+        set_error_message(s);
 %}
 %union{
     Token* str;
@@ -28,7 +31,7 @@
 %type<node> type_list_bk
 %type<node> block block_no_ret block_ret
 %type<node> stmts stmt control_stmt return_stmt
-%type<node> expr expr_with_comma func_params func_param func_args
+%type<node> expr expr_with_comma func_params func_param func_args func_params_pr
 %type<node> item sub_item
 %type<node> ident literal
 
@@ -52,11 +55,13 @@ program:
 
 ext_decl:
     {$$ = new BlockNode(ExtDecl);}
-    | ext_decl SEMI {$$ = $1;}
-    | ext_decl single_decl {$$ = $1; $$->append($2);} 
+    | ext_decl SEMI {$$ = $1; yyerrok;}
+    | ext_decl {yyerrok;} single_decl {$$ = $1; $$->append($3); yyerrok;} 
+    | ext_decl error {$$ = $1;  echo_error("Invalid ext declartion!"); }
     ;
 
-single_decl: var_decl | func_decl | struct_decl;
+single_decl: var_decl | func_decl | struct_decl
+    ;
 
 var_decl:
     const_desc ident opt_type_desc ASSIGN expr SEMI{
@@ -72,9 +77,10 @@ var_decl:
         $$->append($2); 
         $$->append($3);
     }
-    | const_desc error SEMI {
+    | const_desc error SEMI{
         $$ = new AstNode(Err);
-        set_error_message("Invalid variable declaration!");
+        echo_error("Invalid variable declaration!");
+        yyerrok;
     }
     ;
 
@@ -94,7 +100,8 @@ struct_decl_ident:
     | TSTRUCT error {
         $$ = new AstNode(StructDecl);
         $$->append(new AstNode(Err));
-        set_error_message("Missing struct identifier!");
+        echo_error("Missing struct identifier!");
+        yyerrok;
     }
 
 
@@ -103,13 +110,17 @@ struct_decl:
         $$ = new AstNode(StructDecl);
         $$->append($1);
         $$->append($3);
+        yyerrok;
     }
-    | TSTRUCT error {
-        // $$ = new AstNode(StructDecl);
-        // $$->append($1);
-        // $$->append(new AstNode(StructMem));
+    | struct_decl_ident LBRACE struct_members error SEMI {
         $$ = new AstNode(Err);
-        set_error_message("Invalid struct declaration!");
+        echo_error("Missing }");
+        yyerrok;
+    }
+    | struct_decl_ident error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid struct declaration!");
+        yyerrok;
     }
 
     // | TSTRUCT ident LBRACE struct_members COMMA RBRACE{
@@ -125,17 +136,20 @@ struct_members: {
     | 
     struct_member {
         $$ = create_node_from(StructMem, $1);
+        yyerrok;
     }
-    | struct_members COMMA struct_member{
+    | struct_members COMMA {yyerrok;} struct_member{
         $$ = $1;
-        $$->append($3);
+        $$->append($4);
     }
     | struct_members COMMA {
         $$ = $1;
+        yyerrok;
     }
-    | error {
-        $$ = new AstNode(Err);
-        set_error_message("Invalid struct member!");
+    | struct_members error {
+        $$ = $1;
+        echo_error("Invalid struct member!");
+        // yyerrok;
     }
     ;
 
@@ -144,6 +158,10 @@ struct_member:
         $$ = new AstNode(VarDecl);
         $$->append($1);
         $$->append($3);
+    }
+    | ident error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid struct member!");
     }
     ;
 
@@ -155,7 +173,8 @@ func_decl_ident:
     | TFUNC error {
         $$ = new AstNode(FuncDecl);
         $$->append(new AstNode(Err));
-        set_error_message("Missing function identifier!");
+        echo_error("Missing function identifier!");
+        yyerrok;
     }
     ;
 func_decl_ret_type: {
@@ -166,7 +185,8 @@ func_decl_ret_type: {
     }
     | ARROW error {
         $$ = new AstNode(Err);
-        set_error_message("Invalid function return type");
+        echo_error("Invalid function return type");
+        yyerrok;
     }
     ;
 func_decl:
@@ -183,34 +203,55 @@ func_decl:
     //     $$->append($6);
     //     $$->append($7);
     // }
-    func_decl_ident LP func_params RP func_decl_ret_type block {
+    func_decl_ident func_params_pr func_decl_ret_type block {
         $$ = $1;
+        $$->append($2);
         $$->append($3);
-        $$->append($5);
-        $$->append($6);
+        $$->append($4);
+        yyerrok;
     }
-    | func_decl_ident LP func_params RP func_decl_ret_type error {
+    | func_decl_ident func_params_pr func_decl_ret_type error {
         $$ = new AstNode(Err);
-        set_error_message("Invalid function body");
+        echo_error("Invalid function body");
+        yyerrok;
     }
-    | TFUNC error {
+    | func_decl_ident LP func_params error block {
         $$ = new AstNode(Err);
-        set_error_message("Invalid function declaration!");
+        echo_error("Missing )");
     }
+    | func_decl_ident LP func_params error SEMI {
+        $$ = new AstNode(Err);
+        echo_error("Missing )");
+    }
+    | func_decl_ident error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid function declaration!");
+        yyerrok;
+    } //todo: more detailed function error message!
     ;
 
+func_params_pr:
+    LP func_params RP {$$ = $2; yyerrok;}
+    // | LP func_params error {
+    //     $$ = new AstNode(Err);
+    //     echo_error("Missing )");
+    // }
+    ;
 func_params:
     {$$ = new AstNode(FuncParams);}
-    |func_params COMMA func_param{
+    |func_params COMMA {yyerrok;} func_param{
         $$ = $1;
-        $$->append($3);
+        $$->append($4);
+        yyerrok;
     }
     |func_param{
         $$ = create_node_from(FuncParams, $1);
+        yyerrok;
     }
-    | error {
+    | func_params error {
         $$ = new AstNode(Err);
-        set_error_message("Invalid function parameters!");
+        echo_error("Invalid function parameter!");
+        // yyerrok;
     }
     ;
 
@@ -220,6 +261,10 @@ func_param:
         $$->append($1);
         $$->append($3);
     }
+    | ident error {
+        $$ = new AstNode(Err);
+        echo_error("Invalid function parameter!");
+    }
     ;
 
 array_objects:
@@ -227,16 +272,27 @@ array_objects:
     | expr {
         $$ = new AstNode(ArrayInstance);
         $$->append($1);
+        yyerrok;
     }
-    | array_objects COMMA expr {
+    | array_objects COMMA {yyerrok;} expr {
         $$ = $1;
-        $$->append($3);
+        $$->append($4);
+    }
+    | array_objects error {
+        $$ = $1;
+        echo_error("Invalid array element!");
+        // yyerrok;
     }
     ;
 
 array_instance: 
     LBRACKET array_objects RBRACKET {
         $$ = $2;
+        yyerrok;
+    }
+    | LBRACKET array_objects error SEMI {
+        echo_error("Missing ]");
+        yyerrok;
     }
     ;
 
@@ -248,7 +304,10 @@ struct_instance_member:
     }
     ;
 
-struct_instance_members:
+struct_instance_members: {
+        $$ = new AstNode(StructInstanceMems);
+    }
+    |
     struct_instance_member {
         $$ = new AstNode(StructInstanceMems);
         $$->append($1);
@@ -260,11 +319,21 @@ struct_instance_members:
     | struct_instance_members COMMA {
         $$ = $1;
     }
+    | error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid struct instance element!");
+        yyerrok;
+    }
     ;
 struct_instance: 
-    TSTRUCT LP struct_instance_members RP {
+    TSTRUCT LBRACE struct_instance_members RBRACE {
         $$ = new AstNode(StructInstance);
         $$->append($3);
+    }
+    | TSTRUCT error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid struct instance!");
+        yyerrok;
     }
     ;
 block: block_no_ret | block_ret;
@@ -283,7 +352,11 @@ block_ret:
 
 stmts:
      {$$ = new BlockNode(Stmts);}
-    |stmts stmt{$$ = $1; $$->append($2);} 
+    | stmts stmt{$$ = $1; $$->append($2);}
+    | error {
+        $$ = new AstNode(Err);
+        set_error_message("Invalid statement!");
+    } 
     ;
 
 return_stmt: 
@@ -444,6 +517,7 @@ func_args:
 
 %%
 void yyerror(const char *s) {
+    // fprintf(stderr, "[Syntax error]: %d %d\n", CurrentCursor.line_st, CurrentCursor.col_l);
     append_error(CurrentCursor);
     // fprintf(stderr, "[Syntax error]: %s (row %d line %d).\n", loc.row_l, loc.line_st);
     // fprintf(stderr, "%s\n", s);
