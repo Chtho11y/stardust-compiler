@@ -15,9 +15,11 @@ enum node_type{
     Stmts, StmtsRet, Stmt, Expr, Operator,
     Identifier,
     IntLiteral,
+    Hex,
     BoolLiteral,
     DoubleLiteral,
-    IfStmt, WhileStmt
+    IfStmt, WhileStmt,
+    Err
 };
 
 enum class op_type{
