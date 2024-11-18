@@ -84,13 +84,15 @@ false {return make_token(TFALSE, true);}
 "^" {return make_token(XOR);}
 "=" {return make_token(ASSIGN);}
 [/][*].* {append_error("Unclosed comments!", CurrentCursor);}
+. {append_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
+%%
+
+/*
 0[^xXbB0-7]? {append_error("Invalid numeric literal: " + std::string(yytext), CurrentCursor);}
 \"([^\"\\]|\\["\\ntbfr])* {append_error("Unclosed string literal: " + std::string(yytext), CurrentCursor);}
 '([^'\\]|\\['\\ntbfr])* {append_error("Unclosed character literal: " + std::string(yytext), CurrentCursor);}
 '([^'\\]|\\['\\ntbfr])[^']+' {append_error("Invalid character literal: " + std::string(yytext), CurrentCursor);}
-. {append_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
-%%
-
+*/
 int make_token(int type, bool set_val){
     CurrentCursor = {lines, lines, last, last + yyleng - 1};
     if(set_val){

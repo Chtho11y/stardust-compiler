@@ -4,6 +4,7 @@
 #include "context.h"
 #include <iostream>
 #include <cstdlib>
+#include <cstring>
 
 BlockNode* program_root = nullptr;
 
@@ -59,21 +60,46 @@ void print(AstNode* rt, int dep){
     }
 }
 
-int main(){
-    ast_info_init();
-    init_type_pool();
+int main(int argc, char* argv[]){
+    if (argc == 1) {
+        ast_info_init();
+        init_type_pool();
 
-    auto file = fopen("../test/test.sd", "r");
-    set_input(file);
-    yyparse();
-    std::string s;
+        auto file = fopen("../test/test.sd", "r");
+        set_input(file);
+        yyparse();
+        std::string s;
+        
+        // build_sym_table(program_root, program_root->var_table);
+        auto& err = get_error_list();
+        if (!err.size())
+            print(program_root, 0);
+
+        // auto& err = get_error_list();
+        for(auto [s, loc]: err)
+            std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
+    }
+    else {
+        for (int i = 1; i < argc; i++) {
+            ast_info_init();
+            init_type_pool();
+            // char tmp[1024] = "../test/";
+            // strcat(tmp, argv[i]);
+            auto file = fopen(argv[i], "r");
+            set_input(file);
+            yyparse();
+            std::string s;
+            // build_sym_table(program_root, program_root->var_table);
+            auto& err = get_error_list();
+            if (!err.size())
+                print(program_root, 0);
+
+            // auto& err = get_error_list();
+            for(auto [s, loc]: err)
+                std::cout << (s == "" ? "undefined error" : s)  << " (" << loc.line_st + 1 << ", " << loc.col_l + 1<< ") " << std::endl;
+            delete program_root;
+            err.clear();
+        }
+    }
     
-    // build_sym_table(program_root, program_root->var_table);
-    auto& err = get_error_list();
-    if (!err.size())
-        print(program_root, 0);
-
-    // auto& err = get_error_list();
-    for(auto [s, loc]: err)
-        std::cout << s << " (" << loc.line_st << ", " << loc.col_l << ") " << std::endl;
 }

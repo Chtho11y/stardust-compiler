@@ -12,7 +12,6 @@ struct Locator{
 };
 
 extern Locator CurrentCursor;
-
 struct Token{
     std::string val;
     int token_id;

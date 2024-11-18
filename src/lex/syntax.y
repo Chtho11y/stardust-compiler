@@ -84,7 +84,6 @@ var_decl:
         echo_error("Invalid variable declaration!");
         yyerrok;
     }
-    ;
 
 const_desc: 
     TCONST {
@@ -289,6 +288,7 @@ array_objects:
     | array_objects COMMA {yyerrok;} expr {
         $$ = $1;
         $$->append($4);
+        yyerrok;
     }
     | array_objects error {
         $$ = $1;
@@ -395,7 +395,7 @@ stmts:
     ;
 
 return_stmt: 
-    TRETURN SEMI{$$ = new AstNode(Stmt, "return");}
+    TRETURN SEMI{ $$ = new AstNode(Stmt, "return");}
     | TRETURN expr_with_comma SEMI{
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
@@ -595,11 +595,11 @@ item: ident
         $$->append($1);
         $$->append($3);
     }
-    | item LBRACKET expr_with_comma SEMI {
-        echo_error("Missing ]");
-        $$ = $3;
-        yyerrok;
-    }
+    // | item LBRACKET expr_with_comma SEMI {
+    //     echo_error("Missing ]");
+    //     $$ = $3;
+    //     yyerrok;
+    // }
     | item LP func_args RP %prec DOT{
         $$ = new OperatorNode(op_type::Call);
         $$->append($1);
