@@ -47,7 +47,6 @@ true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}
 {letter_}({letter_}|{digit})* {return make_token(NAME, true);}
 {digit}({digit})* {return make_token(INT, true);}
-({letter_}|{digit})+ {return make_token(INVALID_NAME, true);}
 
 0[xX][0-9a-fA-F]+ {return make_token(HEX, true);}
 0[bB][01]+ {return make_token(BINARY, true);}
