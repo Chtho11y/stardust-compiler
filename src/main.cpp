@@ -84,42 +84,18 @@ void plain_print(AstNode* rt, int dep){
 
 
 int main(int argc, char* argv[]){
-    if (argc == 1) {
-        ast_info_init();
+    ast_info_init();
 
-        auto file = fopen("../test/test.sd", "r");
-        set_input(file);
-        yyparse();
-        std::string s;
-        
-        // build_sym_table(program_root, program_root->var_table);
-        auto& err = get_error_list();
-        if (!err.size())
-            print(program_root, 0);
+    auto file = fopen("../test/test.sd", "r");
+    set_input(file);
+    yyparse();
+    std::string s;
+    
+    // build_sym_table(program_root, program_root->var_table);
+    auto& err = get_error_list();
+    if (!err.size())
+        plain_print(program_root, 0);
 
-        // auto& err = get_error_list();
-        for(auto [s, loc]: err)
-            std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
-    }
-    else {
-        for (int i = 1; i < argc; i++) {
-            ast_info_init();
-            // char tmp[1024] = "../test/";
-            // strcat(tmp, argv[i]);
-            auto file = fopen(argv[i], "r");
-            set_input(file);
-            yyparse();
-            std::string s;
-            // build_sym_table(program_root, program_root->var_table);
-            auto& err = get_error_list();
-            if (!err.size())
-                print(program_root, 0);
-
-            // auto& err = get_error_list();
-            for(auto [s, loc]: err)
-                std::cout << (s == "" ? "undefined error" : s)  << " (" << loc.line_st + 1 << ", " << loc.col_l + 1<< ") " << std::endl;
-            delete program_root;
-            err.clear();
-        }
-    }
+    for(auto [s, loc]: err)
+        std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
 }

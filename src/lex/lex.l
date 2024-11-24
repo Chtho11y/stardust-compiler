@@ -94,8 +94,16 @@ false {return make_token(TFALSE, true);}
 '([^'\\]|\\['\\ntbfr])[^']+' {append_error("Invalid character literal: " + std::string(yytext), CurrentCursor);}
 */
 int make_token(int type, bool set_val){
+
     CurrentCursor = {lines, lines, last, last + yyleng - 1};
     if(set_val){
+        std::string val(yytext);
+
+        if(type == NAME && !parser_context.get_ignore()){
+            if(parser_context.is_type(val))
+            type = TYPENAME;
+        }
+
         auto res = new Token{yytext, type, CurrentCursor};
         yylval.str = res;
     }

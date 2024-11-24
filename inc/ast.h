@@ -12,13 +12,14 @@ enum node_type{
     TypeDesc, ConstDesc,
     ArrayInstance, StructInstance, StructInstanceMems, StructInstanceMem,
     FuncParams, FuncArgs, TypeList,
-    Stmts, StmtsRet, Stmt, Expr, Operator,
+    Stmts, StmtsRet, Stmt, Expr, ExprList, Operator,
     Identifier,
     IntLiteral,
-    Hex,
+    CharLiteral,
+    StringLiteral,
     BoolLiteral,
     DoubleLiteral,
-    IfStmt, WhileStmt,
+    IfStmt, WhileStmt, ForStmt,
     Err
 };
 

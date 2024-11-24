@@ -14,10 +14,11 @@ std::string ast_node_name[] = {
     "TypeDesc", "ConstDesc",
     "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem",
     "FuncParams", "FuncArgs", "TypeList", 
-    "Stmts", "StmtsRet", "Stmt", "Expr", 
+    "Stmts", "StmtsRet", "Stmt", "Expr", "ExprList",
     "Operator", "Identifier", 
-    "IntLiteral", "BoolLiteral", "DoubleLiteral", 
-    "IfStmt", "WhileStmt"
+    "IntLiteral", "CharLiteral", "StringLiteral", "BoolLiteral", "DoubleLiteral", 
+    "IfStmt", "WhileStmt", "ForStmt",
+    "Err"
 };
 std::string ast_op_name[] = {"Add", "Sub", "Mul", "Div", "Mod", "And", "Or",
                              "BitAnd", "BitOr", "Xor", "Eq", "Neq", "Le", "Ge", "Lt", "Gt",
@@ -72,7 +73,9 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             return std::make_shared<AutoType>();
         }else return ast_to_type(node->ch[0]);
     }else if(node->type == TypeList){
-        if(node->ch.size() == 1){
+        if(node->ch.size() == 0){
+            return get_type("void");
+        }else if(node->ch.size() == 1){
             return ast_to_type(node->ch[0]);
         }else{
             return get_type("#err");

@@ -2,6 +2,8 @@
 
 error_list errors;
 
+ParserContext parser_context;
+
 void append_error(Locator loc){
     errors.emplace_back(std::string(), loc);
 }
