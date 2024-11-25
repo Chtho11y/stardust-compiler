@@ -39,12 +39,13 @@ var_type_ptr get_type(std::string name){
 bool set_type(std::string name, var_type_ptr type){
     if(type_pool.count(name))
         return false;
+    type = decay(type);
     type_pool[name] = type;
     return true;
 }
 
 bool is_convertable(var_type_ptr from, var_type_ptr to){
-
+    from = decay(from), to = decay(to);
     // std::cout << "cmp: " << from->to_string() << ", " << to->to_string() << std::endl;
     if(to->is_error() || from->is_error() || from->is_same(to.get())){
         return true;
@@ -68,6 +69,7 @@ bool is_convertable(var_type_ptr from, var_type_ptr to){
 }
 
 bool is_force_convertable(var_type_ptr from, var_type_ptr to){
+    from = decay(from), to = decay(to);
     if(to->is_error() || from->is_error() || to->is_same(from.get())){
         return true;
     }else if(to->is_prim()){
@@ -78,12 +80,13 @@ bool is_force_convertable(var_type_ptr from, var_type_ptr to){
     return false;
 }
 
-void require_convertable(var_type_ptr from, var_type_ptr to){
+void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc){
     if(!is_convertable(from, to))
-        append_error("Cannot convert type \'" + from->to_string() + "\' to \'" + to->to_string() + "\'.");
+        append_error("Cannot convert type \'" + from->to_string() + "\' to \'" + to->to_string() + "\'.", loc);
 }
 
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b){
+    a = decay(a), b = decay(b);
     if(a->is_error() || b->is_error())
         return get_type("#err");
     if(is_convertable(a, b))
@@ -91,4 +94,16 @@ var_type_ptr greater_type(var_type_ptr a, var_type_ptr b){
     else if(is_convertable(b, a))
         return a;
     else return get_type("void");
+}
+
+var_type_ptr ref_type(var_type_ptr ptr){
+    if(ptr->is_void() || ptr->is_error())
+        return ptr;
+    return std::make_shared<RefType>(ptr);
+}
+
+var_type_ptr decay(var_type_ptr ptr){
+    while(ptr->is_ref())
+        ptr = std::dynamic_pointer_cast<RefType>(ptr)->subtype;
+    return ptr;
 }

@@ -63,7 +63,7 @@ void op_impl_init(){
         impl_int_op((op_type)i, 2, get_type("bool"));
     
     impl_prim_op(op_type::Pos, 2);
-    impl_prim_op(op_type::Neg, 2);    
+    impl_prim_op(op_type::Neg, 2);
 }
 
 // #include<iostream>
@@ -74,23 +74,25 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args){
     case op_type::Comma: return args.back();
 
     case op_type::At:{
-        if(args[0]->is_ptr()){
-            auto ptr = std::dynamic_pointer_cast<PointerType>(args[0]);
+        auto op_l = decay(args[0]);
+        if(op_l->is_ptr()){
+            auto ptr = std::dynamic_pointer_cast<PointerType>(op_l);
             require_convertable(args[1], get_type("uint64"));
-            return ptr->subtype;
-        }else if(args[0]->is_array()){
-            auto arr = std::dynamic_pointer_cast<ArrayType>(args[0]);
+            return ref_type(ptr->subtype);
+        }else if(op_l->is_array()){
+            auto arr = std::dynamic_pointer_cast<ArrayType>(op_l);
             require_convertable(args[1], get_type("uint64"));
-            return arr->subtype;
+            return ref_type(arr->subtype);
         }else{
             return get_type("#err");
         }
     }
 
     case op_type::Call:{
-        if(!args[0]->is_type(VarType::Func))
+        auto fn = decay(args[0]);
+        if(!fn->is_type(VarType::Func))
             return get_type("#err");
-        auto func = std::dynamic_pointer_cast<FuncType>(args[0]);
+        auto func = std::dynamic_pointer_cast<FuncType>(fn);
         return func->ret_type;
     }
 
@@ -107,13 +109,41 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args){
 
     case op_type::Assign:{
         require_convertable(args[1], args[0]);
+        if(!args[0]->is_ref()){
+            append_error("lvalue required as left operand of assignment");
+        }
         return args[0];
     }
 
-    case op_type::Eq: case op_type::Neq:{
-        
-        return get_type("bool");
+    case op_type::Ref:{
+        if(!args[0]->is_ref()){
+            append_error("lvalue required as operand of reference");
+            return get_type("#err");
+        }
+        auto res = std::make_shared<PointerType>();
+        res->subtype = decay(args[0]);
+        return res;
     }
+
+    case op_type::DeRef:{
+        auto op = decay(args[0]);
+        if(!op->is_ptr()){
+            append_error("pointer type required as operand of dereference");
+            return get_type("#err");
+        }
+        auto sub = std::dynamic_pointer_cast<PointerType>(op)->subtype;
+        if(sub->is_void()){
+            append_error("cannot dereference pointer of void type.");
+            return get_type("#err");
+        }        
+        return ref_type(sub);
+    }
+
+
+    // case op_type::Eq: case op_type::Neq:{
+        
+    //     return get_type("bool");
+    // }
     
     default:
         return get_type("#err");
@@ -128,7 +158,7 @@ var_type_ptr op_type_eval(op_type op, std::vector<var_type_ptr> args){
         if(impl.cond.size() != args.size())
             continue;
         for(size_t i = 0; i < args.size(); ++i){
-            if(!args[i]->is_same(impl.cond[i].get())){
+            if(!decay(args[i])->is_same(impl.cond[i].get())){
                 if(is_convertable(args[i], impl.cond[i]))
                     nw += 1;
                 else nw += 114514;

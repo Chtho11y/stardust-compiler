@@ -76,6 +76,15 @@ struct AstNode{
     bool is_literal() const{
         return type >= IntLiteral && type <= DoubleLiteral;
     }
+
+    var_type_ptr get_type(std::string name);
+    bool set_type(std::string name, var_type_ptr type);
+
+    var_type_ptr get_id(std::string name);
+    bool set_id(std::string name, var_type_ptr type);
+
+    AstNode* get_loop_parent();
+    AstNode* get_func_parent();
 };
 
 using sym_table = std::map<std::string, VarInfo>;
@@ -100,6 +109,7 @@ struct OperatorNode: AstNode{
 
 struct BlockNode: AstNode{
     sym_table var_table;
+    std::map<std::string, var_type_ptr> type_table;
 
     BlockNode(node_type type): AstNode(type){
         is_block = true;
@@ -112,7 +122,7 @@ AstNode* create_node_from(node_type type, AstNode* ch);
 std::string get_node_name(AstNode* node);
 
 std::shared_ptr<VarType> ast_to_type(AstNode* node);
-std::shared_ptr<VarType> build_sym_table(AstNode* node, sym_table& table);
+std::shared_ptr<VarType> build_sym_table(AstNode* node);
 
 std::shared_ptr<VarType> op_type_eval(op_type op, std::vector<std::shared_ptr<VarType>> args);
 
@@ -127,6 +137,8 @@ struct Adaptor<VarDecl>{
     std::shared_ptr<VarType> type_info;
     bool is_const;
 
+    Locator id_loc;
+
     Adaptor(AstNode* rt){
         if(rt->type != VarDecl){
             throw "adaptor type mismatch";
@@ -134,6 +146,7 @@ struct Adaptor<VarDecl>{
         int p = 0;
         if(rt->ch[0]->type == ConstDesc)
             is_const = rt->ch[p++]->str == "const";
+        id_loc = rt->ch[p]->loc;
         id = rt->ch[p++]->str;
         type = rt->ch[p++];
         if(rt->ch.size() > p)
@@ -161,10 +174,13 @@ struct Adaptor<StructDecl>{
     std::shared_ptr<StructType> type_info;
     AstNode* mem;
 
+    Locator id_loc;
+
     Adaptor(AstNode* node){
         if(node->type != StructDecl)
             throw "adaptor type mismatch";
         id = node->ch[0]->str;
+        id_loc = node->ch[0]->loc;
         mem = node->ch[1];
 
         type_info = std::make_shared<StructType>();
@@ -196,13 +212,17 @@ struct Adaptor<FuncDecl>{
     AstNode* params;
     AstNode* ret;
 
+    Locator id_loc;
+
     std::shared_ptr<FuncType> type_info;
     std::vector<std::string> param_name;
 
     Adaptor(AstNode* node){
+        // std::cout << "func adaptor build begin" << std::endl;
         if(node->type != FuncDecl)
             throw "adaptor type mismatch";
         id = node->ch[0]->str;
+        id_loc = node->ch[0]->loc;
         params = node->ch[1];
         ret = node->ch[2];
         body = static_cast<BlockNode*>(node->ch[3]);
@@ -217,21 +237,12 @@ struct Adaptor<FuncDecl>{
             type_info->param_list.push_back(var.type_info);
             param_name.push_back(var.id);
         }
+        // std::cout << "func adaptor built" << std::endl;
     }
 
     bool no_return() const{
         return type_info->ret_type->is_void();
     }
-};
-
-struct ast_context{
-    std::vector<AstNode*> while_env;
-    std::vector<AstNode*> func_env;
-    var_type_ptr expect_type;
-
-    ast_context():expect_type(nullptr){};
-
-    
 };
 
 extern BlockNode* program_root;

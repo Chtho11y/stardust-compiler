@@ -15,19 +15,10 @@ void print(AstNode* rt, int dep){
         std::cout << " ";
     // std::cout << rt->type << "#";
     if(rt->type == TypeDesc){
-        std::cout << "TypeDesc: " << rt->str <<std::endl;
-        for(auto ch: rt->ch)
-            print(ch, dep + 2);
-    // }else if(rt->type == VarDecl){
-    //     auto var = Adaptor<VarDecl>(rt);
-    //     std::cout << "VarDecl: " << var.id << ": " << var.type_info->to_string() <<std::endl;
-    //     // print(var.type, dep + 2);
-    //     if(var.init_val)
-    //         print(var.init_val, dep + 2);
-    // }else if(rt->type == FuncDecl){
-    //     auto func = Adaptor<FuncDecl>(rt);
-    //     std::cout << "FuncDecl: " << func.id << ": " << func.type_info->to_string() << std::endl;
-    //     print(func.body, dep + 2);
+        // std::cout << "TypeDesc: " << rt->str <<std::endl;
+        // for(auto ch: rt->ch)
+        //     print(ch, dep + 2);
+        std::cout << "TypeDesc: " << ast_to_type(rt)->to_string() << std::endl;
     }else if(rt->type == StructDecl){
         auto st = Adaptor<StructDecl>(rt);
         std::cout << "StructDecl: " << st.id << std::endl;
@@ -91,11 +82,22 @@ int main(int argc, char* argv[]){
     yyparse();
     std::string s;
     
-    // build_sym_table(program_root, program_root->var_table);
+    plain_print(program_root, 0);
+    build_sym_table(program_root);
     auto& err = get_error_list();
-    if (!err.size())
-        plain_print(program_root, 0);
 
     for(auto [s, loc]: err)
         std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
+
+    // if (!err.size())
+    print(program_root, 0);
+
+    
 }
+
+//TODO
+//Locator for all AST node
+//Function call
+//Function overload support
+//For statement
+//All error handling

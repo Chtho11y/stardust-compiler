@@ -9,7 +9,7 @@ void append_error(Locator loc){
 }
 
 void append_error(std::string str) {
-    errors.emplace_back(std::string(), Locator());
+    errors.emplace_back(str, Locator());
 }
 
 void set_error_message(std::string str) {

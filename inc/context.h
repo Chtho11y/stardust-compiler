@@ -29,14 +29,14 @@ struct ParserContext{
     }
 
     void set_ignore(){
-        std::cout << "set at " << CurrentCursor.line_st << ", " << CurrentCursor.col_l << std::endl; 
+        // std::cout << "set at " << CurrentCursor.line_st << ", " << CurrentCursor.col_l << std::endl; 
         ignore = 1;
     }
 
     bool get_ignore(){
         auto res = ignore;
         ignore = 0;
-        std::cout << "reset at " << CurrentCursor.line_st << ", " << CurrentCursor.col_l << std::endl; 
+        // std::cout << "reset at " << CurrentCursor.line_st << ", " << CurrentCursor.col_l << std::endl; 
         return res;
     }
 
@@ -60,4 +60,9 @@ struct ParserContext{
     }
 };
 
+struct AstContext{
+    int type_id;
+};
+
 extern ParserContext parser_context;
+extern AstContext ast_context;

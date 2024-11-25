@@ -59,6 +59,7 @@ program: {
         for(auto tp: tps)
             parser_context.set_type(tp->to_string());
         parser_context.set_type("int");
+        parser_context.set_type("void");
     }
     ext_decl{
         program_root = new BlockNode(Program); 
@@ -191,6 +192,7 @@ func_decl_ret_type:
 
 func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     parser_context.push_block_env();
+    $3->type = FuncParams;
     for(auto ch: $3->ch){
         parser_context.set_var(ch->ch[1]->str);
     }
@@ -219,7 +221,7 @@ block_no_ret:
     block_begin stmts block_end{$$ = $2;};
 
 stmts:
-    {$$ = new AstNode(Stmts);}
+    {$$ = new BlockNode(Stmts);}
     |stmts stmt {$$ = $1; $$->append($2);};
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret

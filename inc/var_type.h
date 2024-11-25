@@ -1,5 +1,6 @@
 #pragma once
 
+#include"parse.h"
 #include<vector>
 #include<string>
 #include<memory>
@@ -7,7 +8,7 @@
 struct VarType{
 
     enum var_kind{
-        Prim, Void, Pointer, Array, Struct, Func, Tuple, Error, Auto
+        Prim, Void, Pointer, Array, Struct, Func, Tuple, Ref, Error, Auto
     };
 
     var_kind kind;
@@ -25,7 +26,17 @@ struct VarType{
     bool is_ptr()  const {return is_type(Pointer);}
     bool is_prim() const {return is_type(Prim);}
     bool is_auto() const{return is_type(Auto);}
+    bool is_ref() const {return is_type(Ref);}
 };
+
+using var_type_ptr = std::shared_ptr<VarType>;
+
+bool is_convertable(var_type_ptr from, var_type_ptr to);
+bool is_force_convertable(var_type_ptr from, var_type_ptr to);
+void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc = Locator());
+var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
+var_type_ptr ref_type(var_type_ptr ptr);
+var_type_ptr decay(var_type_ptr ptr);
 
 struct VoidType: VarType{
     VoidType(): VarType(Void){};
@@ -92,6 +103,24 @@ struct PrimType:VarType{
         if(!pm)
             return false;
         return pm->pr_kind == pr_kind && pm->size == size && pm->unsig == unsig;
+    }
+};
+
+struct RefType: VarType{
+    std::shared_ptr<VarType> subtype;
+
+    RefType(): VarType(Ref){}
+
+    RefType(std::shared_ptr<VarType> subtype)
+        : VarType(Ref), subtype(decay(subtype)){}
+
+    std::string to_string() const{
+        return "&"+subtype->to_string();
+    }
+
+    bool is_same(VarType* type) const{
+        auto ref = dynamic_cast<RefType*>(type);
+        return subtype->is_same(ref->subtype.get());
     }
 };
 
@@ -217,14 +246,8 @@ struct VarInfo{
     std::shared_ptr<VarType> type;
 };
 
-using var_type_ptr = std::shared_ptr<VarType>;
-
 void init_type_pool();
 var_type_ptr get_type(std::string name);
 std::vector<std::shared_ptr<PrimType>>& get_prim_list();
 bool set_type(std::string name, var_type_ptr type);
 
-bool is_convertable(var_type_ptr from, var_type_ptr to);
-bool is_force_convertable(var_type_ptr from, var_type_ptr to);
-void require_convertable(var_type_ptr from, var_type_ptr to);
-var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
