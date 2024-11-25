@@ -81,6 +81,7 @@ bool is_force_convertable(var_type_ptr from, var_type_ptr to){
 }
 
 void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc){
+    from = decay(from), to = decay(to);
     if(!is_convertable(from, to))
         append_error("Cannot convert type \'" + from->to_string() + "\' to \'" + to->to_string() + "\'.", loc);
 }

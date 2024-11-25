@@ -10,7 +10,7 @@
     #define echo_error(s) \
         set_error_message(s)
 %}
-%glr-parser
+/* %glr-parser */
 %union{
     Token* str;
     AstNode* node;
@@ -28,10 +28,10 @@
 %type<node> ext_decl single_decl
 %type<node> var_decl func_decl struct_decl
 %type<node> struct_decl_ident func_decl_ident func_decl_ret_type
-%type<node> ident ident_type_list ident_type_member ident_value_list  ident_value_member
+%type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member
 %type<node> const_desc 
 %type<node> array_instance struct_instance 
-%type<node> opt_type_desc type_desc type_item type_list
+%type<node> opt_type_desc type_desc type_item type_list type_name
 %type<node> block block_ret block_no_ret
 %type<node> stmts stmt ctrl_ret ctrl_no_ret return_stmt
 %type<node> expr expr_unit expr_list item_list
@@ -91,10 +91,7 @@ type_desc:
     }
 
 type_item: 
-    TYPENAME {
-        auto tmp = new AstNode(Identifier, *$1); free($1);
-        $$ = create_node_from(TypeDesc, tmp);
-    }
+    type_name {$$ = create_node_from(TypeDesc, $1);}
     | LP type_list RP {$$ = $2;}
     | type_item LBRACKET expr RBRACKET{
         $$ = new AstNode(TypeDesc, "[]");
@@ -111,11 +108,17 @@ type_list:
     {$$ = new AstNode(TypeList);}
     |type_desc{$$ = create_node_from(TypeList, $1);}
     |type_list COMMA type_desc {$$ = $1; $$->append($3);}
+    ;
+
+type_name: 
+    TYPENAME {
+        $$ = new AstNode(Identifier, *$1); free($1);
+    };
 
 
 /**************variable declaration**************/
 var_decl:
-    const_desc ident opt_type_desc ASSIGN expr SEMI{
+    const_desc ident_all opt_type_desc ASSIGN expr SEMI{
         $$ = new AstNode(VarDecl); 
         $$->append($1);
         $$->append($2); 
@@ -123,7 +126,7 @@ var_decl:
         $$->append($5);
         parser_context.set_var($2->str);
     }
-    | const_desc ident opt_type_desc SEMI{
+    | const_desc ident_all opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
         $$->append($1);
         $$->append($2); 
@@ -152,7 +155,7 @@ ident_type_list:
         $$->append($3);
     }
 
-ident_type_member: ident COLON type_desc{
+ident_type_member: ident_all COLON type_desc{
     $$ = new AstNode(VarDecl);
     $$->append(new AstNode(ConstDesc, "let"));
     $$->append($1);
@@ -168,14 +171,14 @@ ident_value_list:
     }
     ;
 
-ident_value_member: ident COLON expr_unit{
+ident_value_member: ident_all COLON expr_unit{
     $$ = new AstNode(StructInstanceMem);
     $$->append($1);
     $$->append($3);    
 };
 
 /**************struct declaration**************/
-struct_decl_ident: TSTRUCT ident{$$ = $2;};
+struct_decl_ident: TSTRUCT ident_all{$$ = $2;};
 
 struct_decl: struct_decl_ident LBRACE ident_type_list RBRACE{
     $$ = create_node_from(StructDecl, $1);
@@ -185,7 +188,7 @@ struct_decl: struct_decl_ident LBRACE ident_type_list RBRACE{
 };
 
 /**************function declaration**************/
-func_decl_ident: TFUNC ident{$$ = $2;};
+func_decl_ident: TFUNC ident_all{$$ = $2;};
 func_decl_ret_type: 
     {$$ = new AstNode(TypeDesc, "#auto");}
     | ARROW type_desc{$$ = $2;};
@@ -343,6 +346,8 @@ item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
         $3->type = FuncArgs;
         $$->append($3);
     };
+
+ident_all: ident | type_name;
 
 ident: {
     parser_context.set_ignore();

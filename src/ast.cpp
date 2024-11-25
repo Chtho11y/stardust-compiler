@@ -237,7 +237,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         }
 
         if(!node->set_id(var.id, var.type_info)){
-            append_error("Variable " + var.id + " has been declared.");
+            append_error("Variable \'" + var.id + "\' has been declared.", var.id_loc);
             return get_type("#err");
         };
         return node->ret_var_type = get_type("void");
