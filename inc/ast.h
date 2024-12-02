@@ -26,7 +26,7 @@ enum node_type{
 enum class op_type{
     Add, Sub, Mul, Div, Mod, And, Or,
     BitAnd, BitOr, Xor, Eq, Neq, Le, Ge, Lt, Gt,
-    Assign, At, Call, Comma, Access,
+    Assign, AddEq, SubEq, MulEq, DivEq, At, Call, Comma, Access,
     Pos, Neg, Not, Convert,
     Ref, DeRef
 };
@@ -94,10 +94,26 @@ struct OperatorNode: AstNode{
 
     OperatorNode(op_type type):AstNode(Operator), type(type){}
 
-    OperatorNode(op_type type, AstNode* ch1, AstNode* ch2 = nullptr):AstNode(Operator), type(type){
+    OperatorNode(op_type type, AstNode* ch1, Locator loc = {}):AstNode(Operator), type(type){
         append(ch1);
-        if(ch2)
-            append(ch2);
+        this->loc = loc;
+    }
+
+    OperatorNode(op_type type, AstNode* ch1, AstNode* ch2, Locator loc = {}):AstNode(Operator), type(type){
+        append(ch1);
+        append(ch2);
+        this->loc = loc;
+    }
+
+    OperatorNode(op_type type, AstNode* ch1, LocatorBuffer loc):AstNode(Operator), type(type){
+        append(ch1);
+        this->loc = loc;
+    }
+
+    OperatorNode(op_type type, AstNode* ch1, AstNode* ch2, LocatorBuffer loc):AstNode(Operator), type(type){
+        append(ch1);
+        append(ch2);
+        this->loc = loc;
     }
 
     static std::string get_op_name(OperatorNode* node);
@@ -120,11 +136,12 @@ void ast_info_init();
 void op_impl_init();
 AstNode* create_node_from(node_type type, AstNode* ch);
 std::string get_node_name(AstNode* node);
+std::string get_op_name(op_type type);
 
 std::shared_ptr<VarType> ast_to_type(AstNode* node);
 std::shared_ptr<VarType> build_sym_table(AstNode* node);
 
-std::shared_ptr<VarType> op_type_eval(op_type op, std::vector<std::shared_ptr<VarType>> args);
+std::shared_ptr<VarType> op_type_eval(op_type op, std::vector<std::shared_ptr<VarType>> args, Locator loc);
 
 template<node_type type>
 struct Adaptor{};

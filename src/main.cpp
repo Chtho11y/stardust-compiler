@@ -73,6 +73,34 @@ void plain_print(AstNode* rt, int dep){
         plain_print(ch, dep + 2);
 }
 
+void print_aligned(int len, std::string str){
+    for(int i = 0; i < len; ++i)
+        std::cout << ' ';
+    std::cout << str;
+}
+
+void print_sym_table(AstNode* rt, int dep = 0){
+    if(rt->is_block){
+        auto block = static_cast<BlockNode*>(rt);
+        print_aligned(dep, "{\n");
+        print_aligned(dep+2, "#type_table:\n");
+        for(auto [name, t]: block->type_table){
+            print_aligned(dep+2, "");
+            std::cout << name << ": " << t->to_string() << std::endl;
+        }
+        print_aligned(dep+2, "#var_table:\n");
+        for(auto [name, t]: block->var_table){
+            print_aligned(dep+2, "");
+            std::cout << name << ": " << t.type->to_string() << std::endl;
+        }
+        for(auto ch: rt->ch)
+            print_sym_table(ch, dep + 2);
+        print_aligned(dep, "}\n");
+    }else{
+        for(auto ch: rt->ch)
+            print_sym_table(ch, dep);
+    }
+}
 
 int main(int argc, char* argv[]){
     ast_info_init();
@@ -81,9 +109,9 @@ int main(int argc, char* argv[]){
     set_input(file);
     yyparse();
     std::string s;
-    
     plain_print(program_root, 0);
     build_sym_table(program_root);
+    print_sym_table(program_root);
     auto& err = get_error_list();
 
     for(auto [s, loc]: err)
@@ -101,3 +129,6 @@ int main(int argc, char* argv[]){
 //Function overload support
 //For statement
 //All error handling
+//Array&Struct Instance
+//Continue statement
+//String Literal

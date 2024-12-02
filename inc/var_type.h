@@ -8,7 +8,7 @@
 struct VarType{
 
     enum var_kind{
-        Prim, Void, Pointer, Array, Struct, Func, Tuple, Ref, Error, Auto
+        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Ref, Error, Auto
     };
 
     var_kind kind;
@@ -164,6 +164,36 @@ struct ArrayType:VarType{
     } 
 };
 
+struct TupleType: VarType{
+    std::vector<std::shared_ptr<VarType>> members;
+
+    TupleType(): VarType(Tuple){}
+
+    TupleType(const std::vector<std::shared_ptr<VarType>>& mem): VarType(Tuple){
+        members = mem;
+    }
+
+    std::string to_string() const override{
+        std::string res = "(";
+        for(size_t i = 0; i < members.size(); ++i){
+            if(i) res += ", ";
+            res += members[i]->to_string();
+        }
+        res += ")";
+        return res;
+    }
+
+    bool is_same(VarType* type) const override{
+        auto tp = dynamic_cast<TupleType*>(type);
+        if(!tp || tp->members.size() != members.size())
+            return false;
+        for(size_t i = 0; i < members.size(); ++i)
+            if(!members[i]->is_same(tp->members[i].get()))
+                return false;
+        return true;
+    } 
+};
+
 struct FuncType: VarType{
     std::vector<std::shared_ptr<VarType>> param_list;
     std::shared_ptr<VarType> ret_type;
@@ -192,37 +222,39 @@ struct FuncType: VarType{
             if(!param_list[i]->is_same(fn->param_list[i].get()))
                 return false;
         return true;
-    }    
-};
-
-struct TupleType: VarType{
-    std::vector<std::shared_ptr<VarType>> members;
-
-    TupleType(): VarType(Tuple){}
-
-    std::string to_string() const override{
-        std::string res = "(";
-        bool flag = false;
-        for(auto ch: members){
-            if(flag)
-                res += ", ";
-            else flag = true;
-            res += ch->to_string();
-        }
-        res += ")";
-        return res;
     }
 
-    bool is_same(VarType* type) const{
-        auto tp = dynamic_cast<TupleType*>(type);
-        if(!tp || tp->members.size() != members.size())
+    bool is_callable(var_type_ptr args_list) const{
+        if(!args_list->is_type(Tuple))
             return false;
-        for(size_t i = 0; i < members.size(); ++i)
-            if(!members[i]->is_same(tp->members[i].get()))
-                return false;
-        return true;
-    } 
+        auto& args = std::dynamic_pointer_cast<TupleType>(args_list)->members;
+        bool flag = true;
+        if(args.size() != param_list.size())
+            return false;
+        for(size_t i = 0; i < args.size(); ++i)
+            if(!is_convertable(args[i], param_list[i]))
+                flag = false;
+        return flag;
+    }
 };
+
+// struct FuncListType: VarType{
+//     std::vector<std::shared_ptr<FuncType>> func_list;
+
+//     FuncListType():VarType(FuncList){}
+
+//     bool is_same(VarType* type) const{
+//         return false;
+//     }
+
+//     std::string to_string() const{
+//         return "func list";
+//     }
+
+//     bool append(std::shared_ptr<FuncType> func){
+
+//     }
+// };
 
 struct StructType: VarType{
     std::vector<std::pair<std::string, std::shared_ptr<VarType>>> member;
@@ -232,7 +264,7 @@ struct StructType: VarType{
     StructType(): VarType(Struct){}
 
     std::string to_string() const override{
-        return name;
+        return name + "#" + std::to_string(id);
     }
 
     bool is_same(VarType* type) const{

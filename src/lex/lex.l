@@ -36,6 +36,7 @@ func {return make_token(TFUNC);}
 struct {return make_token(TSTRUCT);}
 let {return make_token(TLET);}
 if  {return make_token(TIF);}
+for {return make_token(TFOR);}
 else {return make_token(TELSE);}
 while {return make_token(TWHILE);}
 as {return make_token(TAS);}
@@ -63,6 +64,10 @@ false {return make_token(TFALSE, true);}
 "]" {return make_token(RBRACKET);}
 "{" {return make_token(LBRACE);}
 "}" {return make_token(RBRACE);}
+"+=" {return make_token(ADDEQ);}
+"-=" {return make_token(SUBEQ);}
+"*=" {return make_token(MULEQ);}
+"/=" {return make_token(DIVEQ);}
 "+" {return make_token(ADD);}
 "-" {return make_token(SUB);}
 "*" {return make_token(MUL);}
@@ -95,7 +100,7 @@ false {return make_token(TFALSE, true);}
 */
 int make_token(int type, bool set_val){
 
-    CurrentCursor = {lines, lines, last, last + yyleng - 1};
+    CurrentCursor = Locator{lines, lines, last, last + yyleng - 1};
     if(set_val){
         std::string val(yytext);
 
@@ -110,6 +115,7 @@ int make_token(int type, bool set_val){
     else {
         // auto res = new Token{nullptr, type, {lines, lines, last, last + yyleng - 1}};
         // yylval.str = res;
+        yylval.token_id = {lines, lines, last, last + yyleng - 1};
     }
     last += yyleng;
     

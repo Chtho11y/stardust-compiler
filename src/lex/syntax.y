@@ -14,12 +14,13 @@
 %union{
     Token* str;
     AstNode* node;
-    int token_id;
+    LocatorBuffer token_id;
 };
 
 %token<str> INT NAME TYPENAME INVALID_NAME TTRUE TFALSE
 %token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
+%token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
 %token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
@@ -38,7 +39,7 @@
 %type<node> item
 %type<node> literal
 
-%right ASSIGN
+%right ASSIGN ADDEQ SUBEQ MULEQ DIVEQ
 %left COMMA
 %left OR
 %left AND
@@ -256,7 +257,15 @@ ctrl_no_ret:
         $$->append($3);
         $$->append($5);
         $$->append($6);
-    };
+    }
+    |TFOR expr SEMI expr SEMI expr block {
+        $$ = new AstNode(ForStmt);
+        $$->append($2);
+        $$->append($4);
+        $$->append($6);
+        $$->append($7);
+    }
+    ;
 
 ctrl_ret: 
      TIF expr block_ret TELSE block_ret {
@@ -264,19 +273,22 @@ ctrl_ret:
         $$->append($2);
         $$->append($3);
         $$->append($5);
+        $$->loc = $1;
      };
     |TIF expr block_ret TELSE ctrl_ret {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
+        $$->loc = $1;
     };
 
 return_stmt: 
-    TRETURN SEMI {$$ = new AstNode(Stmt, "return");}
+    TRETURN SEMI {$$ = new AstNode(Stmt, "return"); $$->loc = $1;}
     | TRETURN expr SEMI {
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
+        $$->loc = $1;
     };
 
 /**************expr**************/
@@ -303,29 +315,33 @@ expr_list:
 
 expr_unit: 
     item
-    | LP type_desc RP expr_unit %prec NOT{$$ = new OperatorNode(op_type::Convert, $4, $2);}
-    | ADD expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Pos, $2);}
-    | SUB expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Neg, $2);}
-    | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2);}
-    | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3);} 
-    | expr_unit ADD expr_unit     {$$ = new OperatorNode(op_type::Add, $1, $3);}
-    | expr_unit SUB expr_unit     {$$ = new OperatorNode(op_type::Sub, $1, $3);}
-    | expr_unit MUL expr_unit     {$$ = new OperatorNode(op_type::Mul, $1, $3);}
-    | expr_unit DIV expr_unit     {$$ = new OperatorNode(op_type::Div, $1, $3);}
-    | expr_unit MOD expr_unit     {$$ = new OperatorNode(op_type::Mod, $1, $3);}
-    | expr_unit BITAND expr_unit  {$$ = new OperatorNode(op_type::BitAnd, $1, $3);}
-    | expr_unit BITOR expr_unit   {$$ = new OperatorNode(op_type::BitOr, $1, $3);}
-    | expr_unit XOR expr_unit     {$$ = new OperatorNode(op_type::Xor, $1, $3);}
-    | expr_unit EQ expr_unit      {$$ = new OperatorNode(op_type::Eq, $1, $3);}
-    | expr_unit NEQ expr_unit     {$$ = new OperatorNode(op_type::Neq, $1, $3);}
-    | expr_unit LE expr_unit      {$$ = new OperatorNode(op_type::Le, $1, $3);}
-    | expr_unit GE expr_unit      {$$ = new OperatorNode(op_type::Ge, $1, $3);}
-    | expr_unit LT expr_unit      {$$ = new OperatorNode(op_type::Lt, $1, $3);}
-    | expr_unit GT expr_unit      {$$ = new OperatorNode(op_type::Gt, $1, $3);}
-    | expr_unit AND expr_unit     {$$ = new OperatorNode(op_type::And, $1, $3);}
-    | expr_unit OR expr_unit      {$$ = new OperatorNode(op_type::Or, $1, $3);}
-    | MUL expr_unit%prec NOT      {$$ = new OperatorNode(op_type::DeRef, $2);}
-    | BITAND expr_unit %prec NOT  {$$ = new OperatorNode(op_type::Ref, $2);}
+    | LP type_desc RP expr_unit %prec NOT{$$ = new OperatorNode(op_type::Convert, $4, $2, $1);}
+    | ADD expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Pos, $2, $1);}
+    | SUB expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Neg, $2, $1);}
+    | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2, $1);}
+    | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3, $2);} 
+    | expr_unit ADDEQ expr_unit  {$$ = new OperatorNode(op_type::AddEq, $1, $3, $2);} 
+    | expr_unit SUBEQ expr_unit  {$$ = new OperatorNode(op_type::SubEq, $1, $3, $2);} 
+    | expr_unit MULEQ expr_unit  {$$ = new OperatorNode(op_type::MulEq, $1, $3, $2);} 
+    | expr_unit DIVEQ expr_unit  {$$ = new OperatorNode(op_type::DivEq, $1, $3, $2);} 
+    | expr_unit ADD expr_unit     {$$ = new OperatorNode(op_type::Add, $1, $3, $2);}
+    | expr_unit SUB expr_unit     {$$ = new OperatorNode(op_type::Sub, $1, $3, $2);}
+    | expr_unit MUL expr_unit     {$$ = new OperatorNode(op_type::Mul, $1, $3, $2);}
+    | expr_unit DIV expr_unit     {$$ = new OperatorNode(op_type::Div, $1, $3, $2);}
+    | expr_unit MOD expr_unit     {$$ = new OperatorNode(op_type::Mod, $1, $3, $2);}
+    | expr_unit BITAND expr_unit  {$$ = new OperatorNode(op_type::BitAnd, $1, $3, $2);}
+    | expr_unit BITOR expr_unit   {$$ = new OperatorNode(op_type::BitOr, $1, $3, $2);}
+    | expr_unit XOR expr_unit     {$$ = new OperatorNode(op_type::Xor, $1, $3, $2);}
+    | expr_unit EQ expr_unit      {$$ = new OperatorNode(op_type::Eq, $1, $3, $2);}
+    | expr_unit NEQ expr_unit     {$$ = new OperatorNode(op_type::Neq, $1, $3, $2);}
+    | expr_unit LE expr_unit      {$$ = new OperatorNode(op_type::Le, $1, $3, $2);}
+    | expr_unit GE expr_unit      {$$ = new OperatorNode(op_type::Ge, $1, $3, $2);}
+    | expr_unit LT expr_unit      {$$ = new OperatorNode(op_type::Lt, $1, $3, $2);}
+    | expr_unit GT expr_unit      {$$ = new OperatorNode(op_type::Gt, $1, $3, $2);}
+    | expr_unit AND expr_unit     {$$ = new OperatorNode(op_type::And, $1, $3, $2);}
+    | expr_unit OR expr_unit      {$$ = new OperatorNode(op_type::Or, $1, $3, $2);}
+    | MUL expr_unit%prec NOT      {$$ = new OperatorNode(op_type::DeRef, $2, $1);}
+    | BITAND expr_unit %prec NOT  {$$ = new OperatorNode(op_type::Ref, $2, $1);}
     ;
 
 item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
@@ -334,17 +350,20 @@ item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
         $$ = new OperatorNode(op_type::Access);
         $$->append($1);
         $$->append($3);
+        $$->loc = $2;
     }
     | item LBRACKET expr RBRACKET {
         $$ = new OperatorNode(op_type::At);
         $$->append($1);
         $$->append($3);
+        $$->loc = $2;
     }
     | item LP item_list RP {
         $$ = new OperatorNode(op_type::Call);
         $$->append($1);
         $3->type = FuncArgs;
         $$->append($3);
+        $$->loc = $2;
     };
 
 ident_all: ident | type_name;

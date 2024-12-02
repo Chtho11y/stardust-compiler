@@ -3,13 +3,30 @@
 #include <string>
 #include <vector>
 
+struct LocatorBuffer{
+    int line_st, line_ed, col_l, col_r;
+};
+
 struct Locator{
     int line_st = 0, line_ed = 0, col_l = 0, col_r = 0;
+
+    Locator& operator =(const LocatorBuffer& buffer){
+        line_st = buffer.line_st;
+        line_ed = buffer.line_ed;
+        col_l = buffer.col_l;
+        col_r = buffer.col_r;
+        return *this;
+    }
 
     bool has_value()const {
         return col_l != col_r;
     }
 };
+
+Locator locator_merge(LocatorBuffer l1, LocatorBuffer l2);
+Locator locator_merge(LocatorBuffer l1, Locator l2);
+Locator locator_merge(Locator l1, LocatorBuffer l2);
+Locator locator_merge(Locator l1, Locator l2);
 
 extern Locator CurrentCursor;
 struct Token{

@@ -24,7 +24,7 @@ std::string ast_node_name[] = {
 };
 std::string ast_op_name[] = {"Add", "Sub", "Mul", "Div", "Mod", "And", "Or",
                              "BitAnd", "BitOr", "Xor", "Eq", "Neq", "Le", "Ge", "Lt", "Gt",
-                             "Assign", "At", "Call", "Comma", "Access",
+                             "Assign", "AddEq", "SubEq", "MulEq", "DivEq", "At", "Call", "Comma", "Access",
                              "Pos", "Neg", "Not", "Convert", "Ref", "Deref"};
 
 void ast_info_init(){
@@ -39,6 +39,10 @@ std::string get_node_name(AstNode* node){
 
 std::string OperatorNode::get_op_name(OperatorNode* node){
     return ast_op_name[(int)(node->type)];
+}
+
+std::string get_op_name(op_type type){
+    return ast_op_name[(int)(type)];
 }
 
 var_type_ptr AstNode::get_type(std::string name){
@@ -145,7 +149,13 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
     // std::cout << get_node_name(node) << ": " << node->str << std::endl;
     if(node->type == TypeDesc){
         if(node->str == "()"){
-            return Adaptor<FuncDecl>(node).type_info;
+            auto res = std::make_shared<FuncType>();
+            auto params = node->ch[0];
+            auto ret = node->ch[1];
+            for(auto ch: params->ch)
+                res->param_list.push_back(ast_to_type(ch));
+            res->ret_type = ast_to_type(ret);
+            return res;
         }else if(node->str == "[]"){
             auto res = std::make_shared<ArrayType>();
             res->subtype = ast_to_type(node->ch[0]);
@@ -283,9 +293,9 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                     if(n == id)
                         return node->ret_var_type = is_ref ? ref_type(tp): tp;
                 }
-                append_error("struct \'" + t->to_string() +"\' has no member named "+ id);
+                append_error("struct \'" + t->to_string() +"\' has no member named "+ id, node->loc);
             }else{
-                append_error("type \'" + t->to_string() + "\' is not a struct.");
+                append_error("type \'" + t->to_string() + "\' is not a struct.", node->loc);
             }
             return node->ret_var_type = get_type("#err");
         }else{     
@@ -293,7 +303,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 tp.push_back(build_sym_table(ch));
         }
 
-        return node->ret_var_type = op_type_eval(op->type, tp);
+        return node->ret_var_type = op_type_eval(op->type, tp, node->loc);
 
     }else if(node->type == ArrayInstance) {
         return get_type("void");
@@ -358,6 +368,12 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             //noop
             return node->ret_var_type = get_type("void");
         }
+    }else if(node->type == FuncArgs){
+        auto args = std::make_shared<TupleType>();
+        for(auto ch: node->ch){
+            args->members.push_back(build_sym_table(ch));
+        }
+        return node->ret_var_type = args;
     }else{
         for(auto ch: node->ch)
             build_sym_table(ch);
