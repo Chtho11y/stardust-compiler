@@ -257,11 +257,31 @@ struct FuncType: VarType{
 // };
 
 struct StructType: VarType{
-    std::vector<std::pair<std::string, std::shared_ptr<VarType>>> member;
+    using member_list = std::vector<std::pair<std::string, std::shared_ptr<VarType>>>;
+    member_list member;
     std::string name;
     size_t id;
 
     StructType(): VarType(Struct){}
+
+    bool match(const member_list& init){
+        size_t cnt = 0;
+        if(init.size() != member.size())
+            return false;
+        for(auto& [id, tp]: init){
+            bool flag = 0;
+            for(auto& [m_id, m_tp]: member)
+                if(id == m_id){
+                    flag = 1;
+                    if(is_convertable(tp, m_tp))
+                        cnt++;
+                    else return false;
+                }
+            if(!flag)
+                return false;
+        }
+        return cnt == member.size();
+    }
 
     std::string to_string() const override{
         return name + "#" + std::to_string(id);

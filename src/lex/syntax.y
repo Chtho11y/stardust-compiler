@@ -21,7 +21,7 @@
 %token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
 
@@ -126,6 +126,7 @@ var_decl:
         $$->append($3);
         $$->append($5);
         parser_context.set_var($2->str);
+        $$->loc = $4;
     }
     | const_desc ident_all opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
@@ -133,6 +134,7 @@ var_decl:
         $$->append($2); 
         $$->append($3);
         parser_context.set_var($2->str);
+        $$->loc = $2->loc;
     }
     ;
 
@@ -165,7 +167,7 @@ ident_type_member: ident_all COLON type_desc{
 
 ident_value_list:
     {$$ = new AstNode(StructInstance);}
-    | ident_value_member {$$ = create_node_from(StructInstanceMems, $1);}
+    | ident_value_member {$$ = create_node_from(StructInstance, $1);}
     | ident_value_list COMMA ident_value_member{
         $$ = $1;
         $$->append($3);
@@ -229,22 +231,32 @@ stmts:
     |stmts stmt {$$ = $1; $$->append($2);};
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
-    | TBREAK SEMI{$$ = new AstNode(Stmt, "break");}
+    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1;}
+    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1;}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr SEMI{$$ = $1;}
     ;
 
 ctrl_no_ret: 
-     TIF expr block_no_ret {
+     TIF expr block {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
+        $$->loc = $1;
      }
-    |TIF expr block_no_ret TELSE block_no_ret {
+    |TIF expr block_no_ret TELSE block {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
+        $$->loc = $1;
+    }
+    |TIF expr block_no_ret TELSE ctrl_no_ret {
+        $$ = new AstNode(IfStmt);
+        $$->append($2);
+        $$->append($3);
+        $$->append($5);
+        $$->loc = $1;
     }
     |TWHILE expr block{
         $$ = new AstNode(WhileStmt);
@@ -252,14 +264,14 @@ ctrl_no_ret:
         $$->append($3);
     }
     |TFOR var_decl expr SEMI expr block {
-        $$ = new AstNode(ForStmt);
+        $$ = new BlockNode(ForStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
         $$->append($6);
     }
     |TFOR expr SEMI expr SEMI expr block {
-        $$ = new AstNode(ForStmt);
+        $$ = new BlockNode(ForStmt);
         $$->append($2);
         $$->append($4);
         $$->append($6);
@@ -396,6 +408,7 @@ array_instance: LBRACKET item_list RBRACKET {
 
 struct_instance: TSTRUCT LBRACE ident_value_list RBRACE {
     $$ = $3;
+    $$->loc = $1;
 };
 %%
 

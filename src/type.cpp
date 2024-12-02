@@ -50,8 +50,12 @@ bool is_convertable(var_type_ptr from, var_type_ptr to){
     if(to->is_error() || from->is_error() || from->is_same(to.get())){
         return true;
     }else if(to->is_prim() && from->is_prim()){
+
         auto fp = std::dynamic_pointer_cast<PrimType>(from);
         auto tp = std::dynamic_pointer_cast<PrimType>(to);
+
+        if(tp->pr_kind == PrimType::Bool && fp->pr_kind == PrimType::Int)
+            return true;
 
         if(fp->pr_kind < tp->pr_kind)
             return true;
@@ -75,6 +79,10 @@ bool is_force_convertable(var_type_ptr from, var_type_ptr to){
     }else if(to->is_prim()){
         return from->is_prim() || from->is_ptr();
     }else if(to->is_ptr()){
+        if(from->is_prim()){
+            auto fp = std::dynamic_pointer_cast<PrimType>(from);
+            return fp->pr_kind == PrimType::Int;
+        }
         return from->is_ptr() || from->is_array();
     }
     return false;

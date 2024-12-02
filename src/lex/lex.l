@@ -32,6 +32,7 @@ digit [0-9]
 }
 [\t\r ]+ {last += yyleng;}
 
+continue {return make_token(TCONTIN);}
 func {return make_token(TFUNC);}
 struct {return make_token(TSTRUCT);}
 let {return make_token(TLET);}
@@ -39,10 +40,10 @@ if  {return make_token(TIF);}
 for {return make_token(TFOR);}
 else {return make_token(TELSE);}
 while {return make_token(TWHILE);}
-as {return make_token(TAS);}
 const {return make_token(TCONST);}
 break {return make_token(TBREAK);}
 return {return make_token(TRETURN);}
+
 
 true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}

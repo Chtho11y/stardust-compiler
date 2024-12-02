@@ -104,30 +104,38 @@ void print_sym_table(AstNode* rt, int dep = 0){
 
 int main(int argc, char* argv[]){
     ast_info_init();
+    FILE* file;
+    std::string name = "../test/test.sd";
+    if(argc == 2)
+        name = argv[1];
+    else if(argc > 2)
+        std::cout << "too many arguments" << std::endl;
 
-    auto file = fopen("../test/test.sd", "r");
+    file = fopen(name.c_str(), "r");
+    if(!file){
+        std::cout << "Failed to open file: " << name << std::endl;
+        return 0;
+    }
     set_input(file);
     yyparse();
-    std::string s;
+
+    bool err_flag = get_error_list().size();
     plain_print(program_root, 0);
     build_sym_table(program_root);
-    print_sym_table(program_root);
+    // print_sym_table(program_root);
+    // if (!err.size())
+    if(!err_flag){
+        print(program_root, 0);
+    }
     auto& err = get_error_list();
 
     for(auto [s, loc]: err)
         std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
-
-    // if (!err.size())
-    print(program_root, 0);
-
-    
 }
 
 //TODO
 //Locator for all AST node
-//Function call
-//Function overload support
-//For statement
+//Function overload support 
 //All error handling
 //Array&Struct Instance
 //Continue statement

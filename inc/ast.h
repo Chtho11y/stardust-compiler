@@ -176,10 +176,10 @@ struct Adaptor<VarDecl>{
 
     Adaptor<VarDecl>& check_type(){
         if(type_info->is_void()){
-            append_error("Variable cannot be declared as void type.");
+            append_error("Variable cannot be declared as void type.", id_loc);
             type_info = get_type("#err");
         }else if(type_info->is_error()){
-            append_error("Unknown type of variable \'" + id + "\'.");
+            append_error("Unknown type of variable \'" + id + "\'.", id_loc);
         }
         return *this;
     }
@@ -192,6 +192,7 @@ struct Adaptor<StructDecl>{
     AstNode* mem;
 
     Locator id_loc;
+    std::vector<Locator> mem_loc;
 
     Adaptor(AstNode* node){
         if(node->type != StructDecl)
@@ -206,6 +207,7 @@ struct Adaptor<StructDecl>{
         for(auto ch: mem->ch){
             Adaptor<VarDecl> var(ch);
             type_info->member.emplace_back(var.id, var.type_info);
+            mem_loc.push_back(var.id_loc);
         }
     }
 
@@ -215,7 +217,7 @@ struct Adaptor<StructDecl>{
             for(int j = i + 1; j < cnt; ++j)
                 if(type_info->member[i].first == type_info->member[j].first){
                     auto nam = type_info->member[i].first;
-                    append_error("member \'"+ nam + "\' is defined twice.");
+                    append_error("member \'"+ nam + "\' is defined twice.", mem_loc[i]);
                     type_info = nullptr;
                 }
         return *this;
