@@ -85,14 +85,17 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
             require_convertable(args[1], get_type("uint64"), loc);
             return ref_type(arr->subtype);
         }else{
+            append_error("Expression should be array or pointer type, but it is "+ op_l->to_string(), loc);
             return get_type("#err");
         }
     }
 
     case op_type::Call:{
         auto fn = decay(args[0]);
-        if(!fn->is_type(VarType::Func))
+        if(!fn->is_type(VarType::Func)){
+            append_error("Expression should be function type, but it is " + fn->to_string(), loc);
             return get_type("#err");
+        }
         auto func = std::dynamic_pointer_cast<FuncType>(fn);
         if(!func->is_callable(args[1]))
             append_error("Cannot call function " + func->to_string() + " with args: " + args[1]->to_string(), loc);

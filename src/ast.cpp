@@ -143,9 +143,12 @@ AstNode* AstNode::get_func_parent(){
 //support for different base (i.e. 0x123)
 //error report for error-type or non-literal.
 size_t const_eval(AstNode* node){
-    if(node->type == IntLiteral)
+    if(node->type == IntLiteral){
         return atoi(node->str.c_str());
-    return 114514;
+    }else{
+        append_error("Array length should be a int literal.", node->loc);
+    }
+    return 0;
 }
 
 var_type_ptr lookup_struct(AstNode* node){
@@ -346,8 +349,9 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 }
                 append_error("struct \'" + t->to_string() +"\' has no member named "+ id, node->loc);
             }else if(t->is_array()){
-                if(id != "length")
-                    append_error("array \'" + t->to_string() +"\' has no member named "+ id, node->loc);
+                if(id == "length")
+                    return get_type("int32");
+                append_error("array \'" + t->to_string() +"\' has no member named "+ id, node->loc);
             }else{
                 append_error("type \'" + t->to_string() + "\' has no member.", node->loc);
             }
@@ -360,6 +364,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         return node->ret_var_type = op_type_eval(op->type, tp, node->loc);
 
     }else if(node->type == ArrayInstance) {
+
         return node->ret_var_type = get_type("#err");
     }else if(node->type == StructInstance) {
         return node->ret_var_type = lookup_struct(node);
@@ -414,7 +419,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         if(node->str == "return"){
             auto p = node->get_func_parent();
             if(!p){
-                append_error("return statement out of function body.");
+                append_error("return statement out of function body.", node->loc);
                 return node->ret_var_type = get_type("void");
             }
             auto ret_type = std::dynamic_pointer_cast<FuncType>(p->ret_var_type)->ret_type;
@@ -424,12 +429,10 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             res = decay(res);
             require_convertable(res, ret_type);
             return node->ret_var_type = get_type("void");
-        }else if(node->str == "break"){
+        }else if(node->str == "break" || node->str == "continue"){
             auto p = node->get_loop_parent();
-            if(!p){
-                append_error("break statement out of loop statement.");
-                return node->ret_var_type = get_type("void");
-            }
+            if(!p)
+                append_error(node->str + " statement out of loop statement.", node->loc);
             return node->ret_var_type = get_type("void");
         }else{
             //noop
