@@ -384,7 +384,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         auto ret1 = build_sym_table(node->ch[1]);
         auto ret2 = get_type("void");
         if(node->ch[2])
-            auto ret2 = build_sym_table(node->ch[2]);
+            ret2 = build_sym_table(node->ch[2]);
 
         return node->ret_var_type = greater_type(ret1, ret2);
 
@@ -427,7 +427,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         var_type_ptr res;
         for(auto ch: node->ch)
             res = build_sym_table(ch);
-        return decay(res);
+        return node->ret_var_type = decay(res);
     }else if(node->type == Stmt){
         if(node->str == "return"){
             auto p = node->get_func_parent();
@@ -463,6 +463,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == Err){
         return node->ret_var_type = get_type("#err");
     }else{
+        //unreachable
         for(auto ch: node->ch)
             build_sym_table(ch);
         return node->ret_var_type = get_type("void");
