@@ -1,0 +1,406 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      Stmts
+        Stmts
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: #auto
+            IntLiteral: 1
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: #auto
+            IntLiteral: 1
+        Stmts
+          Operator: Add
+            Identifier: b
+            Identifier: b
+        Stmts
+          Operator: At
+            IntLiteral: 1
+            IntLiteral: 0
+          Operator: Call
+            IntLiteral: 1
+            FuncArgs
+              IntLiteral: 1
+        Stmts
+          StructDecl
+            Identifier: a
+            StructMem
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc
+              Identifier: a
+          Operator: Or
+            DoubleLiteral: 1.0
+            DoubleLiteral: 1.0
+          Operator: Add
+            Identifier: a
+            IntLiteral: 1
+        Stmts
+          Operator: Assign
+            IntLiteral: 1
+            IntLiteral: 1
+          Operator: Assign
+            Identifier: main
+            Identifier: main
+        Stmts
+          VarDecl
+            ConstDesc: let
+            Identifier: b
+            TypeDesc: *
+              TypeDesc
+                Identifier: void
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: *
+              TypeDesc
+                Identifier: int
+          Operator: Deref
+            Identifier: a
+          Operator: Deref
+            Identifier: b
+          Operator: Ref
+            IntLiteral: 1
+        Stmts
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc
+              Identifier: float32
+            IntLiteral: 1
+          VarDecl
+            ConstDesc: let
+            Identifier: b
+            TypeDesc
+              Identifier: int32
+            DoubleLiteral: 1.0
+          Operator: At
+            StringLiteral: ""
+            DoubleLiteral: 1.0
+          IfStmt
+            DoubleLiteral: 1.0
+            Stmts
+            Stmts
+          Stmt
+          FuncDecl
+            Identifier: tail_ret
+            FuncParams
+            TypeDesc
+              Identifier: int
+            Stmts
+              Stmt: return
+                IntLiteral: 1
+          FuncDecl
+            Identifier: normal_ret
+            FuncParams
+            TypeDesc
+              Identifier: int
+            StmtsRet
+              IntLiteral: 1
+          FuncDecl
+            Identifier: error_ret
+            FuncParams
+            TypeDesc
+              Identifier: int
+            Stmts
+        Stmts
+          StructDecl
+            Identifier: st1
+            StructMem
+          Operator: Convert
+            IntLiteral: 1
+            TypeDesc
+              Identifier: st1
+        Stmts
+          StructDecl
+            Identifier: st
+            StructMem
+              VarDecl
+                ConstDesc: let
+                Identifier: a
+                TypeDesc
+                  Identifier: int
+              VarDecl
+                ConstDesc: let
+                Identifier: b
+                TypeDesc
+                  Identifier: float32
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc
+              Identifier: st
+          Operator: Assign
+            Operator: Access
+              Identifier: a
+              Identifier: a
+            IntLiteral: 1
+          Operator: Assign
+            Operator: Access
+              Identifier: a
+              Identifier: c
+            IntLiteral: 1
+        Stmts
+          Stmt: break
+          Stmt: continue
+          WhileStmt
+            IntLiteral: 1
+            Stmts
+              Stmt: break
+        Stmts
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: []
+              TypeDesc
+                Identifier: int
+              DoubleLiteral: 1.0
+        Stmts
+          StructDecl
+            Identifier: st
+            StructMem
+              VarDecl
+                ConstDesc: let
+                Identifier: a
+                TypeDesc
+                  Identifier: int
+              VarDecl
+                ConstDesc: let
+                Identifier: b
+                TypeDesc
+                  Identifier: int
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: #auto
+          StructInstance
+            StructInstanceMem
+              Identifier: a
+              IntLiteral: 1
+            StructInstanceMem
+              Identifier: b
+              IntLiteral: 2
+          StructInstance
+            StructInstanceMem
+              Identifier: a
+              IntLiteral: 1
+        Stmts
+          Operator: Call
+            Identifier: main
+            FuncArgs
+          Operator: Call
+            Identifier: main
+            FuncArgs
+              IntLiteral: 1
+        Stmts
+          VarDecl
+            ConstDesc: let
+            Identifier: a
+            TypeDesc
+              Identifier: void
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): main: () -> void
+    FuncDecl(() -> void)
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      Stmts(void)
+        Stmts(void): a: int32
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: #auto
+            IntLiteral(int32): 1
+          VarDecl(error)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: #auto
+            IntLiteral(int32): 1
+        Stmts(void): b: error
+          Operator(error): Add
+            Identifier(error): b
+            Identifier(error): b
+        Stmts(void)
+          Operator(error): At
+            IntLiteral(int32): 1
+            IntLiteral(int32): 0
+          Operator(error): Call
+            IntLiteral(int32): 1
+            FuncArgs((int32))
+              IntLiteral(int32): 1
+        Stmts(void): a: a#1
+          StructDecl: a
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: a#1
+          Operator(error): Or
+            DoubleLiteral(float64): 1.0
+            DoubleLiteral(float64): 1.0
+          Operator(error): Add
+            Identifier(&a#1): a
+            IntLiteral(int32): 1
+        Stmts(void)
+          Operator(int32): Assign
+            IntLiteral(int32): 1
+            IntLiteral(int32): 1
+          Operator(&() -> void): Assign
+            Identifier(&() -> void): main
+            Identifier(&() -> void): main
+        Stmts(void): a: int32*, b: void*
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: b
+            TypeDesc: void*
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: int32*
+          Operator(&int32): Deref
+            Identifier(&int32*): a
+          Operator(error): Deref
+            Identifier(&void*): b
+          Operator(error): Ref
+            IntLiteral(int32): 1
+        Stmts(void): a: float32, b: int32, error_ret: () -> int32, normal_ret: () -> int32, tail_ret: () -> int32
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: float32
+            IntLiteral(int32): 1
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: b
+            TypeDesc: int32
+            DoubleLiteral(float64): 1.0
+          Operator(&char): At
+            StringLiteral(char[2]): ""
+            DoubleLiteral(float64): 1.0
+          IfStmt(void)
+            DoubleLiteral(float64): 1.0
+            Stmts(void)
+            Stmts(void)
+          Stmt(void)
+          FuncDecl(() -> int32)
+            Identifier: tail_ret
+            FuncParams
+            TypeDesc: int32
+            Stmts(void)
+              Stmt(void): return
+                IntLiteral(int32): 1
+          FuncDecl(() -> int32)
+            Identifier: normal_ret
+            FuncParams
+            TypeDesc: int32
+            StmtsRet(int32)
+              IntLiteral(int32): 1
+          FuncDecl(() -> int32)
+            Identifier: error_ret
+            FuncParams
+            TypeDesc: int32
+            Stmts(void)
+        Stmts(void)
+          StructDecl: st1
+          Operator(st1#2): Convert
+            IntLiteral(int32): 1
+            TypeDesc: st1#2
+        Stmts(void): a: st#3
+          StructDecl: st
+          a: int32
+          b: float32
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: st#3
+          Operator(&int32): Assign
+            Operator(&int32): Access
+              Identifier(&st#3): a
+              Identifier: a
+            IntLiteral(int32): 1
+          Operator(error): Assign
+            Operator(error): Access
+              Identifier(&st#3): a
+              Identifier: c
+            IntLiteral(int32): 1
+        Stmts(void)
+          Stmt(void): break
+          Stmt(void): continue
+          WhileStmt(void)
+            IntLiteral(int32): 1
+            Stmts(void)
+              Stmt(void): break
+        Stmts(void): a: error
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: error
+        Stmts(void)
+          StructDecl: st
+          a: int32
+          b: int32
+          VarDecl(error)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: #auto
+          StructInstance(st#4)
+            StructInstanceMem
+              Identifier: a
+              IntLiteral(int32): 1
+            StructInstanceMem
+              Identifier: b
+              IntLiteral(int32): 2
+          StructInstance(error)
+            StructInstanceMem
+              Identifier: a
+              IntLiteral(int32): 1
+        Stmts(void)
+          Operator(void): Call
+            Identifier(&() -> void): main
+            FuncArgs(())
+          Operator(void): Call
+            Identifier(&() -> void): main
+            FuncArgs((int32))
+              IntLiteral(int32): 1
+        Stmts(void): a: error
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: a
+            TypeDesc: void
+
+/******************************Error Detected******************************/
+Error C01: Variable 'a' is defined twice. (5, 13) 
+Error C02: Variable 'b' is not declared. (11, 9) 
+Error C02: Variable 'b' is not declared. (11, 13) 
+Error C03: Expression should be array or pointer type, but it is 'int32'. (16, 10) 
+Error C03: Expression should be function type, but it is 'int32'. (17, 10) 
+Error C04: no match operator: Or(float64, float64) (24, 13) 
+Error C04: no match operator: Add(&a#1, int32) (25, 11) 
+Error C05: lvalue required as left operand of assignment (31, 11) 
+Error C05: Cannot assign to function. (32, 14) 
+Error C06: cannot dereference pointer of void type. (40, 9) 
+Error C06: lvalue required as operand of reference (41, 9) 
+Error C07: Failed to convert 'float64' to 'int32' implicitly. (47, 22) 
+Error C07: Failed to convert 'float64' to 'uint64' implicitly. (48, 11) 
+Error C07: Failed to convert 'float64' to 'bool' implicitly. (49, 9) 
+Error C07: Failed to convert 'void' to 'int32' implicitly. (59, 14) 
+Error C08: Failed to convert 'int32' to 'st1#2'. (67, 9) 
+Error C09: Type 'st#3' has no member named 'c'. (75, 10) 
+Error C10: break statement out of loop body. (80, 9) 
+Error C10: continue statement out of loop body. (81, 9) 
+Error C11: Array length should be a int literal. (89, 20) 
+Error C14: Unknown type of variable 'a'. (89, 13) 
+Error C12: Failed to infer the type of 'a'. (95, 13) 
+Error C12: No matched type for struct instance. (97, 9) 
+Error C13: Cannot call function '() -> void' with args: '(int32)'. (103, 13) 
+Error C14: Variable cannot be declared as void type. (108, 13) 

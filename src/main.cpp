@@ -120,21 +120,20 @@ int main(int argc, char* argv[]){
     yyparse();
 
     bool err_flag = get_error_list().size();
+    std::cout << "/****************************Full AST Structure****************************/" << std::endl;
     plain_print(program_root, 0);
+    std::cout << std::endl;
+
     build_sym_table(program_root);
     // print_sym_table(program_root);
     // if (!err.size())
     auto err = get_error_list();
     if(!err_flag){
+        std::cout << "/**************************AST with symbols table**************************/" << std::endl;
         print(program_root, 0);
+        std::cout << std::endl;
     }
-    
+    std::cout << "/******************************Error Detected******************************/" << std::endl;
     for(auto [s, loc]: err)
         std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
 }
-
-//TODO
-//Function overload support [Option]
-//All error handling
-//Array Instance
-//Escape string literal
