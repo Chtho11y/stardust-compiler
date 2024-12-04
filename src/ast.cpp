@@ -332,7 +332,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == Identifier){
 
         auto res = node->get_id(node->str);
-        if(res == nullptr || res->is_error()){
+        if(res == nullptr){
             // append_error("variable \'" + node->str + "\' is not declared", node->loc);
             append_nodef_error("Variable", node->str, node->loc);
             res = get_type("#err");
