@@ -1,0 +1,110 @@
+func main(){
+    //C01: defined twice
+    {
+        let a = 1;
+        let a = 1;
+    }
+    
+
+    //C02: undefined
+    {
+        b + b;
+    }
+
+    //C03: invalid call/access
+    {
+        1[0];
+        1(1);
+    }
+
+    //C04: no matched operator
+    {
+        struct a{}
+        let a: a;
+        1.0 || 1.0;
+        a + 1;
+    }
+    
+
+    //C05: invalid assignment
+    {
+        1 = 1;
+        main = main;
+    }
+
+    //C06: invalid ref/deref
+    {
+        let b: void*;
+        let a: int*; 
+        *a;  //ok
+        *b;
+        &1;
+    }
+
+    //C07: implicit convert error
+    {
+        let a: float32 = 1; //ok
+        let b: int32 = 1.0;
+        ""[1.0];
+        if 1.0 {} else{};
+
+        func tail_ret()->int{
+            return 1;       //ok
+        }
+
+        func normal_ret()->int{
+            1               //ok
+        }
+
+        func error_ret()->int{
+            
+        }
+    }
+
+    //C08: explicit convert error
+    {
+        struct st1{}
+        (st1)1;
+    }
+
+    //C09: invalid access
+    {
+        struct st{a: int, b: float32}
+        let a: st;
+        a.a = 1;
+        a.c = 1;
+    }
+
+    //C10: misplaced statement
+    {
+        break;
+        continue;
+        while 1{
+            break; //ok
+        }
+    }
+
+    //C11: Array length is not int literal
+    {
+        let a: int[1.0];
+    }
+
+    //C12: failed to infer type
+    {
+        struct st{a: int, b: int}
+        let a;
+        struct{a:1, b:2}; //ok
+        struct{a: 1};
+    }
+
+    //C13: invalid function call
+    {   
+        main();  //ok
+        main(1);
+    }
+
+    //C14: invalid declaration
+    {
+        let a: void;
+    }
+}
