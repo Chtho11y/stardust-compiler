@@ -50,7 +50,6 @@
 %left ADD SUB
 %left MUL DIV MOD
 %left NOT
-%left TAS
 %left DOT
 %%
 
@@ -263,19 +262,19 @@ ctrl_no_ret:
         $$->append($2);
         $$->append($3);
     }
-    |TFOR var_decl expr SEMI expr block {
+    |TFOR stmt expr SEMI expr block {
         $$ = new BlockNode(ForStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
         $$->append($6);
     }
-    |TFOR expr SEMI expr SEMI expr block {
+    |TFOR stmt SEMI expr block {
         $$ = new BlockNode(ForStmt);
         $$->append($2);
+        $$->append(new AstNode(Stmt));
         $$->append($4);
-        $$->append($6);
-        $$->append($7);
+        $$->append($5);
     }
     ;
 

@@ -33,7 +33,7 @@ using var_type_ptr = std::shared_ptr<VarType>;
 
 bool is_convertable(var_type_ptr from, var_type_ptr to);
 bool is_force_convertable(var_type_ptr from, var_type_ptr to);
-void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc = Locator());
+void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc);
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
 var_type_ptr ref_type(var_type_ptr ptr);
 var_type_ptr decay(var_type_ptr ptr);

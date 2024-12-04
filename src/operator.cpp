@@ -85,7 +85,8 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
             require_convertable(args[1], get_type("uint64"), loc);
             return ref_type(arr->subtype);
         }else{
-            append_error("Expression should be array or pointer type, but it is "+ op_l->to_string(), loc);
+            append_mismatch_op_error("array or pointer", op_l, loc);
+            // append_error("Expression should be array or pointer type, but it is "+ op_l->to_string(), loc);
             return get_type("#err");
         }
     }
@@ -93,12 +94,15 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
     case op_type::Call:{
         auto fn = decay(args[0]);
         if(!fn->is_type(VarType::Func)){
-            append_error("Expression should be function type, but it is " + fn->to_string(), loc);
+            // append_error("Expression should be function type, but it is " + fn->to_string(), loc);
+            append_mismatch_op_error("function", fn, loc);
             return get_type("#err");
         }
         auto func = std::dynamic_pointer_cast<FuncType>(fn);
-        if(!func->is_callable(args[1]))
-            append_error("Cannot call function " + func->to_string() + " with args: " + args[1]->to_string(), loc);
+        if(!func->is_callable(args[1])){
+            append_call_error(func, args[1], loc);
+            // append_error("Cannot call function \'" + func->to_string() + "\' with args: \'" + args[1]->to_string() + "\'", loc);
+        }
         return func->ret_type;
     }
 
@@ -108,18 +112,20 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
     // }
 
     case op_type::Convert:{
-        if(!is_force_convertable(args[0], args[1]))
-            append_error("Cannot convert type \'" + args[0]->to_string() + "\' to \'" + args[1]->to_string() + "\'.", loc);
+        if(!is_force_convertable(args[0], args[1])){
+            append_force_convert_error(decay(args[0]), decay(args[1]), loc);
+            // append_error("Cannot convert type \'" + args[0]->to_string() + "\' to \'" + args[1]->to_string() + "\'.", loc);
+        }
         return args[1];
     }
 
     case op_type::Assign:{
         require_convertable(args[1], args[0], loc);
         if(!args[0]->is_ref()){
-            append_error("lvalue required as left operand of assignment", loc);
+            append_assign_error("lvalue required as left operand of assignment", loc);
         }
         if(decay(args[0])->is_type(VarType::Func)){
-            append_error("Cannot assign to function.", loc);
+            append_assign_error("Cannot assign to function.", loc);
         }
         return args[0];
     }
@@ -127,7 +133,7 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
     case op_type::AddEq:case op_type::SubEq:case op_type::MulEq:case op_type::DivEq:{
         require_convertable(args[1], args[0], loc);
         if(!args[0]->is_ref()){
-            append_error("lvalue required as left operand of assignment", loc);
+            append_assign_error("lvalue required as left operand of assignment", loc);
             return args[0];
         }
         if(!decay(args[0])->is_prim())
@@ -137,7 +143,7 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
 
     case op_type::Ref:{
         if(!args[0]->is_ref()){
-            append_error("lvalue required as operand of reference", loc);
+            append_ref_error("lvalue required as operand of reference", loc);
             return get_type("#err");
         }
         auto res = std::make_shared<PointerType>();
@@ -148,12 +154,12 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
     case op_type::DeRef:{
         auto op = decay(args[0]);
         if(!op->is_ptr()){
-            append_error("pointer type required as operand of dereference", loc);
+            append_ref_error("pointer type required as operand of dereference", loc);
             return get_type("#err");
         }
         auto sub = std::dynamic_pointer_cast<PointerType>(op)->subtype;
         if(sub->is_void()){
-            append_error("cannot dereference pointer of void type.", loc);
+            append_ref_error("cannot dereference pointer of void type.", loc);
             return get_type("#err");
         }        
         return ref_type(sub);
@@ -168,11 +174,16 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
     default:
         break;
     }
-    append_error("no match operator: "+ get_op_name(op) + TupleType(args).to_string(), loc);
+    append_nomatch_op_error("no match operator: " + get_op_name(op) + TupleType(args).to_string(), loc);
     return get_type("#err");
 }
 
 var_type_ptr op_type_eval(op_type op, std::vector<var_type_ptr> args, Locator loc){
+
+    for(auto& tp: args)
+        if(tp->is_error())
+            return get_type("#err");
+
     auto& impl_list = op_impl_list[op];
     int cnt = 0, weight = 114514, id = -1, cur = 0;
     for(auto impl: impl_list){
@@ -200,7 +211,7 @@ var_type_ptr op_type_eval(op_type op, std::vector<var_type_ptr> args, Locator lo
     if(id == -1){
         return sp_op_eval(op, args, loc);
     }else if(cnt > 1){
-        append_error("Ambiguous call for operator.", loc);
+        append_nomatch_op_error("Ambiguous call for operator: "+ get_op_name(op) + ".", loc);
         return get_type("#err");
     }else{
         return impl_list[id].ret;

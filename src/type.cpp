@@ -1,5 +1,6 @@
 #include "var_type.h"
 #include "context.h"
+#include "error.h"
 #include <map>
 #include <memory>
 
@@ -90,8 +91,10 @@ bool is_force_convertable(var_type_ptr from, var_type_ptr to){
 
 void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc){
     from = decay(from), to = decay(to);
-    if(!is_convertable(from, to))
-        append_error("Cannot convert type \'" + from->to_string() + "\' to \'" + to->to_string() + "\'.", loc);
+    if(!is_convertable(from, to)){
+        append_convert_error(from, to, loc);
+        // append_error("Cannot convert type \'" + from->to_string() + "\' to \'" + to->to_string() + "\'.", loc);
+    }
 }
 
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b){

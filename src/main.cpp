@@ -124,19 +124,17 @@ int main(int argc, char* argv[]){
     build_sym_table(program_root);
     // print_sym_table(program_root);
     // if (!err.size())
+    auto err = get_error_list();
     if(!err_flag){
         print(program_root, 0);
     }
-    auto& err = get_error_list();
-
+    
     for(auto [s, loc]: err)
         std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
 }
 
 //TODO
-//Locator for all AST node
-//Function overload support 
+//Function overload support [Option]
 //All error handling
-//Array&Struct Instance
-//Continue statement
-//String Literal
+//Array Instance
+//Escape string literal

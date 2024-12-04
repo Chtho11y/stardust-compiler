@@ -146,7 +146,7 @@ size_t const_eval(AstNode* node){
     if(node->type == IntLiteral){
         return atoi(node->str.c_str());
     }else{
-        append_error("Array length should be a int literal.", node->loc);
+        append_array_len_error(node->loc);
     }
     return 0;
 }
@@ -159,7 +159,8 @@ var_type_ptr lookup_struct(AstNode* node){
         auto tp = build_sym_table(ch->ch[1]);
         for(auto& [s, t]: mem)
             if(s == id){
-                append_error("member + \'" + id + "\' is defined twice.", ch->ch[0]->loc);
+                // append_error("member + \'" + id + "\' is defined twice.", ch->ch[0]->loc);
+                append_multidef_error("Member", id, ch->ch[0]->loc);
                 err = 1;
             }
         if(tp->is_error())
@@ -189,13 +190,15 @@ var_type_ptr lookup_struct(AstNode* node){
             if(cnt == 1){
                 return res;
             }else if(cnt > 1){
-                append_error("Failed to infer the type of struct.", node->loc);
+                append_infer_failed_error("Failed to infer the type of struct.", node->loc);
+                // append_error("Failed to infer the type of struct.", node->loc);
                 return get_type("#err");
             }
         }
         p = p->parent;
     }
-    append_error("No matched type for struct instance.", node->loc);
+    append_infer_failed_error("No matched type for struct instance.", node->loc);
+    // append_error("No matched type for struct instance.", node->loc);
     return get_type("#err");
 }
 
@@ -214,6 +217,8 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             auto res = std::make_shared<ArrayType>();
             res->subtype = ast_to_type(node->ch[0]);
             res->size = const_eval(node->ch[1]);
+            if(res->size <= 0)
+                return get_type("#err");
             return res;
         }else if(node->str == "*"){
             auto res = std::make_shared<PointerType>();
@@ -221,6 +226,8 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             return res;
         }else if(node->str == "#auto"){
             return std::make_shared<AutoType>();
+        }else if(node->str == "#err"){
+            return get_type("#err");
         }else return ast_to_type(node->ch[0]);
     }else if(node->type == TypeList){
         if(node->ch.size() == 0){
@@ -275,7 +282,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         }
 
         if(!flag){
-            append_error("Function " + func.id + " has been declared.", func.id_loc);
+            // append_error("Function " + func.id + " has been declared.", func.id_loc);
+            append_multidef_error("Function ", func.id, func.id_loc);
             node->ret_var_type = get_type("#err");
         }
 
@@ -290,7 +298,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             res_type = build_sym_table(var.init_val);
         if(var.type_info->is_auto()){
             if(res_type == nullptr){
-                append_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
+                // append_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
+                append_infer_failed_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
                 return node->ret_var_type = get_type("#err");
             }
             var.type_info = res_type;
@@ -301,7 +310,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         }
 
         if(!node->set_id(var.id, var.type_info)){
-            append_error("Variable \'" + var.id + "\' has been declared.", var.id_loc);
+            // append_error("Variable \'" + var.id + "\' has been declared.", var.id_loc);
+            append_multidef_error("Variable", var.id, var.id_loc);   
             return node->ret_var_type = get_type("#err");
         };
         return node->ret_var_type = get_type("void");
@@ -313,7 +323,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             return node->ret_var_type = get_type("#err");
         st.type_info->id = ++ast_context.type_id;
         if(!node->set_type(st.id, st.type_info)){
-            append_error("type " + st.id + " has been declared.", st.id_loc);
+            // append_error("type " + st.id + " has been declared.", st.id_loc);
+            append_multidef_error("Type", st.id, st.id_loc);
             return node->ret_var_type = get_type("#err");
         }
         return node->ret_var_type = get_type("void");
@@ -321,8 +332,9 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == Identifier){
 
         auto res = node->get_id(node->str);
-        if(!res){
-            append_error("variable \'" + node->str + "\' is not declared", node->loc);
+        if(res == nullptr || res->is_error()){
+            // append_error("variable \'" + node->str + "\' is not declared", node->loc);
+            append_nodef_error("Variable", node->str, node->loc);
             res = get_type("#err");
         }
         return node->ret_var_type = res;
@@ -347,14 +359,11 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                     if(n == id)
                         return node->ret_var_type = is_ref ? ref_type(tp): tp;
                 }
-                append_error("struct \'" + t->to_string() +"\' has no member named "+ id, node->loc);
             }else if(t->is_array()){
                 if(id == "length")
                     return get_type("int32");
-                append_error("array \'" + t->to_string() +"\' has no member named "+ id, node->loc);
-            }else{
-                append_error("type \'" + t->to_string() + "\' has no member.", node->loc);
             }
+            append_invalid_access_error(t, id, node->loc);
             return node->ret_var_type = get_type("#err");
         }else{     
             for(auto ch: node->ch)
@@ -371,24 +380,28 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == IfStmt){
 
         auto cond = build_sym_table(node->ch[0]);
-        require_convertable(cond, get_type("bool"));
+        require_convertable(cond, get_type("bool"), node->loc);
         auto ret1 = build_sym_table(node->ch[1]);
-        auto ret2 = build_sym_table(node->ch[2]);
+        auto ret2 = get_type("void");
+        if(node->ch[2])
+            auto ret2 = build_sym_table(node->ch[2]);
 
         return node->ret_var_type = greater_type(ret1, ret2);
 
     }else if(node->type == WhileStmt){
 
         auto cond = build_sym_table(node->ch[0]);
-        require_convertable(cond, get_type("bool"));
+        require_convertable(cond, get_type("bool"), node->loc);
         build_sym_table(node->ch[1]);
         return node->ret_var_type = get_type("void");
 
     }else if(node->type == ForStmt){
 
         build_sym_table(node->ch[0]);
-        auto cond = build_sym_table(node->ch[1]);
-        require_convertable(cond, get_type("bool"));
+        if(node->ch[1]->type != Stmt){
+            auto cond = build_sym_table(node->ch[1]);
+            require_convertable(cond, get_type("bool"), node->loc);
+        }
         build_sym_table(node->ch[2]);
         build_sym_table(node->ch[3]);
         return node->ret_var_type = get_type("void");
@@ -419,7 +432,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         if(node->str == "return"){
             auto p = node->get_func_parent();
             if(!p){
-                append_error("return statement out of function body.", node->loc);
+                // append_error("return statement out of function body.", node->loc);
+                append_misplace_error("return", "function", node->loc);
                 return node->ret_var_type = get_type("void");
             }
             auto ret_type = std::dynamic_pointer_cast<FuncType>(p->ret_var_type)->ret_type;
@@ -427,12 +441,14 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             if(node->ch.size())
                 res = build_sym_table(node->ch[0]);
             res = decay(res);
-            require_convertable(res, ret_type);
+            require_convertable(res, ret_type, node->loc);
             return node->ret_var_type = get_type("void");
         }else if(node->str == "break" || node->str == "continue"){
             auto p = node->get_loop_parent();
-            if(!p)
-                append_error(node->str + " statement out of loop statement.", node->loc);
+            if(!p){
+                // append_error(node->str + " statement out of loop statement.", node->loc);
+                append_misplace_error(node->str, "loop", node->loc);
+            }
             return node->ret_var_type = get_type("void");
         }else{
             //noop

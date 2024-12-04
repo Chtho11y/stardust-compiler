@@ -3,6 +3,7 @@
 #include "parse.h"
 #include "var_type.h"
 #include "context.h"
+#include "error.h"
 #include <map>
 #include <vector>
 
@@ -176,10 +177,10 @@ struct Adaptor<VarDecl>{
 
     Adaptor<VarDecl>& check_type(){
         if(type_info->is_void()){
-            append_error("Variable cannot be declared as void type.", id_loc);
+            append_invalid_decl_error("Variable cannot be declared as void type.", id_loc);
             type_info = get_type("#err");
         }else if(type_info->is_error()){
-            append_error("Unknown type of variable \'" + id + "\'.", id_loc);
+            append_invalid_decl_error("Unknown type of variable \'" + id + "\'.", id_loc);
         }
         return *this;
     }
@@ -217,7 +218,8 @@ struct Adaptor<StructDecl>{
             for(int j = i + 1; j < cnt; ++j)
                 if(type_info->member[i].first == type_info->member[j].first){
                     auto nam = type_info->member[i].first;
-                    append_error("member \'"+ nam + "\' is defined twice.", mem_loc[i]);
+                    // append_error("member \'"+ nam + "\' is defined twice.", mem_loc[i]);
+                    append_multidef_error("Member", nam, mem_loc[i]);
                     type_info = nullptr;
                 }
         return *this;

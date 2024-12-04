@@ -56,7 +56,7 @@ struct ParserContext{
     }
 
     void set_type(std::string name){
-         type_table.back().insert(name);
+        type_table.back().insert(name);
     }
 };
 
