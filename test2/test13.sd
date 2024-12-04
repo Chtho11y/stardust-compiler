@@ -1,15 +1,17 @@
 struct Child {
-    let name: int;
-    let age: int;
+    name: int,
+    age: int
 };
+
 struct Parent
 {
-  struct Child c;
-  let cc: int;
+  c: Child,
+  cc: int
 };
+
 func test_2_r07 () -> int{
-  struct Parent father;
-  struct Parent mother;
+  let father: Parent;
+  let mother: Parent;
   father.c.name = 1;
   father.c.age = 1;
   father.cc = 30;

@@ -1,10 +1,10 @@
 struct Apple {
-    let weight: int;
-    let round: float;
+    weight: int,
+    round: float32
 };
 
 func test_2_r05 () -> int{
-  struct Apple aa;
+  let aa: Apple;
   aa.weight = 2.5;
   1.1 = aa.round;
   0

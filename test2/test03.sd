@@ -1,0 +1,11 @@
+struct Student {
+    weight: int,
+    weight: float32
+};
+
+func test_2_r07 () -> int{
+    let amy: Student;
+    let age: int;
+    let age: float32;
+    0
+}

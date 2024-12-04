@@ -1,0 +1,11 @@
+func sum(x: int, y: int) -> int {
+    let res: int = x + y;
+    res
+}
+
+func test_2_r01 () -> int{
+    let a1: int;
+    let a2: int;
+    let b: float32 = diff(a1,a2);
+    b
+}

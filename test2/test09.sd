@@ -1,0 +1,15 @@
+func compare(x: int, y: int) -> int {
+    if (x > y) {1}
+    else if (y > x) {-1}
+    else {0}
+}
+func test_2_r09 () -> int{
+    let a: int = 5;
+    let b: int = 9;
+    if a == b {a = 1}
+    let c: int = 7;
+    return compare(a, b, c);
+    return compare(a, b);
+    //compare(a)
+    //compare()
+}

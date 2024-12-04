@@ -1,9 +1,10 @@
 struct test {
-    let a: int;
-    let b: float;
+    a: int,
+    b: float64
 };
+
 func test_2_r14 () -> int{
-    struct test t;
+    let t: test;
     t.a = 1;
     t.b = 20.0;
     t.c = t.a;
