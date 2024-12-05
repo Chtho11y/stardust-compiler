@@ -1,0 +1,37 @@
+//comprehensive, runnable
+
+func calculateBinomialCoefficient(row: int, col: int) -> int
+{
+    let coefficient:int = 1;
+    let i: int = 0;
+
+    if (row < col) {
+        0
+    }
+    
+    if (col > row - col) {
+        col = row - col;
+    }
+    
+    while (i < col) {
+        coefficient = coefficient * (row - i);
+        coefficient = coefficient / (i + 1);
+        i=i+1;
+    }
+    
+    coefficient
+}
+
+func read() -> int {0}
+func write(a: int) {}
+
+func main() {
+    let r: int;
+    let c: int;
+    let coe: int;
+    r = read();
+    c = read();
+    coe = calculateBinomialCoefficient(r, c);
+    write(coe);
+    0
+}

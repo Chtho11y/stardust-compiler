@@ -1,0 +1,13 @@
+//type inference
+
+func sum(x: int, y: int) -> int {
+    let res: int = x + y;
+    res
+}
+
+func test_n1 () -> int{
+    let a = 1;
+    let b = a + 10;
+    b = sum(a,b);
+    0
+}

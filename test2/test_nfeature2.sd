@@ -1,0 +1,22 @@
+//type casting
+
+func sum(x: int, y: int) -> int {
+    let res: int = x + y;
+    res
+}
+
+func mul(x: int, y: float64) -> float64 { //implicitly
+    let res: float64 = x + y;
+    res
+}
+
+func test_n1 () -> int{
+    let a = 1;
+    let b = a + 10;
+    let c: float32 = (float32) 3.5; //explicitly
+
+    b = sum(a,b);
+    c = (float32) mul(a, c);
+
+    return 0;
+}
