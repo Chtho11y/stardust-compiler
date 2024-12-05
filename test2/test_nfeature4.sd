@@ -6,7 +6,7 @@ func calculateBinomialCoefficient(row: int, col: int) -> int
     let i: int = 0;
 
     if (row < col) {
-        0
+        return 0;
     }
     
     if (col > row - col) {
