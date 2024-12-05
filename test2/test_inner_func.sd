@@ -1,0 +1,8 @@
+func outer_func() -> int {
+    func inner_func() -> int {
+        10
+    }
+
+    let result = inner_func();  
+    result * 2        
+}
