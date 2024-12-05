@@ -1,11 +1,18 @@
-struct Student {
-    weight: int,
-    weight: float32
-};
+func test1() -> int {
+    1
+}
 
-func test_2_r07 () -> int{
-    let amy: Student;
-    let age: int;
-    let age: float32;
-    0
+func test2() -> float64 {
+    1.0
+}
+
+func test_2_r08 (a: int, b: int) -> int{
+   if (a > b)
+  {
+    test1()
+  }
+  else
+  {
+    test2()
+  }
 }

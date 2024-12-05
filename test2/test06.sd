@@ -1,11 +1,24 @@
-struct Apple {
-    weight: int,
-    round: float32
+//struct with struct fields
+
+struct Child {
+    name: int,
+    age: int
 };
 
-func test_2_r05 () -> int{
-  let aa: Apple;
-  aa.weight = 2.5;
-  1.1 = aa.round;
+struct Parent
+{
+  c: Child,
+  cc: int
+};
+
+func test_2_r07 () -> int{
+  let father: Parent;
+  let mother: Parent;
+  father.c.name = 1;
+  father.c.age = 1;
+  father.cc = 30;
+  mother.c.name = father.c.name;
+  mother.cc.age = father.cc.age;
+  mother.cc = father.cc;
   0
 }

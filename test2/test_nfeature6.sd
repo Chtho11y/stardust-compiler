@@ -1,3 +1,5 @@
+//inner_function
+
 func outer_func() -> int {
     func inner_func() -> int {
         10

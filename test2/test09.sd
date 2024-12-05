@@ -9,7 +9,7 @@ func test_2_r09 () -> int{
     if a == b {a = 1}
     let c: int = 7;
     return compare(a, b, c);
-    return compare(a, b);
+    return compare(a, b); //double return
     //compare(a)
     //compare()
 }
