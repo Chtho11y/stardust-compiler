@@ -39,6 +39,10 @@
 %type<node> item
 %type<node> literal
 
+
+%left TIF
+%left TELSE
+
 %right ASSIGN ADDEQ SUBEQ MULEQ DIVEQ
 %left COMMA
 %left OR
@@ -51,6 +55,9 @@
 %left MUL DIV MOD
 %left NOT
 %left DOT
+%left RP
+%left ARROW
+// todo : add destructor
 %%
 
 program: {
@@ -70,8 +77,12 @@ program: {
 
 ext_decl:
     {$$ = new BlockNode(ExtDecl);}
-    | ext_decl SEMI {$$ = $1; yyerrok;}
-    | ext_decl {yyerrok;} single_decl {$$ = $1; $$->append($3); yyerrok;}
+    | ext_decl SEMI {$$ = $1;}
+    | ext_decl single_decl {$$ = $1; $$->append($2); }
+    | RP {}
+    | RBRACE {}
+    | RBRACKET {}
+    | error {}
     ;
 
 single_decl: var_decl | func_decl | struct_decl;
@@ -80,19 +91,26 @@ single_decl: var_decl | func_decl | struct_decl;
 opt_type_desc: 
     {$$ = new AstNode(TypeDesc, "#auto");}
     |COLON type_desc {$$ = $2;};
+    |type_desc {};
+    |COLON error {$$ = new AstNode(TypeDesc, "#err"); yyerrok;}
     ;
 
 type_desc: 
       type_item
-    | LP type_list RP ARROW type_desc{
+    | LP type_list RP ARROW type_desc {
         $$ = new AstNode(TypeDesc, "()");
         $$->append($2);
         $$->append($5);
     }
+    | LP type_list ARROW type_desc{
+
+    }
+    ;
+    // | error {$$ = new AstNode(TypeDesc, "#err");}
 
 type_item: 
     type_name {$$ = create_node_from(TypeDesc, $1);}
-    | LP type_list RP {$$ = $2;}
+    | LP type_list RP{$$ = $2;}
     | type_item LBRACKET expr RBRACKET{
         $$ = new AstNode(TypeDesc, "[]");
         $$->append($1);
@@ -101,19 +119,33 @@ type_item:
     | type_item MUL{
         $$ = new AstNode(TypeDesc, "*"); 
         $$->append($1);
-    };
+    }
+    | LP type_list error {
+        $$ = new AstNode(TypeDesc, "#err");
+        // yyerrok;
+    }
+    | type_item LBRACKET expr error {
+        $$ = new AstNode(TypeDesc, "#err");
+        // yyerrok;
+    }
+    ;
 
 
 type_list: 
     {$$ = new AstNode(TypeList);}
     |type_desc{$$ = create_node_from(TypeList, $1);}
     |type_list COMMA type_desc {$$ = $1; $$->append($3);}
+    |type_list COMMA ident {}
+    |type_list COMMA {
+
+    }
     ;
 
 type_name: 
     TYPENAME {
         $$ = new AstNode(Identifier, *$1); free($1);
-    };
+    }
+    ;
 
 
 /**************variable declaration**************/
@@ -126,6 +158,7 @@ var_decl:
         $$->append($5);
         parser_context.set_var($2->str);
         $$->loc = $4;
+        std::cout << "recovered" << '\n';
     }
     | const_desc ident_all opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
@@ -134,6 +167,21 @@ var_decl:
         $$->append($3);
         parser_context.set_var($2->str);
         $$->loc = $2->loc;
+    }
+    | const_desc ident_all opt_type_desc ASSIGN error  {
+
+    }
+    | const_desc ident_all opt_type_desc error {
+
+    }
+    | const_desc COLON error  {
+
+    }
+    | const_desc ASSIGN error {
+
+    }
+    | const_desc error{
+
     }
     ;
 
@@ -156,13 +204,34 @@ ident_type_list:
         $$ = $1;
         $$->append($3);
     }
+    | ident_type_list COMMA {
 
-ident_type_member: ident_all COLON type_desc{
-    $$ = new AstNode(VarDecl);
-    $$->append(new AstNode(ConstDesc, "let"));
-    $$->append($1);
-    $$->append($3);
-};
+    }
+    // | ident_type_list COMMA
+
+ident_type_member: 
+    ident_all COLON type_desc {
+        $$ = new AstNode(VarDecl);
+        $$->append(new AstNode(ConstDesc, "let"));
+        $$->append($1);
+        $$->append($3);
+    }
+    | ident_all COLON error {
+
+    }
+    | ident error {
+
+    }
+    | COLON type_desc {
+
+    }
+    | type_desc {
+
+    }
+    | COLON {
+
+    }
+    ;
 
 ident_value_list:
     {$$ = new AstNode(StructInstance);}
@@ -171,29 +240,63 @@ ident_value_list:
         $$ = $1;
         $$->append($3);
     }
+    | ident_value_list COMMA {
+
+    }
     ;
 
-ident_value_member: ident_all COLON expr_unit{
-    $$ = new AstNode(StructInstanceMem);
-    $$->append($1);
-    $$->append($3);    
-};
+ident_value_member: 
+    ident_all COLON expr_unit{
+        $$ = new AstNode(StructInstanceMem);
+        $$->append($1);
+        $$->append($3);    
+    }
+    | ident_all COLON error {
+
+    }
+    | ident_all error {
+
+    }
+    | COLON expr_unit {
+
+    }
+    // | expr_unit {
+
+    // }
+    | COLON {
+
+    }
+    ;
 
 /**************struct declaration**************/
-struct_decl_ident: TSTRUCT ident_all{$$ = $2;};
+struct_decl_ident: 
+    TSTRUCT ident_all{$$ = $2;}
+    ;
 
-struct_decl: struct_decl_ident LBRACE ident_type_list RBRACE{
-    $$ = create_node_from(StructDecl, $1);
-    $3->type = StructMem;
-    $$->append($3);
-    parser_context.set_type($1->str);
-};
+struct_decl: 
+    struct_decl_ident LBRACE ident_type_list RBRACE{
+        $$ = create_node_from(StructDecl, $1);
+        $3->type = StructMem;
+        $$->append($3);
+        parser_context.set_type($1->str);
+    }
+    // | TSTRUCT error 
+    | struct_decl_ident LBRACE ident_type_list error {
+
+    }
+    | struct_decl_ident error {
+
+    }
+    ;
 
 /**************function declaration**************/
-func_decl_ident: TFUNC ident_all{$$ = $2;};
+func_decl_ident: 
+    TFUNC ident_all{$$ = $2;}
+    | TFUNC {};
 func_decl_ret_type: 
     {$$ = new AstNode(TypeDesc, "#auto");}
-    | ARROW type_desc{$$ = $2;};
+    | ARROW type_desc{$$ = $2;}
+    | ARROW error {};
 
 func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     parser_context.push_block_env();
@@ -207,7 +310,14 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     $$->append($3);
     $$->append($5);
     $$->append($7);
-};
+}
+| func_decl_ident LP ident_type_list func_decl_ret_type block {
+
+}
+| func_decl_ident error {
+
+}
+;
 
 /**************block and statements**************/
 block: block_ret | block_no_ret;
@@ -220,30 +330,46 @@ block_ret:
         $$ = $2;
         $$->type = StmtsRet;
         $$->append($3);
-    };
+    }
+    ;
     
-block_no_ret:
-    block_begin stmts block_end{$$ = $2;};
+block_no_ret: 
+    block_begin stmts block_end{$$ = $2;}
+    // | block_begin stmts error block_end{
+
+    // } 
+    // | block_begin error {}
+    | block_begin stmts YYEOF {
+
+    }
+    ;
 
 stmts:
     {$$ = new BlockNode(Stmts);}
-    |stmts stmt {$$ = $1; $$->append($2);};
+    | stmts stmt {$$ = $1; $$->append($2);}
+    | stmts error {}
+    ;
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
     | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1;}
     | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1;}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr SEMI{$$ = $1;}
+    | TBREAK error {}
+    | TCONTIN error {}
+    | expr error{}
+    | TELSE block {}
+    | TELSE error {}
     ;
 
 ctrl_no_ret: 
-     TIF expr block {
+     TIF expr block_no_ret {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
         $$->loc = $1;
      }
-    |TIF expr block_no_ret TELSE block {
+    |TIF expr block_no_ret TELSE block_no_ret {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
@@ -276,6 +402,44 @@ ctrl_no_ret:
         $$->append($4);
         $$->append($5);
     }
+
+    |TIF block_no_ret error {
+
+    }
+    | TIF expr error {
+
+    }
+    | TIF expr block_no_ret TELSE block_ret {
+
+    }
+    | TIF expr block_no_ret TELSE ctrl_ret {
+
+    }
+    | TIF expr block_no_ret TELSE error {
+
+    }
+    // | TIF error TELSE block_no_ret {
+
+    // }
+    // | TIF error TELSE error {
+
+    // }
+    | TIF error {
+        
+    }
+    | TWHILE block_no_ret{
+
+    }
+    | TWHILE expr error {
+
+    }
+    | TWHILE error {
+
+    }
+    | TFOR error {
+
+    }
+    // todo : finish for-loop error handling
     ;
 
 ctrl_ret: 
@@ -292,7 +456,14 @@ ctrl_ret:
         $$->append($3);
         $$->append($5);
         $$->loc = $1;
-    };
+    }
+    |TIF expr block_ret TELSE block_no_ret {
+
+    }
+    |TIF expr block_ret TELSE ctrl_no_ret {
+
+    }
+    ;
 
 return_stmt: 
     TRETURN SEMI {$$ = new AstNode(Stmt, "return"); $$->loc = $1;}
@@ -300,7 +471,11 @@ return_stmt:
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
         $$->loc = $1;
-    };
+    }
+    | TRETURN error {
+
+    }
+    ;
 
 /**************expr**************/
 expr:
@@ -328,31 +503,74 @@ expr_unit:
     item
     | LP type_desc RP expr_unit %prec NOT{$$ = new OperatorNode(op_type::Convert, $4, $2, $1);}
     | ADD expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Pos, $2, $1);}
+    | ADD error {}
     | SUB expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Neg, $2, $1);}
+    | SUB error {}
     | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2, $1);}
+    | NOT error {}
     | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3, $2);} 
+    | ASSIGN error {}
+    | expr_unit ASSIGN error {}
     | expr_unit ADDEQ expr_unit  {$$ = new OperatorNode(op_type::AddEq, $1, $3, $2);} 
+    | ADDEQ error {}
+    | expr_unit ADDEQ error {}
     | expr_unit SUBEQ expr_unit  {$$ = new OperatorNode(op_type::SubEq, $1, $3, $2);} 
+    | SUBEQ error {}
+    | expr_unit SUBEQ error {}
     | expr_unit MULEQ expr_unit  {$$ = new OperatorNode(op_type::MulEq, $1, $3, $2);} 
+    | MULEQ error {}
+    | expr_unit MULEQ error {}
     | expr_unit DIVEQ expr_unit  {$$ = new OperatorNode(op_type::DivEq, $1, $3, $2);} 
+    | DIVEQ error {}
+    | expr_unit DIVEQ error {}
     | expr_unit ADD expr_unit     {$$ = new OperatorNode(op_type::Add, $1, $3, $2);}
+    | expr_unit ADD error {}
     | expr_unit SUB expr_unit     {$$ = new OperatorNode(op_type::Sub, $1, $3, $2);}
+    | expr_unit SUB error {}
     | expr_unit MUL expr_unit     {$$ = new OperatorNode(op_type::Mul, $1, $3, $2);}
+    | expr_unit MUL error {}
     | expr_unit DIV expr_unit     {$$ = new OperatorNode(op_type::Div, $1, $3, $2);}
+    | DIV error {}
+    | expr_unit DIV error {}
     | expr_unit MOD expr_unit     {$$ = new OperatorNode(op_type::Mod, $1, $3, $2);}
+    | MOD error {}
+    | expr_unit MOD error {}
     | expr_unit BITAND expr_unit  {$$ = new OperatorNode(op_type::BitAnd, $1, $3, $2);}
+    | expr_unit BITAND error {}
     | expr_unit BITOR expr_unit   {$$ = new OperatorNode(op_type::BitOr, $1, $3, $2);}
+    | BITOR error{}
+    | expr_unit BITOR error {}
     | expr_unit XOR expr_unit     {$$ = new OperatorNode(op_type::Xor, $1, $3, $2);}
+    | XOR error {}
+    | expr_unit XOR error {}
     | expr_unit EQ expr_unit      {$$ = new OperatorNode(op_type::Eq, $1, $3, $2);}
+    | EQ error {}
+    | expr_unit EQ error {}
     | expr_unit NEQ expr_unit     {$$ = new OperatorNode(op_type::Neq, $1, $3, $2);}
+    | NEQ error {}
+    | expr_unit NEQ error {}
     | expr_unit LE expr_unit      {$$ = new OperatorNode(op_type::Le, $1, $3, $2);}
+    | LE error {}
+    | expr_unit LE error {}
     | expr_unit GE expr_unit      {$$ = new OperatorNode(op_type::Ge, $1, $3, $2);}
+    | GE error {}
+    | expr_unit GE error {}
     | expr_unit LT expr_unit      {$$ = new OperatorNode(op_type::Lt, $1, $3, $2);}
+    | LT error {}
+    | expr_unit LT error {}
     | expr_unit GT expr_unit      {$$ = new OperatorNode(op_type::Gt, $1, $3, $2);}
+    | GT error {}
+    | expr_unit GT error {}
     | expr_unit AND expr_unit     {$$ = new OperatorNode(op_type::And, $1, $3, $2);}
+    | AND error {}
+    | expr_unit AND error {}
     | expr_unit OR expr_unit      {$$ = new OperatorNode(op_type::Or, $1, $3, $2);}
+    | OR error {}
+    | expr_unit OR error {}
     | MUL expr_unit%prec NOT      {$$ = new OperatorNode(op_type::DeRef, $2, $1);}
+    | MUL error {}
     | BITAND expr_unit %prec NOT  {$$ = new OperatorNode(op_type::Ref, $2, $1);}
+    | BITAND error {}
     ;
 
 item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
@@ -375,7 +593,14 @@ item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
         $3->type = FuncArgs;
         $$->append($3);
         $$->loc = $2;
-    };
+    }
+    | LP expr error {}
+    | DOT ident {}
+    | item DOT error {}
+    | item LBRACKET RBRACKET {}
+    | item LBRACKET expr error {}
+    | item LP item_list error {}
+    ;
 
 ident_all: ident | type_name;
 
@@ -400,15 +625,26 @@ literal:
     | STRING{$$ = new AstNode(StringLiteral, *$1); free($1);}
 
 /**************instance**************/
-array_instance: LBRACKET item_list RBRACKET {
-    $$ = $2;
-    $$->type = ArrayInstance;
-};
+array_instance: 
+    LBRACKET item_list RBRACKET {
+        $$ = $2;
+        $$->type = ArrayInstance;
+    }
+    | LBRACKET item_list error {
 
-struct_instance: TSTRUCT LBRACE ident_value_list RBRACE {
-    $$ = $3;
-    $$->loc = $1;
-};
+    }
+    ;
+
+struct_instance: 
+    TSTRUCT LBRACE ident_value_list RBRACE {
+        $$ = $3;
+        $$->loc = $1;
+    }
+    | TSTRUCT LBRACE ident_value_list error {}
+    | TSTRUCT error {
+
+    }
+    ;
 %%
 
 void yyerror(const char *s) {
