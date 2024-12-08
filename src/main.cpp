@@ -120,6 +120,12 @@ int main(int argc, char* argv[]){
     yyparse();
 
     bool err_flag = get_error_list().size();
+    // if (err_flag) {
+    //     auto err = get_error_list();
+    //     for(auto [s, loc]: err)
+    //     std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
+    //     // return 0;
+    // }
     std::cout << "/****************************Full AST Structure****************************/" << std::endl;
     plain_print(program_root, 0);
     std::cout << std::endl;
@@ -137,3 +143,20 @@ int main(int argc, char* argv[]){
     for(auto [s, loc]: err)
         std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
 }
+/*
+
+todo-list:
+    const-expr
+    struct initial value
+    function overload
+    member function
+    enum / tuple
+    typedef
+
+    (
+        
+        macro
+        sugar
+    )
+
+*/

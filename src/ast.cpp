@@ -7,6 +7,7 @@ AstContext ast_context;
 AstNode* create_node_from(node_type type, AstNode* ch){
     auto p = new AstNode(type, nullptr);
     p->append(ch);
+    p->loc = ch->loc;
     return p;
 }
 

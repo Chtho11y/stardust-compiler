@@ -3,6 +3,7 @@
     #include "parse.h"
     #include "ast.h"
     #include "context.h"
+    #include "error.h"
     Locator CurrentCursor;
     bool EOF_FLAG = false;
     void yyerror(const char*);
@@ -57,7 +58,11 @@
 %left DOT
 %left RP
 %left ARROW
+
 // todo : add destructor
+// %destructor { 
+//     std::cout << $$.col_l << ' ' << $$.col_r << ' ';
+// } <token_id>
 %%
 
 program: {
@@ -91,8 +96,19 @@ single_decl: var_decl | func_decl | struct_decl;
 opt_type_desc: 
     {$$ = new AstNode(TypeDesc, "#auto");}
     |COLON type_desc {$$ = $2;};
-    |type_desc {};
-    |COLON error {$$ = new AstNode(TypeDesc, "#err"); yyerrok;}
+    |type_desc {
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $1->loc;
+        append_syntax_error("Missing :.", $$->loc);
+        delete $1;
+        
+    };
+    |COLON error {
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $1;
+        append_syntax_error("Missing type description.", $$->loc);
+        yyerrok;
+    }
     ;
 
 type_desc: 
@@ -102,8 +118,27 @@ type_desc:
         $$->append($2);
         $$->append($5);
     }
+    | LP type_list RP ARROW error {
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $4;
+        append_syntax_error("Missing return type.", $$->loc);
+        delete $2;
+        yyerrok;
+    }
+    | LP type_list ARROW error {
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $3;
+        append_syntax_error("Missing ).", $$->loc);
+        delete $2;
+        yyerrok;
+    }
     | LP type_list ARROW type_desc{
-
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $3;
+        append_syntax_error("Missing ).", $$->loc);
+        delete $2;
+        delete $4;
+        yyerrok;
     }
     ;
     // | error {$$ = new AstNode(TypeDesc, "#err");}
@@ -121,12 +156,21 @@ type_item:
         $$->append($1);
     }
     | LP type_list error {
+        // std::cout << yylval;
+        // std :: cout << "test" << '\n';
         $$ = new AstNode(TypeDesc, "#err");
-        // yyerrok;
+        $$->loc = $2->loc;
+        append_syntax_error("Missing )", $$->loc);
+        delete $2;
+        yyerrok;
     }
     | type_item LBRACKET expr error {
         $$ = new AstNode(TypeDesc, "#err");
-        // yyerrok;
+        $$->loc = $3->loc;
+        append_syntax_error("Missing ]", $$->loc);
+        delete $1;
+        delete $3;
+        yyerrok;
     }
     ;
 
@@ -135,15 +179,26 @@ type_list:
     {$$ = new AstNode(TypeList);}
     |type_desc{$$ = create_node_from(TypeList, $1);}
     |type_list COMMA type_desc {$$ = $1; $$->append($3);}
-    |type_list COMMA ident {}
+    |type_list COMMA ident {
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $3->loc;
+        append_syntax_error("Undefined type.", $$->loc);
+        delete $1;
+        delete $3;
+        yyerrok;
+    }
     |type_list COMMA {
-
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->loc = $2;
+        append_syntax_error("Missing type description.", $$->loc);
+        delete $1;
+        yyerrok;
     }
     ;
 
 type_name: 
     TYPENAME {
-        $$ = new AstNode(Identifier, *$1); free($1);
+        $$ = new AstNode(Identifier, *$1); delete $1;
     }
     ;
 
@@ -158,7 +213,6 @@ var_decl:
         $$->append($5);
         parser_context.set_var($2->str);
         $$->loc = $4;
-        std::cout << "recovered" << '\n';
     }
     | const_desc ident_all opt_type_desc SEMI{
         $$ = new AstNode(VarDecl); 
@@ -169,19 +223,43 @@ var_decl:
         $$->loc = $2->loc;
     }
     | const_desc ident_all opt_type_desc ASSIGN error  {
-
+        $$ = new AstNode(Err);
+        $$->loc = $4;
+        append_syntax_error("Invalid expression.", $$->loc);
+        delete $1;
+        delete $2;
+        delete $3;
+        yyerrok;
     }
     | const_desc ident_all opt_type_desc error {
-
+        $$ = new AstNode(Err);
+        $$->loc = $3->loc;
+        append_syntax_error("Invalid assignment.", $$->loc);
+        delete $1;
+        delete $2;
+        delete $3;
+        yyerrok;
     }
     | const_desc COLON error  {
-
-    }
+        $$ = new AstNode(Err);
+        $$->loc = $2;
+        append_syntax_error("Missing identifier.", $$->loc);
+        delete $1;
+        yyerrok;
+    }   
     | const_desc ASSIGN error {
-
+        $$ = new AstNode(Err);
+        $$->loc = $2;
+        append_syntax_error("Missing identifier.", $$->loc);
+        delete $1;
+        yyerrok;
     }
     | const_desc error{
-
+        $$ = new AstNode(Err);
+        $$->loc = $1->loc;
+        append_syntax_error("Invalid variable declaration.", $$->loc);
+        delete $1;
+        yyerrok;
     }
     ;
 
@@ -347,7 +425,7 @@ block_no_ret:
 stmts:
     {$$ = new BlockNode(Stmts);}
     | stmts stmt {$$ = $1; $$->append($2);}
-    | stmts error {}
+    | stmts error {$$ = $1;}
     ;
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
@@ -509,7 +587,9 @@ expr_unit:
     | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2, $1);}
     | NOT error {}
     | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3, $2);} 
-    | ASSIGN error {}
+    | ASSIGN error {
+        $$ = new AstNode(Err);
+    }
     | expr_unit ASSIGN error {}
     | expr_unit ADDEQ expr_unit  {$$ = new OperatorNode(op_type::AddEq, $1, $3, $2);} 
     | ADDEQ error {}
@@ -608,21 +688,21 @@ ident: {
     parser_context.set_ignore();
     } NAME {
         $$ = new AstNode(Identifier, *$2); 
-        free($2);
+        delete $2;
         parser_context.get_ignore();
     };
 
 /**************literal**************/
 
 literal: 
-      INT   {$$ = new AstNode(IntLiteral, *$1); free($1);}
-    | TTRUE {$$ = new AstNode(BoolLiteral, *$1); free($1);}
-    | TFALSE{$$ = new AstNode(BoolLiteral, *$1); free($1);}
-    | HEX   {$$ = new AstNode(IntLiteral, *$1); free($1);}
-    | BINARY{$$ = new AstNode(IntLiteral, *$1); free($1);}
-    | FLOAT {$$ = new AstNode(DoubleLiteral, *$1); free($1);}
-    | CHAR  {$$ = new AstNode(CharLiteral, *$1); free($1);}
-    | STRING{$$ = new AstNode(StringLiteral, *$1); free($1);}
+      INT   {$$ = new AstNode(IntLiteral, *$1); delete $1;}
+    | TTRUE {$$ = new AstNode(BoolLiteral, *$1); delete $1;}
+    | TFALSE{$$ = new AstNode(BoolLiteral, *$1); delete $1;}
+    | HEX   {$$ = new AstNode(IntLiteral, *$1); delete $1;}
+    | BINARY{$$ = new AstNode(IntLiteral, *$1); delete $1;}
+    | FLOAT {$$ = new AstNode(DoubleLiteral, *$1); delete $1;}
+    | CHAR  {$$ = new AstNode(CharLiteral, *$1); delete $1;}
+    | STRING{$$ = new AstNode(StringLiteral, *$1); delete $1;}
 
 /**************instance**************/
 array_instance: 
@@ -649,7 +729,7 @@ struct_instance:
 
 void yyerror(const char *s) {
     // fprintf(stderr, "[Syntax error]: %d %d\n", CurrentCursor.line_st, CurrentCursor.col_l);
-    append_error(CurrentCursor);
+    // append_error(CurrentCursor);
     // fprintf(stderr, "[Syntax error]: %s (row %d line %d).\n", loc.row_l, loc.line_st);
     // fprintf(stderr, "%s\n", s);
 }
