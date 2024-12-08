@@ -215,7 +215,7 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
             auto tp = infer_array(ch, arr->subtype);
             require_convertable(tp, arr->subtype, ch->loc);
         }
-        return node->ret_var_type = type_assump;
+        return node->ret_var_type = res;
     }else{
         var_type_ptr comm_tp = nullptr;
         for(auto ch: node->ch){
