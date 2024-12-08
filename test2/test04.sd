@@ -1,16 +1,11 @@
-func sum(x: int, y: int) -> int {
-    let res: int = x + y;
-    res
-}
+struct Student {
+    weight: int,
+    weight: float32
+};
 
-func sum(x: int, y: int) -> float32 {
-    let res: int = x + y;
-    res
-}
-
-func test_2_r04 () -> int{
-    let a1: int;
-    let a2: int;
-    let b: int = sum(a1, a2);
+func test_2_r07 () -> int{
+    let amy: Student;
+    let age: int;
+    let age: float32;
     0
 }

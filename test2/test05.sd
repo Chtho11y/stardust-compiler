@@ -1,3 +1,10 @@
+// struct related
+
+struct Apple {
+    weight: int,
+    round: float32
+};
+
 struct Apple {
     weight: int,
     round: float32
@@ -9,5 +16,14 @@ func test_2_r05 () -> int{
   let aa: Apple;
   aa.weight = w1 + w2;
   aa.round = 'c';
+
+  let r: float32 = 2.5;
+  aa.weight = 2.5;
+  1.1 = aa.round;
+
+  aa.round = r + aa;
+
+  aa.c = 1;
+  
   0
 }

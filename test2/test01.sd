@@ -1,3 +1,5 @@
+//function related
+
 func sum(x: int, y: int) -> int {
     let res: int = x + y + z;
     res
@@ -6,5 +8,6 @@ func test_2_r01 () -> int{
     let a1: int = 1;
     let b: int = a1 + a;
     let b: int = sum(a,b);
+    let c: float64 = diff(a, b);
     0
 }

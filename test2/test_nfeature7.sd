@@ -1,0 +1,16 @@
+//struct in function
+
+struct Student {
+    weight: int
+};
+
+func test_struct_in_function() -> int {
+    struct Point {
+        x: int,
+        y: int,
+        aa: Student
+    };
+
+    let p: Point = struct{ x: 10, y: 20,aa:struct{weight:10} }; 
+    p.x + p.y
+}

@@ -1,0 +1,21 @@
+// block return value, for loop, scope checking
+
+func test () -> int{
+    let a = 1;
+    let b = a + 10;
+    let c = {
+        if a == b {1} else {2} //block return value
+    };
+
+    let d = { //block return value
+        let a = 1; //scope checking
+        let b = 10;
+        a + b
+    };
+
+    for let i: int = 0; i < 5; i = i + 1 {  // for loop
+        a = a + 1;
+    }
+
+    return a;
+}

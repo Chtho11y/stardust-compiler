@@ -3,9 +3,14 @@ func sum(x: int, y: int) -> int {
     res
 }
 
-func test_2_r01 () -> int{
+func sum(x: int, y: int) -> float32 {
+    let res: int = x + y;
+    res
+}
+
+func test_2_r04 () -> int{
     let a1: int;
     let a2: int;
-    let b: float32 = diff(a1,a2);
-    b
+    let b: int = sum(a1, a2);
+    0
 }
