@@ -203,6 +203,37 @@ var_type_ptr lookup_struct(AstNode* node){
     return get_type("#err");
 }
 
+var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
+    if(node->type != ArrayInstance){
+        return build_sym_table(node);
+    }
+    if(type_assump){
+        auto arr = std::dynamic_pointer_cast<ArrayType>(type_assump);
+        auto res = std::make_shared<ArrayType>();
+        res->subtype = arr->subtype;
+        res->size = std::max(node->ch.size(), arr->size);
+        for(auto ch: node->ch){
+            auto tp = infer_array(ch, arr->subtype);
+            require_convertable(tp, arr->subtype, ch->loc);
+        }
+        return node->ret_var_type = res;
+    }else{
+        var_type_ptr comm_tp = nullptr;
+        for(auto ch: node->ch){
+            auto ch_tp = build_sym_table(ch);
+            comm_tp = comm_tp? greater_type(comm_tp, ch_tp): ch_tp;   
+        }
+        if(!comm_tp || comm_tp->is_void()){
+            append_infer_failed_error("Failed to infer the type of array", node->loc);
+            return get_type("#err");
+        }
+        auto res = std::make_shared<ArrayType>();
+        res->size = node->ch.size();
+        res->subtype = comm_tp;
+        return node->ret_var_type = res;
+    }
+}
+
 std::shared_ptr<VarType> ast_to_type(AstNode* node){
     // std::cout << get_node_name(node) << ": " << node->str << std::endl;
     if(node->type == TypeDesc){
@@ -215,11 +246,27 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             res->ret_type = ast_to_type(ret);
             return res;
         }else if(node->str == "[]"){
-            auto res = std::make_shared<ArrayType>();
-            res->subtype = ast_to_type(node->ch[0]);
-            res->size = const_eval(node->ch[1]);
-            if(res->size <= 0)
+            auto sub = node;
+            while(sub->str == "[]")
+                sub = sub->ch[0];
+            
+            auto res = ast_to_type(sub);
+            if(res->is_error())
                 return get_type("#err");
+
+            if(res->is_void()){
+                append_invalid_decl_error("Cannot declare array of void type.", sub->loc);
+                return get_type("#err");
+            }
+        
+            for(auto nd = node; nd != sub; nd = nd->ch[0]){
+                auto arr = std::make_shared<ArrayType>();
+                arr->size = const_eval(nd->ch[1]);
+                if(arr->size == 0)
+                    return get_type("#err");
+                arr->subtype = res;
+                res = arr;
+            }
             return res;
         }else if(node->str == "*"){
             auto res = std::make_shared<PointerType>();
@@ -240,6 +287,8 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         }
     }else if(node->type == Identifier){
         return node->get_type(node->str);
+    }else if(node->type == Err){
+        return get_type("#err");
     }
     return nullptr;
 }
@@ -284,7 +333,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
         if(!flag){
             // append_error("Function " + func.id + " has been declared.", func.id_loc);
-            append_multidef_error("Function ", func.id, func.id_loc);
+            append_multidef_error("Function", func.id, func.id_loc);
             node->ret_var_type = get_type("#err");
         }
 
@@ -295,8 +344,12 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         auto var = Adaptor<VarDecl>(node).check_type();
 
         std::shared_ptr<VarType> res_type = nullptr;
-        if(var.init_val)
-            res_type = build_sym_table(var.init_val);
+        if(var.init_val){
+            if(var.type_info->is_array())
+                res_type = infer_array(var.init_val, var.type_info);
+            else 
+                res_type = build_sym_table(var.init_val);
+        }
         if(var.type_info->is_auto()){
             if(res_type == nullptr){
                 // append_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
@@ -362,7 +415,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 }
             }else if(t->is_array()){
                 if(id == "length")
-                    return get_type("int32");
+                    return node->ret_var_type = get_type("int32");
             }
             append_invalid_access_error(t, id, node->loc);
             return node->ret_var_type = get_type("#err");
@@ -374,8 +427,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         return node->ret_var_type = op_type_eval(op->type, tp, node->loc);
 
     }else if(node->type == ArrayInstance) {
-
-        return node->ret_var_type = get_type("#err");
+        return node->ret_var_type = infer_array(node);
     }else if(node->type == StructInstance) {
         return node->ret_var_type = lookup_struct(node);
     }else if(node->type == IfStmt){
@@ -411,13 +463,13 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
         switch (node->type){
             case IntLiteral: return node->ret_var_type = get_type("int32");
-            case DoubleLiteral: return node->ret_var_type = get_type("float64");
+            case DoubleLiteral: return node->ret_var_type = get_type("float32");
             case BoolLiteral: return node->ret_var_type = get_type("bool");
             case CharLiteral: return node->ret_var_type = get_type("char");
             case StringLiteral:{
                 //FIXME: escape the string.
                 auto res = std::make_shared<ArrayType>();
-                res->size = node->str.size();
+                res->size = node->str.size() - 1;
                 res->subtype = get_type("char");
                 return node->ret_var_type = res;
             }
