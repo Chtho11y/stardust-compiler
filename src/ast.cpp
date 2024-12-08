@@ -214,11 +214,22 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             res->ret_type = ast_to_type(ret);
             return res;
         }else if(node->str == "[]"){
-            auto res = std::make_shared<ArrayType>();
-            res->subtype = ast_to_type(node->ch[0]);
-            res->size = const_eval(node->ch[1]);
-            if(res->size <= 0)
+            auto sub = node;
+            while(sub->str == "[]")
+                sub = sub->ch[0];
+            
+            auto res = ast_to_type(sub);
+            if(res->is_error())
                 return get_type("#err");
+        
+            for(auto nd = node; nd != sub; nd = nd->ch[0]){
+                auto arr = std::make_shared<ArrayType>();
+                arr->size = const_eval(nd->ch[1]);
+                if(arr->size == 0)
+                    return get_type("#err");
+                arr->subtype = res;
+                res = arr;
+            }
             return res;
         }else if(node->str == "*"){
             auto res = std::make_shared<PointerType>();
@@ -239,6 +250,8 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         }
     }else if(node->type == Identifier){
         return node->get_type(node->str);
+    }else if(node->type == Err){
+        return get_type("#err");
     }
     return nullptr;
 }
@@ -283,7 +296,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
         if(!flag){
             // append_error("Function " + func.id + " has been declared.", func.id_loc);
-            append_multidef_error("Function ", func.id, func.id_loc);
+            append_multidef_error("Function", func.id, func.id_loc);
             node->ret_var_type = get_type("#err");
         }
 
@@ -410,7 +423,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
         switch (node->type){
             case IntLiteral: return node->ret_var_type = get_type("int32");
-            case DoubleLiteral: return node->ret_var_type = get_type("float64");
+            case DoubleLiteral: return node->ret_var_type = get_type("float32");
             case BoolLiteral: return node->ret_var_type = get_type("bool");
             case CharLiteral: return node->ret_var_type = get_type("char");
             case StringLiteral:{
