@@ -55,20 +55,23 @@ bool is_convertable(var_type_ptr from, var_type_ptr to){
         auto fp = std::dynamic_pointer_cast<PrimType>(from);
         auto tp = std::dynamic_pointer_cast<PrimType>(to);
 
-        if(tp->pr_kind == PrimType::Bool && fp->pr_kind == PrimType::Int)
-            return true;
-
         if(fp->pr_kind < tp->pr_kind)
             return true;
         else if(fp->pr_kind == tp->pr_kind){
             return (fp->size*2 + fp->unsig) <= (tp->size*2 + tp->unsig) ;
         }
     
-    }else if(to->is_ptr() && from->is_array()){
+    }else if(to->is_ptr()){
         auto to_ptr = std::dynamic_pointer_cast<PointerType>(to);
-        auto from_arr = std::dynamic_pointer_cast<ArrayType>(from);
-        if(from_arr->subtype->is_same(to_ptr->subtype.get()))
-            return true;
+        if(from->is_array()){
+            auto from_arr = std::dynamic_pointer_cast<ArrayType>(from);
+            if(from_arr->subtype->is_same(to_ptr->subtype.get()))
+                return true;
+        }else if(from->is_ptr()){
+            auto from_ptr = std::dynamic_pointer_cast<PointerType>(from);
+            if(from_ptr->subtype->is_void() || to_ptr->subtype->is_void())
+                return true;
+        }
     }
     return false;
 }
