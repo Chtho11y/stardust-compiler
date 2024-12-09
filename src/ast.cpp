@@ -299,7 +299,7 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         append_prim_shadowed_warning(x, loc)
 
 std::shared_ptr<VarType> build_sym_table(AstNode* node){
-    // std::cout << get_node_name(node) << std::endl;
+    // std::cout << node->str << " : " << get_node_name(node) << std::endl;
     if(node->is_block){
 
         auto block = static_cast<BlockNode*>(node);
@@ -444,7 +444,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         require_convertable(cond, get_type("bool"), node->loc);
         auto ret1 = build_sym_table(node->ch[1]);
         auto ret2 = get_type("void");
-        if(node->ch[2])
+        if(node->ch.size() > 2)
             ret2 = build_sym_table(node->ch[2]);
 
         return node->ret_var_type = greater_type(ret1, ret2);
@@ -468,7 +468,6 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         return node->ret_var_type = get_type("void");
 
     }else if(node->is_literal()){
-
         switch (node->type){
             case IntLiteral: return node->ret_var_type = get_type("int32");
             case DoubleLiteral: return node->ret_var_type = get_type("float32");

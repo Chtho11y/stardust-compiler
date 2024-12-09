@@ -106,7 +106,18 @@ void print_sym_table(AstNode* rt, int dep = 0){
 
 std::vector<std::string> raw_code;
 
-using ansi::color;
+// using ansi::color;
+
+bool no_color_flag = false;
+
+std::string color_if(ansi::ANSIColor foreground, ansi::ANSIColor style = ansi::RESET) {
+    if (no_color_flag) {
+        return std::string();
+    }
+    else {
+        return ansi::color(foreground, style);
+    }   
+};
 
 void read_raw_code(FILE* file){
     char c = fgetc(file);
@@ -139,22 +150,22 @@ void pretty_print_line(Locator loc){
             ed = loc.col_r + 1;
         for(int j = 0; j < st; ++j)
             putchar(raw_code[i][j]);
-        printf("%s", color(ansi::RED, ansi::BOLD).c_str());
+        printf("%s", color_if(ansi::RED, ansi::BOLD).c_str());
         for(int j = st; j < ed; ++j)
             putchar(raw_code[i][j]);
-        printf("%s", color(ansi::RESET).c_str());
+        printf("%s", color_if(ansi::RESET).c_str());
         for(int j = ed; j < len; ++j)
             putchar(raw_code[i][j]);
         puts("");
         printf("%5s | ", " ");
         for(int j = 0; j < st; ++j)
             putchar(' ');
-        printf("%s", color(ansi::RED, ansi::BOLD).c_str());
+        printf("%s", color_if(ansi::RED, ansi::BOLD).c_str());
         for(int j = st; j < ed; ++j){
             putchar(ch);
             ch = '~';
         }
-        printf("%s", color(ansi::RESET).c_str());
+        printf("%s", color_if(ansi::RESET).c_str());
         for(int j = ed; j < len; ++j)
             putchar(' ');
         puts("");
@@ -165,7 +176,7 @@ int main(int argc, char* argv[]){
     ast_info_init();
     ArgParser parser;
     parser.parse(argc, argv);
-    
+    no_color_flag = parser.no_color;
     FILE* file;
     std::string name = parser.input_path;
     file = fopen(name.c_str(), "r");
@@ -189,7 +200,6 @@ int main(int argc, char* argv[]){
         plain_print(program_root, 0);
         std::cout << std::endl;
     }
-
     build_sym_table(program_root);
     auto err = get_error_list();
     if(parser.print_ast_sym){
@@ -205,8 +215,8 @@ int main(int argc, char* argv[]){
         if(s == ""){
             std::cout << "undefined error" << std::endl;
         }else{
-            std::cout << color(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
-                    << color(ansi::RESET) << s << std::endl;
+            std::cout << color_if(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
+                    << color_if(ansi::RESET) << s << std::endl;
             // std::cout  << loc.col_l << " " << loc.col_r << std::endl;
             pretty_print_line(loc);
         }

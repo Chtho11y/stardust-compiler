@@ -2,6 +2,7 @@ build/
 backup/
 .vscode/
 test/
+test2/*.txt
 
 syntax.txt
 *.backup

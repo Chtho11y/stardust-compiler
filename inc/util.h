@@ -56,4 +56,4 @@ enum ANSIColor {
 
 std::string color(ANSIColor foreground, ANSIColor style = RESET);
 
-}//namespace asni
+}//namespace ansi

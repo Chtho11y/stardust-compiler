@@ -201,8 +201,8 @@ type_item:
 
 
 type_list: 
-    {$$ = new AstNode(TypeList);}
-    |type_desc{$$ = create_node_from(TypeList, $1);}
+    {$$ = new AstNode(TypeList); $$->loc = CurrentCursor;}
+    |type_desc{$$ = create_node_from(TypeList, $1); $$->loc = CurrentCursor;}
     |type_list COMMA type_desc {$$ = $1; $$->append($3);}
     |type_list COMMA ident {
         $$ = new AstNode(TypeDesc, "#err");
@@ -299,7 +299,7 @@ const_desc:
 /**************identifier list**************/
 // id: type, ...  |  id: value, ...
 ident_type_list: 
-    {$$ = new AstNode(Stmt);}
+    {$$ = new AstNode(Stmt); $$->loc = CurrentCursor;}
     | ident_type_member {
         $$ = create_node_from(Stmt, $1);
         $$->loc = $1->loc;
@@ -332,6 +332,13 @@ ident_type_member:
         delete $1;
         // yyerrok;
     }
+    | ident type_desc {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1->loc);
+        append_syntax_error("Missing :.", $$->loc);
+        delete $1;
+        delete $2;
+    }
     | ident error {
         $$ = new AstNode(Err);
         $$->loc = right_loc($1->loc);
@@ -359,7 +366,7 @@ ident_type_member:
     ;
 
 ident_value_list:
-    {$$ = new AstNode(StructInstance);}
+    {$$ = new AstNode(StructInstance); $$->loc = CurrentCursor;}
     | ident_value_member {
         $$ = create_node_from(StructInstance, $1); 
         $$->loc = $1->loc;
@@ -504,6 +511,7 @@ block_ret:
         $$ = $2;
         $$->type = StmtsRet;
         $$->append($3);
+        $$->loc = locator_merge(LOCATOR($1), LOCATOR($4));
     }
     ;
     
@@ -616,7 +624,13 @@ ctrl_no_ret:
         $$->append($5);
         $$->loc = $1;
     }
-
+    |TIF expr block_ret {
+        $$ = new AstNode(Err);
+        $$->loc = $3->loc;
+        append_syntax_error("Expected if-block with no return value.", $$->loc);
+        delete $2;
+        delete $3;
+    }
     |TIF block_no_ret error {
         $$ = new AstNode(Err);
         $$->loc = $2->loc;
@@ -744,8 +758,8 @@ expr:
     ;
 
 item_list:
-    {$$ = new AstNode(ExprList);}
-    |expr_unit {$$ = create_node_from(ExprList, $1);} 
+    {$$ = new AstNode(ExprList); $$->loc = CurrentCursor;}
+    |expr_unit {$$ = create_node_from(ExprList, $1); $$->loc = CurrentCursor;} 
     |expr_list;
 
 expr_list:
@@ -753,6 +767,7 @@ expr_list:
         $$ = new AstNode(ExprList);
         $$->append($1);
         $$->append($3);
+        $$->loc = $1->loc;
     }
     | expr_list COMMA expr_unit{
         $$ = $1;
