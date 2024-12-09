@@ -721,76 +721,246 @@ expr_unit:
     item
     | LP type_desc RP expr_unit %prec NOT{$$ = new OperatorNode(op_type::Convert, $4, $2, $1);}
     | ADD expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Pos, $2, $1);}
-    | ADD error {}
+    | ADD error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | SUB expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Neg, $2, $1);}
-    | SUB error {}
+    | SUB error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2, $1);}
-    | NOT error {}
+    | NOT error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3, $2);} 
     | ASSIGN error {
         $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
     }
-    | expr_unit ASSIGN error {}
+    | expr_unit ASSIGN error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit ADDEQ expr_unit  {$$ = new OperatorNode(op_type::AddEq, $1, $3, $2);} 
-    | ADDEQ error {}
-    | expr_unit ADDEQ error {}
+    | ADDEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit ADDEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit SUBEQ expr_unit  {$$ = new OperatorNode(op_type::SubEq, $1, $3, $2);} 
-    | SUBEQ error {}
-    | expr_unit SUBEQ error {}
+    | SUBEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit SUBEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit MULEQ expr_unit  {$$ = new OperatorNode(op_type::MulEq, $1, $3, $2);} 
-    | MULEQ error {}
-    | expr_unit MULEQ error {}
+    | MULEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit MULEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit DIVEQ expr_unit  {$$ = new OperatorNode(op_type::DivEq, $1, $3, $2);} 
-    | DIVEQ error {}
-    | expr_unit DIVEQ error {}
+    | DIVEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit DIVEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit ADD expr_unit     {$$ = new OperatorNode(op_type::Add, $1, $3, $2);}
-    | expr_unit ADD error {}
+    | expr_unit ADD error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit SUB expr_unit     {$$ = new OperatorNode(op_type::Sub, $1, $3, $2);}
-    | expr_unit SUB error {}
+    | expr_unit SUB error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit MUL expr_unit     {$$ = new OperatorNode(op_type::Mul, $1, $3, $2);}
-    | expr_unit MUL error {}
+    | expr_unit MUL error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit DIV expr_unit     {$$ = new OperatorNode(op_type::Div, $1, $3, $2);}
-    | DIV error {}
-    | expr_unit DIV error {}
+    | DIV error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit DIV error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit MOD expr_unit     {$$ = new OperatorNode(op_type::Mod, $1, $3, $2);}
-    | MOD error {}
-    | expr_unit MOD error {}
+    | MOD error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit MOD error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit BITAND expr_unit  {$$ = new OperatorNode(op_type::BitAnd, $1, $3, $2);}
-    | expr_unit BITAND error {}
+    | expr_unit BITAND error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit BITOR expr_unit   {$$ = new OperatorNode(op_type::BitOr, $1, $3, $2);}
-    | BITOR error{}
-    | expr_unit BITOR error {}
+    | BITOR error{
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit BITOR error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit XOR expr_unit     {$$ = new OperatorNode(op_type::Xor, $1, $3, $2);}
-    | XOR error {}
-    | expr_unit XOR error {}
+    | XOR error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit XOR error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit EQ expr_unit      {$$ = new OperatorNode(op_type::Eq, $1, $3, $2);}
-    | EQ error {}
-    | expr_unit EQ error {}
+    | EQ error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit EQ error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit NEQ expr_unit     {$$ = new OperatorNode(op_type::Neq, $1, $3, $2);}
-    | NEQ error {}
-    | expr_unit NEQ error {}
+    | NEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit NEQ error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit LE expr_unit      {$$ = new OperatorNode(op_type::Le, $1, $3, $2);}
-    | LE error {}
-    | expr_unit LE error {}
+    | LE error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit LE error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit GE expr_unit      {$$ = new OperatorNode(op_type::Ge, $1, $3, $2);}
-    | GE error {}
-    | expr_unit GE error {}
+    | GE error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit GE error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit LT expr_unit      {$$ = new OperatorNode(op_type::Lt, $1, $3, $2);}
-    | LT error {}
-    | expr_unit LT error {}
+    | LT error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit LT error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit GT expr_unit      {$$ = new OperatorNode(op_type::Gt, $1, $3, $2);}
-    | GT error {}
-    | expr_unit GT error {}
+    | GT error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit GT error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit AND expr_unit     {$$ = new OperatorNode(op_type::And, $1, $3, $2);}
-    | AND error {}
-    | expr_unit AND error {}
+    | AND error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit AND error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | expr_unit OR expr_unit      {$$ = new OperatorNode(op_type::Or, $1, $3, $2);}
-    | OR error {}
-    | expr_unit OR error {}
+    | OR error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing expression.", $$->loc);
+    }
+    | expr_unit OR error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | MUL expr_unit%prec NOT      {$$ = new OperatorNode(op_type::DeRef, $2, $1);}
-    | MUL error {}
+    | MUL error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     | BITAND expr_unit %prec NOT  {$$ = new OperatorNode(op_type::Ref, $2, $1);}
-    | BITAND error {}
+    | BITAND error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid expression.", $$->loc);
+    }
     ;
 
 item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
