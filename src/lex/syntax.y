@@ -26,6 +26,7 @@
 %token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
+%type<token_id> block_begin block_end
 
 %type<node> program
 %type<node> ext_decl single_decl
@@ -477,7 +478,10 @@ block_no_ret:
     // } 
     // | block_begin error {}
     | block_begin stmts YYEOF {
-
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Unclosed {.", $$->loc);
+        delete $2;
     }
     ;
 
@@ -492,13 +496,42 @@ stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
     | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1;}
     | SEMI {$$ = new AstNode(Stmt);}
     | expr SEMI{$$ = $1;}
-    | TBREAK error {}
-    | TCONTIN error {}
-    | expr error{}
-    | TELSE block {}
-    | TELSE error {}
-    | RP {}
-    | RBRACKET{}
+    | TBREAK error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Missing ; after break.", $$->loc);
+    }
+    | TCONTIN error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Miising ; after continue.", $$->loc);
+    }
+    | expr error{
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1->loc);
+        append_syntax_error("Missing ; after expressioin.", $$->loc);
+    }
+    | TELSE block {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("else without if.", $$->loc);
+        delete $2;
+    }
+    | TELSE error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("else without if", $$->loc);
+    }
+    | RP {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Expected expression before ')'.", $$->loc);
+    }
+    | RBRACKET{
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Expecetd expression before ']", $$->loc);
+    }
     ;
 
 ctrl_no_ret: 
@@ -543,19 +576,40 @@ ctrl_no_ret:
     }
 
     |TIF block_no_ret error {
+        $$ = new AstNode(Err);
+        $$->loc = $2->loc;
+        append_syntax_error("Missing expression.", $$->loc);
+        delete $2;
 
     }
     | TIF expr error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2->loc);
+        append_syntax_error("Invalid if-block.", $$->loc);
+        delete $2;
     }
     | TIF expr block_no_ret TELSE block_ret {
-
+        $$ = new AstNode(Err);
+        $$->loc = $5->loc;
+        append_syntax_error("Expected else-block with no return value.", $$->loc);
+        delete $2;
+        delete $3;
+        delete $5;
     }
     | TIF expr block_no_ret TELSE ctrl_ret {
-
+        $$ = new AstNode(Err);
+        $$->loc = $5->loc;
+        append_syntax_error("Expected conditional statements with no return value.", $$->loc);
+        delete $2;
+        delete $3;
+        delete $5;
     }
     | TIF expr block_no_ret TELSE error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($4);
+        append_syntax_error("Invalid else-block.", $$->loc);
+        delete $2;
+        delete $3;
     }
     // | TIF error TELSE block_no_ret {
 
@@ -564,19 +618,32 @@ ctrl_no_ret:
 
     // }
     | TIF error {
-        
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid if statement.", $$->loc);
     }
     | TWHILE block_no_ret{
+        $$ = new AstNode(Err);
+        $$->loc = $2->loc;
+        append_syntax_error("Missing expression.", $$->loc);
+        delete $2;
 
     }
     | TWHILE expr error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2->loc);
+        append_syntax_error("Invalid while-block.", $$->loc);
+        delete $2;
     }
     | TWHILE error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid while statement.", $$->loc);
     }
     | TFOR error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid for statement.", $$->loc);
     }
     // todo : finish for-loop error handling
     ;
@@ -597,10 +664,20 @@ ctrl_ret:
         $$->loc = $1;
     }
     |TIF expr block_ret TELSE block_no_ret {
-
+        $$ = new AstNode(Err);
+        $$->loc = $5->loc;
+        append_syntax_error("Expected else-block with return value.", $$->loc);
+        delete $2;
+        delete $3;
+        delete $5;
     }
     |TIF expr block_ret TELSE ctrl_no_ret {
-
+        $$ = new AstNode(Err);
+        $$->loc = $5->loc;
+        append_syntax_error("Expected conditinal statements with no return value.", $$->loc);
+        delete $2;
+        delete $3;
+        delete $5;
     }
     ;
 
@@ -612,7 +689,9 @@ return_stmt:
         $$->loc = $1;
     }
     | TRETURN error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Missing ; after return.", $$->loc = $1);
     }
     ;
 
