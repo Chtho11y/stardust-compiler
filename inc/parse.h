@@ -19,7 +19,7 @@ struct Locator{
     }
 
     bool has_value()const {
-        return col_l != col_r;
+        return line_st > 0 || col_r > 0;
     }
 };
 

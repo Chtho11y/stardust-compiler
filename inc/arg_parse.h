@@ -1,3 +1,5 @@
+#pragma once
+
 #include "clipp.h"
 #include <iostream>
 #include <sstream>
