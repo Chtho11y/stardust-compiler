@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "var_type.h"
 #include "context.h"
+#include "arg_parse.h"
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
@@ -104,35 +105,42 @@ void print_sym_table(AstNode* rt, int dep = 0){
 
 int main(int argc, char* argv[]){
     ast_info_init();
+    ArgParser parser;
+    parser.parse(argc, argv);
+    
     FILE* file;
-    std::string name = "../test/test.sd";
-    if(argc == 2)
-        name = argv[1];
-    else if(argc > 2)
-        std::cout << "too many arguments" << std::endl;
-
+    std::string name = parser.input_path;
     file = fopen(name.c_str(), "r");
+
     if(!file){
         std::cout << "Failed to open file: " << name << std::endl;
         return 0;
     }
+
     set_input(file);
     yyparse();
 
-    bool err_flag = get_error_list().size();
-    std::cout << "/****************************Full AST Structure****************************/" << std::endl;
-    plain_print(program_root, 0);
-    std::cout << std::endl;
+    if(parser.output_path != ""){
+        freopen(parser.output_path.c_str(), "w", stdout);
+    }
 
-    build_sym_table(program_root);
-    // print_sym_table(program_root);
-    // if (!err.size())
+    bool err_flag = get_error_list().size();
+    if(parser.print_ast){
+        std::cout << "/****************************Full AST Structure****************************/" << std::endl;
+        plain_print(program_root, 0);
+        std::cout << std::endl;
+    }
+
     auto err = get_error_list();
-    if(!err_flag){
+    build_sym_table(program_root);
+    if(parser.print_ast_sym){
         std::cout << "/**************************AST with symbols table**************************/" << std::endl;
         print(program_root, 0);
         std::cout << std::endl;
     }
+    // print_sym_table(program_root);
+    // if (!err.size())
+    
     std::cout << "/******************************Error Detected******************************/" << std::endl;
     for(auto [s, loc]: err)
         std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
