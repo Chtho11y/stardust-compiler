@@ -66,3 +66,17 @@ struct AstContext{
 
 extern ParserContext parser_context;
 extern AstContext ast_context;
+extern std::set<std::pair<Locator, std::string>> LocatorSet;
+extern std::vector<Locator> LocatorStack;
+
+void insert_locator(Locator loc, std::string val);
+
+Locator get_next_locator(Locator loc);
+
+Locator locator_merge(LocatorBuffer l1, LocatorBuffer l2);
+
+Locator locator_merge(LocatorBuffer l1, Locator l2);
+
+Locator locator_merge(Locator l1, LocatorBuffer l2);
+
+Locator locator_merge(Locator l1, Locator l2);

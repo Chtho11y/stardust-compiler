@@ -4,13 +4,16 @@
     #include "ast.h"
     #include "context.h"
     #include "error.h"
+
     Locator CurrentCursor;
+
     bool EOF_FLAG = false;
     void yyerror(const char*);
     #define yyerrok1 (yyerrstatus=1)
     #define echo_error(s) \
         set_error_message(s)
-    #define right_loc(loc) Locator{(loc).line_ed, (loc).line_ed, (loc).col_r + 1, (loc).col_r}\
+    #define LOCATOR(loc) Locator{(loc).line_ed, (loc).line_ed, (loc).col_r + 1, (loc).col_r}
+    #define right_loc(loc) get_next_locator(LOCATOR(loc))\
 %}
 /* %glr-parser */
 %union{
@@ -63,8 +66,16 @@
 
 // todo : add destructor
 // %destructor { 
-//     std::cout << $$.col_l << ' ' << $$.col_r << ' ';
+    
 // } <token_id>
+
+// %destructor {
+//     delete $$;
+// } <str>
+
+// %destructor {
+//     delete $$;
+// } <node>
 %%
 
 program: {
@@ -83,27 +94,24 @@ program: {
     ;
 
 ext_decl:
-    {$$ = new BlockNode(ExtDecl);}
+    {$$ = new BlockNode(ExtDecl); $$->loc = CurrentCursor;}
     | ext_decl SEMI {$$ = $1; yyerrok;}
     | ext_decl single_decl {$$ = $1; $$->append($2); }
-    | RBRACE {
-        $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Expected block before }.", $$->loc);
+    | ext_decl RBRACE {
+        $$ = $1;
+        append_syntax_error("Expected block before }.", LOCATOR($2));
     }
-    | RBRACKET {
-        $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Expected expression before ]", $$->loc);
+    | ext_decl RBRACKET {
+        $$ = $1;
+        append_syntax_error("Expected expression before ]", LOCATOR($2));
     }
-    | RP {
-        $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Expected expression before )", $$->loc);
+    | ext_decl RP {
+        $$ = $1;
+        append_syntax_error("Expected expression before )", LOCATOR($2));
     }
     | ext_decl error {
         $$ = $1;
-        append_syntax_error("Invalid external declaration.", right_loc($$->loc));
+        append_syntax_error("Invalid external declaration.", CurrentCursor);
     }
     ;
 
@@ -281,9 +289,11 @@ var_decl:
 const_desc: 
     TCONST {
         $$ = new AstNode(ConstDesc, "const");
+        $$->loc = $1;
     }
     | TLET {
         $$ = new AstNode(ConstDesc, "let");
+        $$->loc = $1;
     };
 
 /**************identifier list**************/
@@ -512,11 +522,11 @@ block_no_ret:
     ;
 
 stmts:
-    {$$ = new BlockNode(Stmts);}
+    {$$ = new BlockNode(Stmts); $$->loc = CurrentCursor;}
     | stmts stmt {$$ = $1; $$->append($2);}
     | stmts error {
         $$ = $1;
-        append_syntax_error("Invalid statement.", right_loc($$->loc));
+        append_syntax_error("Invalid statement.", CurrentCursor);
     }
     ;
 
@@ -1085,7 +1095,15 @@ ident: {
         $$ = new AstNode(Identifier, *$2); 
         delete $2;
         parser_context.get_ignore();
-    };
+    }
+    | {
+        parser_context.set_ignore();
+    } INVALID_NAME {
+        $$ = new AstNode(Identifier, *$2);
+        delete $2;
+        parser_context.get_ignore();
+    }
+    ;
 
 /**************literal**************/
 

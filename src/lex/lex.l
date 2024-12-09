@@ -4,6 +4,7 @@
     #include "ast.h"
     #include "parse.h"
     #include "syntax.hpp"
+    #include "context.h"
     
     // global variables
     int last;
@@ -55,7 +56,11 @@ false {return make_token(TFALSE, true);}
 {digit}+"."{digit}+([eE][+-]?{digit}+)? {return make_token(FLOAT, true);}
 \"([^\"\\]|\\["\\ntbfr])*\" {return make_token(STRING, true);}
 '([^'\\]|\\['\\ntbfr])' {return make_token(CHAR, true);}
-({letter_}|{digit})+ {return make_token(INVALID_NAME, true);}
+({letter_}|{digit})+ {
+    auto token_id = make_token(INVALID_NAME, true);
+    append_lexeme_error("Invalid identifier.", CurrentCursor);
+    return token_id;
+}
 
 "->" {return make_token(ARROW);}
 ":" {return make_token(COLON);}
@@ -89,8 +94,8 @@ false {return make_token(TFALSE, true);}
 "|" {return make_token(BITOR);}
 "^" {return make_token(XOR);}
 "=" {return make_token(ASSIGN);}
-[/][*].* {append_error("Unclosed comments!", CurrentCursor);}
-. {append_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
+[/][*].* {append_lexeme_error("Unclosed comments!", CurrentCursor);}
+. {append_lexeme_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
 %%
 
 /*
@@ -102,6 +107,7 @@ false {return make_token(TFALSE, true);}
 int make_token(int type, bool set_val){
 
     CurrentCursor = Locator{lines, lines, last, last + yyleng - 1};
+    insert_locator(CurrentCursor, std::string(yytext));
     if(set_val){
         std::string val(yytext);
 
@@ -119,7 +125,6 @@ int make_token(int type, bool set_val){
         yylval.token_id = {lines, lines, last, last + yyleng - 1};
     }
     last += yyleng;
-    
     return type;
 }
 
