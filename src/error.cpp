@@ -100,3 +100,8 @@ void append_syntax_error (std::string desc, Locator loc) {
     std::string id = "Error B";
     append_error(id + ": " + desc, loc); 
 }
+
+void append_prim_shadowed_warning(std::string id, Locator loc) {
+    
+    append_error("Warning: identifier \"" + id + "\" shadows primtive type.", loc);
+}

@@ -10,6 +10,7 @@
     #define yyerrok1 (yyerrstatus=1)
     #define echo_error(s) \
         set_error_message(s)
+    #define right_loc(loc) Locator{(loc).line_ed, (loc).line_ed, (loc).col_r + 1, (loc).col_r}\
 %}
 /* %glr-parser */
 %union{
@@ -82,11 +83,11 @@ program: {
 
 ext_decl:
     {$$ = new BlockNode(ExtDecl);}
-    | ext_decl SEMI {$$ = $1;}
+    | ext_decl SEMI {$$ = $1; yyerrok;}
     | ext_decl single_decl {$$ = $1; $$->append($2); }
-    | RP {}
     | RBRACE {}
     | RBRACKET {}
+    | RP {}
     | error {}
     ;
 
@@ -105,9 +106,9 @@ opt_type_desc:
     };
     |COLON error {
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $1;
-        append_syntax_error("Missing type description.", $$->loc);
-        yyerrok;
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid type description.", $$->loc);
+        // yyerrok;
     }
     ;
 
@@ -120,28 +121,27 @@ type_desc:
     }
     | LP type_list RP ARROW error {
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $4;
-        append_syntax_error("Missing return type.", $$->loc);
+        $$->loc = right_loc($4);
+        append_syntax_error("Invalid return type.", $$->loc);
         delete $2;
-        yyerrok;
+        // yyerrok;
     }
     | LP type_list ARROW error {
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $3;
+        $$->loc = right_loc($3);
         append_syntax_error("Missing ).", $$->loc);
         delete $2;
-        yyerrok;
+        // yyerrok;
     }
     | LP type_list ARROW type_desc{
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $3;
+        $$->loc = right_loc($3);
         append_syntax_error("Missing ).", $$->loc);
         delete $2;
         delete $4;
-        yyerrok;
+        // yyerrok;
     }
     ;
-    // | error {$$ = new AstNode(TypeDesc, "#err");}
 
 type_item: 
     type_name {$$ = create_node_from(TypeDesc, $1);}
@@ -156,21 +156,19 @@ type_item:
         $$->append($1);
     }
     | LP type_list error {
-        // std::cout << yylval;
-        // std :: cout << "test" << '\n';
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $2->loc;
+        $$->loc = right_loc($2->loc);
         append_syntax_error("Missing )", $$->loc);
         delete $2;
-        yyerrok;
+        // yyerrok;
     }
     | type_item LBRACKET expr error {
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $3->loc;
+        $$->loc = right_loc($3->loc);
         append_syntax_error("Missing ]", $$->loc);
         delete $1;
         delete $3;
-        yyerrok;
+        // yyerrok;
     }
     ;
 
@@ -181,18 +179,16 @@ type_list:
     |type_list COMMA type_desc {$$ = $1; $$->append($3);}
     |type_list COMMA ident {
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $3->loc;
-        append_syntax_error("Undefined type.", $$->loc);
+        $$->loc = right_loc($3->loc);
+        append_syntax_error("Undeclared type.", $$->loc);
         delete $1;
         delete $3;
-        yyerrok;
     }
     |type_list COMMA {
         $$ = new AstNode(TypeDesc, "#err");
-        $$->loc = $2;
+        $$->loc = right_loc($2);
         append_syntax_error("Missing type description.", $$->loc);
         delete $1;
-        yyerrok;
     }
     ;
 
@@ -224,42 +220,42 @@ var_decl:
     }
     | const_desc ident_all opt_type_desc ASSIGN error  {
         $$ = new AstNode(Err);
-        $$->loc = $4;
+        $$->loc = right_loc($4);
         append_syntax_error("Invalid expression.", $$->loc);
         delete $1;
         delete $2;
         delete $3;
-        yyerrok;
+        // yyerrok;
     }
     | const_desc ident_all opt_type_desc error {
         $$ = new AstNode(Err);
-        $$->loc = $3->loc;
+        $$->loc = right_loc($3->loc);
         append_syntax_error("Invalid assignment.", $$->loc);
         delete $1;
         delete $2;
         delete $3;
-        yyerrok;
+        // yyerrok;
     }
     | const_desc COLON error  {
         $$ = new AstNode(Err);
         $$->loc = $2;
         append_syntax_error("Missing identifier.", $$->loc);
         delete $1;
-        yyerrok;
+        // yyerrok;
     }   
     | const_desc ASSIGN error {
         $$ = new AstNode(Err);
         $$->loc = $2;
         append_syntax_error("Missing identifier.", $$->loc);
         delete $1;
-        yyerrok;
+        // yyerrok;
     }
     | const_desc error{
         $$ = new AstNode(Err);
-        $$->loc = $1->loc;
+        $$->loc = right_loc($1->loc);
         append_syntax_error("Invalid variable declaration.", $$->loc);
         delete $1;
-        yyerrok;
+        // yyerrok;
     }
     ;
 
@@ -283,6 +279,10 @@ ident_type_list:
         $$->append($3);
     }
     | ident_type_list COMMA {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Missing identifier list member.", $$->loc);
+        delete $1;
 
     }
     // | ident_type_list COMMA
@@ -295,19 +295,35 @@ ident_type_member:
         $$->append($3);
     }
     | ident_all COLON error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid type description.", $$->loc);
+        delete $1;
+        // yyerrok;
     }
     | ident error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1->loc);
+        append_syntax_error("Missing :.", $$->loc);
+        delete $1;
+        // yyerrok;
     }
     | COLON type_desc {
-
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing identifier.", $$->loc);
+        delete $2;
     }
     | type_desc {
-
+        $$ = new AstNode(Err);
+        $$->loc = $1->loc;
+        append_syntax_error("Missing identifier and :.", $$->loc);
+        delete $1;
     }
     | COLON {
-
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing identifier and type_desc.", $$->loc);
     }
     ;
 
@@ -319,7 +335,10 @@ ident_value_list:
         $$->append($3);
     }
     | ident_value_list COMMA {
-
+        $$ = new AstNode(Err);
+        $$->loc = $2;
+        append_syntax_error("Missing initializer list member.", $$->loc);
+        delete $1;
     }
     ;
 
@@ -330,19 +349,32 @@ ident_value_member:
         $$->append($3);    
     }
     | ident_all COLON error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($2);
+        append_syntax_error("Invalid value initializer.", $$->loc);
+        delete $1;
+        // yyerrok;
     }
     | ident_all error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1->loc);
+        append_syntax_error("Invalid value initializer.", $$->loc);
+        delete $1;
+        // yyerrok;
     }
     | COLON expr_unit {
-
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Miising identifier.", $$->loc);
+        delete $2;
     }
     // | expr_unit {
 
     // }
     | COLON {
-
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Missing ideifier and value.", $$->loc);
     }
     ;
 
@@ -360,21 +392,39 @@ struct_decl:
     }
     // | TSTRUCT error 
     | struct_decl_ident LBRACE ident_type_list error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($3->loc);
+        append_syntax_error("Missing }.", $$->loc);
+        delete $1;
+        delete $3;
+        // yyerrok;
     }
     | struct_decl_ident error {
-
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1->loc);
+        append_syntax_error("Invalid struct definition block.", $$->loc);
+        delete $1;
+        // yyerrok;
     }
     ;
 
 /**************function declaration**************/
 func_decl_ident: 
     TFUNC ident_all{$$ = $2;}
-    | TFUNC {};
+    | TFUNC {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Missing function identifier.", $$->loc);
+        
+    };
 func_decl_ret_type: 
     {$$ = new AstNode(TypeDesc, "#auto");}
     | ARROW type_desc{$$ = $2;}
-    | ARROW error {};
+    | ARROW error {
+        $$ = new AstNode(Err);
+        $$->loc = right_loc($1);
+        append_syntax_error("Invalid return type description.", $$->loc);
+    };
 
 func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     parser_context.push_block_env();
@@ -390,10 +440,19 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     $$->append($7);
 }
 | func_decl_ident LP ident_type_list func_decl_ret_type block {
-
+    $$ = new AstNode(Err);
+    $$->loc = right_loc($3->loc);
+    append_syntax_error("Missing ).", $$->loc);
+    delete $1;
+    delete $3;
+    delete $4;
+    delete $5;
 }
 | func_decl_ident error {
-
+    $$ = new AstNode(Err);
+    $$->loc = right_loc($1->loc);
+    append_syntax_error("Inavlid function declaration.", $$->loc);
+    delete $1;
 }
 ;
 
@@ -438,6 +497,8 @@ stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
     | expr error{}
     | TELSE block {}
     | TELSE error {}
+    | RP {}
+    | RBRACKET{}
     ;
 
 ctrl_no_ret: 

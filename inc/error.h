@@ -27,3 +27,5 @@ void append_call_error(var_type_ptr fn, var_type_ptr args, Locator loc);
 void append_invalid_decl_error(std::string desc, Locator loc);
 
 void append_syntax_error(std::string desc, Locator loc);
+
+void append_prim_shadowed_warning(std::string id, Locator loc);
