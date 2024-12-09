@@ -2,6 +2,8 @@
 #include "ast.h"
 #include "var_type.h"
 #include "context.h"
+#include "arg_parse.h"
+#include "util.h"
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
@@ -102,61 +104,112 @@ void print_sym_table(AstNode* rt, int dep = 0){
     }
 }
 
+std::vector<std::string> raw_code;
+
+using ansi::color;
+
+void read_raw_code(FILE* file){
+    char c = fgetc(file);
+    std::string str = "";
+    while(c != EOF){
+        if(c == '\n'){
+            raw_code.push_back(str);
+            str = "";
+        }else{
+            str.push_back(c);
+        }
+        c = fgetc(file);
+    }
+    if(!str.empty())
+        raw_code.push_back(str);
+    fseek(file, 0, SEEK_SET);
+}
+
+void pretty_print_line(Locator loc){
+    if(!loc.has_value())
+        return;
+    char ch = '^';
+    for(int i = loc.line_st; i <= loc.line_ed; ++i){
+        printf("%5d | ", i + 1);
+        int len = raw_code[i].length();
+        int st = 0, ed = len;
+        if(i == loc.line_st)
+            st = loc.col_l;
+        if(i == loc.line_ed)
+            ed = loc.col_r + 1;
+        for(int j = 0; j < st; ++j)
+            putchar(raw_code[i][j]);
+        printf("%s", color(ansi::RED, ansi::BOLD).c_str());
+        for(int j = st; j < ed; ++j)
+            putchar(raw_code[i][j]);
+        printf("%s", color(ansi::RESET).c_str());
+        for(int j = ed; j < len; ++j)
+            putchar(raw_code[i][j]);
+        puts("");
+        printf("%5s | ", " ");
+        for(int j = 0; j < st; ++j)
+            putchar(' ');
+        printf("%s", color(ansi::RED, ansi::BOLD).c_str());
+        for(int j = st; j < ed; ++j){
+            putchar(ch);
+            ch = '~';
+        }
+        printf("%s", color(ansi::RESET).c_str());
+        for(int j = ed; j < len; ++j)
+            putchar(' ');
+        puts("");
+    }
+}
+
 int main(int argc, char* argv[]){
     ast_info_init();
+    ArgParser parser;
+    parser.parse(argc, argv);
+    
     FILE* file;
-    std::string name = "../test/test.sd";
-    if(argc == 2)
-        name = argv[1];
-    else if(argc > 2)
-        std::cout << "too many arguments" << std::endl;
-
+    std::string name = parser.input_path;
     file = fopen(name.c_str(), "r");
+
     if(!file){
         std::cout << "Failed to open file: " << name << std::endl;
         return 0;
     }
+
+    read_raw_code(file);
     set_input(file);
     yyparse();
 
+    if(parser.output_path != ""){
+        freopen(parser.output_path.c_str(), "w", stdout);
+    }
+
     bool err_flag = get_error_list().size();
-    // if (err_flag) {
-    //     auto err = get_error_list();
-    //     for(auto [s, loc]: err)
-    //     std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
-    //     // return 0;
-    // }
-    std::cout << "/****************************Full AST Structure****************************/" << std::endl;
-    plain_print(program_root, 0);
-    std::cout << std::endl;
+    if(parser.print_ast){
+        std::cout << "/****************************Full AST Structure****************************/" << std::endl;
+        plain_print(program_root, 0);
+        std::cout << std::endl;
+    }
 
     build_sym_table(program_root);
-    // print_sym_table(program_root);
-    // if (!err.size())
     auto err = get_error_list();
-    if(!err_flag){
+    if(parser.print_ast_sym){
         std::cout << "/**************************AST with symbols table**************************/" << std::endl;
         print(program_root, 0);
         std::cout << std::endl;
     }
+    // print_sym_table(program_root);
+    // if (!err.size())
+    
     std::cout << "/******************************Error Detected******************************/" << std::endl;
-    for(auto [s, loc]: err)
-        std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
+    for(auto [s, loc]: err){
+        if(s == ""){
+            std::cout << "undefined error" << std::endl;
+        }else{
+            std::cout << color(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
+                    << color(ansi::RESET) << s << std::endl;
+            // std::cout  << loc.col_l << " " << loc.col_r << std::endl;
+            pretty_print_line(loc);
+        }
+        // std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
+    }
 }
-/*
-
-todo-list:
-    const-expr
-    struct initial value
-    function overload
-    member function
-    enum / tuple
-    typedef
-
-    (
-        
-        macro
-        sugar
-    )
-
-*/

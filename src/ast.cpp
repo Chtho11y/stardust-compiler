@@ -226,7 +226,7 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
         }
         if(!comm_tp || comm_tp->is_void()){
             append_infer_failed_error("Failed to infer the type of array", node->loc);
-            return get_type("#err");
+            return node->ret_var_type = get_type("#err");
         }
         auto res = std::make_shared<ArrayType>();
         res->size = node->ch.size();
