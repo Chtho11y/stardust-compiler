@@ -86,10 +86,25 @@ ext_decl:
     {$$ = new BlockNode(ExtDecl);}
     | ext_decl SEMI {$$ = $1; yyerrok;}
     | ext_decl single_decl {$$ = $1; $$->append($2); }
-    | RBRACE {}
-    | RBRACKET {}
-    | RP {}
-    | error {}
+    | RBRACE {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Expected block before }.", $$->loc);
+    }
+    | RBRACKET {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Expected expression before ]", $$->loc);
+    }
+    | RP {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Expected expression before )", $$->loc);
+    }
+    | ext_decl error {
+        $$ = $1;
+        append_syntax_error("Invalid external declaration.", right_loc($$->loc));
+    }
     ;
 
 single_decl: var_decl | func_decl | struct_decl;
@@ -461,7 +476,7 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
 block: block_ret | block_no_ret;
 
 block_begin: LBRACE {parser_context.push_block_env();};
-block_end: RBRACE {parser_context.pop_block_env();};
+block_end: RBRACE {parser_context.pop_block_env(); yyerrok;};
 
 block_ret:
     block_begin stmts expr block_end{
@@ -488,14 +503,17 @@ block_no_ret:
 stmts:
     {$$ = new BlockNode(Stmts);}
     | stmts stmt {$$ = $1; $$->append($2);}
-    | stmts error {$$ = $1;}
+    | stmts error {
+        $$ = $1;
+        append_syntax_error("Invalid statement.", right_loc($$->loc));
+    }
     ;
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
-    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1;}
-    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1;}
-    | SEMI {$$ = new AstNode(Stmt);}
-    | expr SEMI{$$ = $1;}
+    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1; yyerrok;}
+    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1; yyerrok;}
+    | SEMI {$$ = new AstNode(Stmt); yyerrok;}
+    | expr SEMI{$$ = $1; yyerrok;}
     | TBREAK error {
         $$ = new AstNode(Err);
         $$->loc = right_loc($1);
