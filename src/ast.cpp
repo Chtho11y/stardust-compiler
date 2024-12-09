@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "context.h"
+#include "var_type.h"
 #include <iostream>
 
 AstContext ast_context;
@@ -7,6 +8,7 @@ AstContext ast_context;
 AstNode* create_node_from(node_type type, AstNode* ch){
     auto p = new AstNode(type, nullptr);
     p->append(ch);
+    // p->loc = ch->loc;
     return p;
 }
 
@@ -292,6 +294,10 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
     return nullptr;
 }
 
+#define CHECK_PRIM_SHADOW(x, loc)\
+    if (get_type(x)->is_prim()) \
+        append_prim_shadowed_warning(x, loc)
+
 std::shared_ptr<VarType> build_sym_table(AstNode* node){
     // std::cout << get_node_name(node) << std::endl;
     if(node->is_block){
@@ -308,12 +314,13 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == FuncDecl){
 
         auto func = Adaptor<FuncDecl>(node);
+        CHECK_PRIM_SHADOW(func.id, func.id_loc);
         auto flag = node->set_id(func.id, func.type_info);
         node->ret_var_type = func.type_info;
 
         for(auto ch: func.params->ch){
             auto var = Adaptor<VarDecl>(ch).check_type();
-
+            CHECK_PRIM_SHADOW(var.id, var.id_loc);
             if(!var.type_info->is_error())
                 func.body->var_table[var.id] = {var.id, var.type_info};
         }
@@ -361,7 +368,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         if(res_type){
             require_convertable(res_type, var.type_info, node->loc);
         }
-
+        CHECK_PRIM_SHADOW(var.id, var.id_loc);
         if(!node->set_id(var.id, var.type_info)){
             // append_error("Variable \'" + var.id + "\' has been declared.", var.id_loc);
             append_multidef_error("Variable", var.id, var.id_loc);   
@@ -375,6 +382,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         if(!st.type_info)
             return node->ret_var_type = get_type("#err");
         st.type_info->id = ++ast_context.type_id;
+        CHECK_PRIM_SHADOW(st.id, st.id_loc);
         if(!node->set_type(st.id, st.type_info)){
             // append_error("type " + st.id + " has been declared.", st.id_loc);
             append_multidef_error("Type", st.id, st.id_loc);
@@ -384,6 +392,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
     }else if(node->type == Identifier){
 
+        CHECK_PRIM_SHADOW(node->str, node->loc);
         auto res = node->get_id(node->str);
         if(res == nullptr){
             // append_error("variable \'" + node->str + "\' is not declared", node->loc);

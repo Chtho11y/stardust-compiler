@@ -2,6 +2,8 @@
 
 #include <string>
 #include <vector>
+#include <set>
+#include <algorithm>
 
 struct LocatorBuffer{
     int line_st, line_ed, col_l, col_r;
@@ -16,6 +18,10 @@ struct Locator{
         col_l = buffer.col_l;
         col_r = buffer.col_r;
         return *this;
+    }
+
+    bool operator < (const Locator& rhs) const {
+        return line_st == rhs.line_st ? col_l < rhs.col_l : line_st < rhs.line_st;
     }
 
     bool has_value()const {

@@ -60,3 +60,17 @@ Locator locator_merge(Locator l1, Locator l2){
     }
     return loc;
 }
+
+std::set<std::pair<Locator, std::string>> LocatorSet;
+
+void insert_locator(Locator loc, std::string val) {
+    LocatorSet.insert(std::make_pair(loc, val));
+}
+
+Locator get_next_locator(Locator loc) {
+    auto it = LocatorSet.lower_bound(std::make_pair(loc, std::string()));
+    if (++it == LocatorSet.end()) {
+        return (--it)->first;
+    }
+    return it->first;
+}
