@@ -89,7 +89,7 @@ var_type_ptr AstNode::get_id(std::string name){
         if(rt->is_block){
             auto block = static_cast<BlockNode*>(rt);
             if(block->var_table.count(name)){
-                return ref_type(block->var_table[name].type);
+                return ref_type(block->var_table[name]->type);
             }
         }
         rt = rt->parent;
@@ -100,25 +100,51 @@ var_type_ptr AstNode::get_id(std::string name){
     return nullptr; //not found
 }
 
+var_info_ptr AstNode::get_info(std::string name){
+    AstNode *rt = this;
+    // std::cout << "@get_info: begin" << std::endl;
+    while(rt){
+        // std::cout << "@get_info: #" << rt << std::endl;
+        if(rt->is_block){
+            auto block = static_cast<BlockNode*>(rt);
+            if(block->var_table.count(name)){
+                return block->var_table[name];
+            }
+        }
+        rt = rt->parent;
+    }
+    return nullptr;
+}
+
 bool AstNode::set_id(std::string name, var_type_ptr type){
     AstNode *rt = this;
     while(rt){
         if(rt->is_block){
             auto block = static_cast<BlockNode*>(rt);
             if(block->var_table.count(name)){
-                if(block->var_table[name].type->is_error()){
-                    block->var_table[name].type = type;
+                if(block->var_table[name]->type->is_error()){
+                    block->var_table[name]->type = type;
                     return true;
                 }
                 return false;
             }else{
-                block->var_table[name] = {name, type};
+                block->var_table[name] = std::make_shared<VarInfo>(VarInfo{name, type, rt->type == ExtDecl, ast_context.var_id++});
                 return true;
             }
         }
         rt = rt->parent;
     }
     return false;
+}
+
+void inject_builtin_func(BlockNode* block){
+    auto fn_read = std::make_shared<FuncType>();
+    auto fn_write = std::make_shared<FuncType>();
+    fn_read->ret_type = get_type("int");
+    fn_write->param_list.push_back(get_type("int"));
+    fn_write->ret_type = get_type("void");
+    block->set_id("read", fn_read);
+    block->set_id("write", fn_write);
 }
 
 AstNode* AstNode::get_loop_parent(){
@@ -212,7 +238,7 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
         auto arr = std::dynamic_pointer_cast<ArrayType>(type_assump);
         auto res = std::make_shared<ArrayType>();
         res->subtype = arr->subtype;
-        res->size = std::max(node->ch.size(), arr->size);
+        res->len = std::max(node->ch.size(), arr->len);
         for(auto ch: node->ch){
             auto tp = infer_array(ch, arr->subtype);
             require_convertable(tp, arr->subtype, ch->loc);
@@ -229,7 +255,7 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
             return node->ret_var_type = get_type("#err");
         }
         auto res = std::make_shared<ArrayType>();
-        res->size = node->ch.size();
+        res->len = node->ch.size();
         res->subtype = comm_tp;
         return node->ret_var_type = res;
     }
@@ -262,8 +288,8 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         
             for(auto nd = node; nd != sub; nd = nd->ch[0]){
                 auto arr = std::make_shared<ArrayType>();
-                arr->size = const_eval(nd->ch[1]);
-                if(arr->size == 0)
+                arr->len = const_eval(nd->ch[1]);
+                if(arr->len == 0)
                     return get_type("#err");
                 arr->subtype = res;
                 res = arr;
@@ -322,7 +348,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             auto var = Adaptor<VarDecl>(ch).check_type();
             CHECK_PRIM_SHADOW(var.id, var.id_loc);
             if(!var.type_info->is_error())
-                func.body->var_table[var.id] = {var.id, var.type_info};
+                func.body->var_table[var.id] = std::make_shared<VarInfo>(VarInfo{var.id, var.type_info, 0, ast_context.var_id++});
         }
 
         auto res = build_sym_table(func.body);
@@ -477,7 +503,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             case StringLiteral:{
                 //FIXME: escape the string.
                 auto res = std::make_shared<ArrayType>();
-                res->size = node->str.size() - 1;
+                res->len = node->str.size() - 1;
                 res->subtype = get_type("char");
                 return node->ret_var_type = res;
             }

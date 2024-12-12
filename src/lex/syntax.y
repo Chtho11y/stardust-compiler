@@ -12,7 +12,7 @@
     #define yyerrok1 (yyerrstatus=1)
     #define echo_error(s) \
         set_error_message(s)
-    #define LOCATOR(loc) Locator{(loc).line_ed, (loc).line_ed, (loc).col_r + 1, (loc).col_r}
+    #define LOCATOR(loc) Locator{(loc).line_st, (loc).line_ed, (loc).col_l, (loc).col_r}
     #define right_loc(loc) get_next_locator(LOCATOR(loc))\
 %}
 /* %glr-parser */
@@ -93,8 +93,11 @@ program: {
     }
     ;
 
-ext_decl:
-    {$$ = new BlockNode(ExtDecl); $$->loc = CurrentCursor;}
+ext_decl:{
+        $$ = new BlockNode(ExtDecl);
+        inject_builtin_func((BlockNode*)$$);
+        $$->loc = CurrentCursor;
+    }
     | ext_decl SEMI {$$ = $1; yyerrok;}
     | ext_decl single_decl {$$ = $1; $$->append($2); }
     | ext_decl RBRACE {
@@ -513,12 +516,12 @@ block_no_ret:
 
     // } 
     // | block_begin error {}
-    | block_begin stmts YYEOF {
-        $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Unclosed {.", $$->loc);
-        delete $2;
-    }
+    // | block_begin stmts YYEOF {
+    //     $$ = new AstNode(Err);
+    //     $$->loc = $1;
+    //     append_syntax_error("Unclosed {.", $$->loc);
+    //     delete $2;
+    // }
     ;
 
 stmts:

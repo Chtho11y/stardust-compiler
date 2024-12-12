@@ -61,7 +61,8 @@ struct ParserContext{
 };
 
 struct AstContext{
-    int type_id;
+    int type_id = 0;
+    int var_id = 0;
 };
 
 extern ParserContext parser_context;

@@ -2,6 +2,7 @@ build/
 backup/
 .vscode/
 test/
+.VSCodeCounter/
 
 syntax.txt
 *.backup
