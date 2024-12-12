@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 
 BlockNode* program_root = nullptr;
 
@@ -211,6 +212,9 @@ int main(int argc, char* argv[]){
     // if (!err.size())
     
     std::cout << "/******************************Error Detected******************************/" << std::endl;
+    std::sort(err.begin(), err.end(), [](const std::pair<std::string, Locator>& lhs, const std::pair<std::string, Locator>& rhs) {
+        return lhs.second < rhs.second;
+    });
     for(auto [s, loc]: err){
         if(s == ""){
             std::cout << "undefined error" << std::endl;

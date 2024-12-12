@@ -1,0 +1,14 @@
+func call(f : (int) -> int, x : int) -> int{
+    f(x)
+}
+func main() {
+    func abs(x : int) -> int {
+        if x < 0 {
+            -x
+        }
+        else {
+            x
+        }
+    }
+    call(abs, -1);
+}

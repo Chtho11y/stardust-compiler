@@ -12,7 +12,7 @@
     #define yyerrok1 (yyerrstatus=1)
     #define echo_error(s) \
         set_error_message(s)
-    #define LOCATOR(loc) Locator{(loc).line_ed, (loc).line_ed, (loc).col_r + 1, (loc).col_r}
+    #define LOCATOR(loc) Locator{(loc).line_st, (loc).line_ed, (loc).col_l, (loc).col_r}
     #define right_loc(loc) get_next_locator(LOCATOR(loc))\
 %}
 /* %glr-parser */
@@ -95,23 +95,27 @@ program: {
 
 ext_decl:
     {$$ = new BlockNode(ExtDecl); $$->loc = CurrentCursor;}
-    | ext_decl SEMI {$$ = $1; yyerrok;}
-    | ext_decl single_decl {$$ = $1; $$->append($2); }
+    | ext_decl SEMI {$$ = $1; $$->loc.merge($2); yyerrok;}
+    | ext_decl single_decl {$$ = $1; $$->append($2); $$->loc.merge($2->loc); }
     | ext_decl RBRACE {
         $$ = $1;
         append_syntax_error("Expected block before }.", LOCATOR($2));
+        $$->loc.merge($2);
     }
     | ext_decl RBRACKET {
         $$ = $1;
         append_syntax_error("Expected expression before ]", LOCATOR($2));
+        $$->loc.merge($2);
     }
     | ext_decl RP {
         $$ = $1;
         append_syntax_error("Expected expression before )", LOCATOR($2));
+        $$->loc.merge($2);
     }
     | ext_decl error {
         $$ = $1;
         append_syntax_error("Invalid external declaration.", CurrentCursor);
+        $$->loc.merge(CurrentCursor);
     }
     ;
 
@@ -119,15 +123,14 @@ single_decl: var_decl | func_decl | struct_decl;
 
 /**************type**************/
 opt_type_desc: 
-    {$$ = new AstNode(TypeDesc, "#auto");}
-    |COLON type_desc {$$ = $2;};
+    {$$ = new AstNode(TypeDesc, "#auto"); }
+    |COLON type_desc {$$ = $2;}
     |type_desc {
         $$ = new AstNode(TypeDesc, "#err");
         $$->loc = $1->loc;
         append_syntax_error("Missing :.", $$->loc);
         delete $1;
-        
-    };
+    }
     |COLON error {
         $$ = new AstNode(TypeDesc, "#err");
         $$->loc = right_loc($1);

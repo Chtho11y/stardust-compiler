@@ -9,6 +9,13 @@ struct LocatorBuffer{
     int line_st, line_ed, col_l, col_r;
 };
 
+struct Locator;
+
+Locator locator_merge(LocatorBuffer l1, LocatorBuffer l2);
+Locator locator_merge(LocatorBuffer l1, Locator l2);
+Locator locator_merge(Locator l1, LocatorBuffer l2);
+Locator locator_merge(Locator l1, Locator l2);
+
 struct Locator{
     int line_st = 0, line_ed = 0, col_l = 0, col_r = 0;
 
@@ -27,12 +34,15 @@ struct Locator{
     bool has_value()const {
         return line_st > 0 || col_r > 0;
     }
+    void merge(const Locator& loc) {
+        *this = locator_merge(*this, loc);
+    }
+    void merge(const LocatorBuffer& loc) {
+        *this = locator_merge(*this, loc);
+    }
 };
 
-Locator locator_merge(LocatorBuffer l1, LocatorBuffer l2);
-Locator locator_merge(LocatorBuffer l1, Locator l2);
-Locator locator_merge(Locator l1, LocatorBuffer l2);
-Locator locator_merge(Locator l1, Locator l2);
+
 
 extern Locator CurrentCursor;
 struct Token{
