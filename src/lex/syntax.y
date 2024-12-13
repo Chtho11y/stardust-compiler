@@ -350,11 +350,29 @@ ident_type_member:
         $$->append($3);
         $$->append_loc($2);
     }
+    | ident_all COLON ident {
+        $$ = new AstNode(VarDecl);
+        $$->append(new AstNode(ConstDesc, "let"));
+        $$->append($1);
+        $$->append_loc($2);
+        auto tp_node = new AstNode(TypeDesc, "#err");
+        tp_node->loc = $3->loc;
+        $$->append(tp_node);
+        append_syntax_error("Undeclared type.", $3->loc);
+        delete $3;
+    }
     | ident_all COLON error {
-        $$ = new AstNode(Err);
-        $$->loc = locator_merge($1->loc, $2);
+        $$ = new AstNode(VarDecl);
+        $$->append(new AstNode(ConstDesc, "let"));
+        $$->append($1);
+        $$->append_loc($2);
+        auto tp_node = new AstNode(TypeDesc, "#err");
+        tp_node->loc = $2;
+        $$->append(tp_node);
+        // $$ = new AstNode(Err);
+        // $$->loc = locator_merge($1->loc, $2);
         append_syntax_error("Invalid type description.", next_loc($2));
-        delete $1;
+        // delete $1;
         // yyerrok;
     }
     | ident type_desc {
@@ -373,10 +391,17 @@ ident_type_member:
         #endif
     }
     | ident error {
-        $$ = new AstNode(Err);
-        $$->loc = $1->loc;
+        $$ = new AstNode(VarDecl);
+        $$->append(new AstNode(ConstDesc, "let"));
+        $$->append($1);
+        $$->append_loc($1->loc);
+        auto tp_node = new AstNode(TypeDesc, "#err");
+        tp_node->loc = $1->loc;
+        $$->append(tp_node);
+        // $$ = new AstNode(Err);
+        // $$->loc = $1->loc;
         append_syntax_error("Missing :.", next_loc($1->loc));
-        delete $1;
+        // delete $1;
         // yyerrok;
     }
     | COLON type_desc {
@@ -502,7 +527,8 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     parser_context.push_block_env();
     $3->type = FuncParams;
     for(auto ch: $3->ch){
-        parser_context.set_var(ch->ch[1]->str);
+        if (ch->ch.size() > 1)
+            parser_context.set_var(ch->ch[1]->str);
     }
 } block{
     parser_context.pop_block_env();
@@ -517,7 +543,8 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
     parser_context.push_block_env();
     $3->type = FuncParams;
     for(auto ch: $3->ch){
-        parser_context.set_var(ch->ch[1]->str);
+        if (ch->ch.size() > 1)
+            parser_context.set_var(ch->ch[1]->str);
     }
 } block {
     parser_context.pop_block_env();
@@ -542,7 +569,7 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
 | func_decl_ident error {
     $$ = new AstNode(Err);
     $$->loc = $1->loc;
-    append_syntax_error("Inavlid function declaration.", next_loc($1->loc));
+    append_syntax_error("Inavlid function declaration.", $1->loc);
     delete $1;
 }
 ;
@@ -594,8 +621,8 @@ stmts:
     ;
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
-    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1; $$->append_loc($2); yyerrok;}
-    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1; $$->append_loc($2); yyerrok;}
+    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->append_loc($1); $$->append_loc($2); yyerrok;}
+    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->append_loc($1); $$->append_loc($2); yyerrok;}
     | SEMI {$$ = new AstNode(Stmt); $$->append_loc($1); yyerrok;}
     | expr SEMI{$$ = $1; $$->append_loc($2); yyerrok;}
     | TBREAK error {
@@ -663,27 +690,29 @@ ctrl_no_ret:
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
-        $$->loc = $1;
+        $$->append_loc($1);
      }
     |TIF expr block_no_ret TELSE block_no_ret {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($4);
     }
     |TIF expr block_no_ret TELSE ctrl_no_ret {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($4);
     }
     |TWHILE expr block{
         $$ = new AstNode(WhileStmt);
         $$->append($2);
         $$->append($3);
-        $$->loc = $1;
+        $$->append_loc($1);
     }
     |TFOR stmt expr SEMI expr block {
         $$ = new BlockNode(ForStmt);
@@ -691,7 +720,8 @@ ctrl_no_ret:
         $$->append($3);
         $$->append($5);
         $$->append($6);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($4);
     }
     |TFOR stmt SEMI expr block {
         $$ = new BlockNode(ForStmt);
@@ -699,48 +729,56 @@ ctrl_no_ret:
         $$->append(new AstNode(Stmt));
         $$->append($4);
         $$->append($5);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($3);
     }
-    |TIF expr block_ret {
+    |TIF expr block_ret { //todo: add auto-fix
+        // #ifndef AUTO_FIX
         $$ = new AstNode(Err);
-        $$->loc = $3->loc;
-        append_syntax_error("Expected if-block with no return value.", $$->loc);
+        $$->loc = locator_merge($1, $3->loc);
+        append_syntax_error("Expected if-block with no return value.", $3->loc);
         delete $2;
         delete $3;
+        // #else
+        // $$ = new AstNode(IfStmt);
+        // $$->append($2);
+        // $$->append($3);
+        // $$->ap
+        // #endif
     }
     |TIF block_no_ret error {
         $$ = new AstNode(Err);
-        $$->loc = $2->loc;
-        append_syntax_error("Missing expression.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Missing expression.", $2->loc);
         delete $2;
 
     }
     | TIF expr error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2->loc);
-        append_syntax_error("Invalid if-block.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Invalid if-block.", next_loc($2->loc));
         delete $2;
     }
-    | TIF expr block_no_ret TELSE block_ret {
+    | TIF expr block_no_ret TELSE block_ret { //todo: add auto-fix
         $$ = new AstNode(Err);
-        $$->loc = $5->loc;
-        append_syntax_error("Expected else-block with no return value.", $$->loc);
+        $$->loc = locator_merge($1, $5->loc);
+        append_syntax_error("Expected else-block with no return value.", $5->loc);
         delete $2;
         delete $3;
         delete $5;
     }
     | TIF expr block_no_ret TELSE ctrl_ret {
         $$ = new AstNode(Err);
-        $$->loc = $5->loc;
-        append_syntax_error("Expected conditional statements with no return value.", $$->loc);
+        $$->loc = locator_merge($1, $5->loc);
+        append_syntax_error("Expected conditional statements with no return value.", $5->loc);
         delete $2;
         delete $3;
         delete $5;
     }
     | TIF expr block_no_ret TELSE error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($4);
-        append_syntax_error("Invalid else-block.", $$->loc);
+        $$->loc = locator_merge($1, $4);
+        append_syntax_error("Invalid else-block.", next_loc($4));
         delete $2;
         delete $3;
     }
@@ -752,31 +790,31 @@ ctrl_no_ret:
     // }
     | TIF error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid if statement.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid if statement.", next_loc($1));
     }
     | TWHILE block_no_ret{
         $$ = new AstNode(Err);
-        $$->loc = $2->loc;
-        append_syntax_error("Missing expression.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Missing expression.", $2->loc);
         delete $2;
 
     }
     | TWHILE expr error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2->loc);
-        append_syntax_error("Invalid while-block.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Invalid while-block.", next_loc($2->loc));
         delete $2;
     }
     | TWHILE error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid while statement.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid while statement.", next_loc($1));
     }
     | TFOR error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid for statement.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid for statement.", next_loc($1));
     }
     // todo : finish for-loop error handling
     ;
@@ -787,27 +825,29 @@ ctrl_ret:
         $$->append($2);
         $$->append($3);
         $$->append($5);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($4);
      };
     |TIF expr block_ret TELSE ctrl_ret {
         $$ = new AstNode(IfStmt);
         $$->append($2);
         $$->append($3);
         $$->append($5);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($4);
     }
     |TIF expr block_ret TELSE block_no_ret {
         $$ = new AstNode(Err);
-        $$->loc = $5->loc;
-        append_syntax_error("Expected else-block with return value.", $$->loc);
+        $$->loc = locator_merge($1, $5->loc);
+        append_syntax_error("Expected else-block with return value.", $5->loc);
         delete $2;
         delete $3;
         delete $5;
     }
     |TIF expr block_ret TELSE ctrl_no_ret {
         $$ = new AstNode(Err);
-        $$->loc = $5->loc;
-        append_syntax_error("Expected conditinal statements with no return value.", $$->loc);
+        $$->loc = locator_merge($1, $5->loc);
+        append_syntax_error("Expected conditinal statements with no return value.", $5->loc);
         delete $2;
         delete $3;
         delete $5;
@@ -815,16 +855,18 @@ ctrl_ret:
     ;
 
 return_stmt: 
-    TRETURN SEMI {$$ = new AstNode(Stmt, "return"); $$->loc = $1;}
+    TRETURN SEMI {$$ = new AstNode(Stmt, "return"); $$->append_loc($1); $$->append_loc($2); yyerrok;}
     | TRETURN expr SEMI {
         $$ = new AstNode(Stmt, "return");
         $$->append($2);
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($3);
+        yyerrok;
     }
     | TRETURN error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Missing ; after return.", $$->loc = $1);
+        $$->loc = $1;
+        append_syntax_error("Missing ; after return.", Lc($1));
     }
     ;
 
@@ -835,8 +877,8 @@ expr:
     ;
 
 item_list:
-    {$$ = new AstNode(ExprList); $$->loc = CurrentCursor;}
-    |expr_unit {$$ = create_node_from(ExprList, $1); $$->loc = CurrentCursor;} 
+    {$$ = new AstNode(ExprList); }
+    |expr_unit {$$ = create_node_from(ExprList, $1); } 
     |expr_list;
 
 expr_list:
@@ -844,35 +886,42 @@ expr_list:
         $$ = new AstNode(ExprList);
         $$->append($1);
         $$->append($3);
-        $$->loc = $1->loc;
+        $$->append_loc($2);
     }
     | expr_list COMMA expr_unit{
         $$ = $1;
         $$->append($3);
+        $$->append_loc($2);
     };
 
 expr_unit: 
     item
-    | LP type_desc RP expr_unit %prec NOT{$$ = new OperatorNode(op_type::Convert, $4, $2, $1); $$->loc = $1;}
-    | ADD expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Pos, $2, $1); $$->loc = $1;}
+    | LP type_desc RP expr_unit %prec NOT{
+        $$ = new OperatorNode(op_type::Convert, $4, $2, $1); 
+        $$->loc = locator_merge($1, $4->loc);
+        $$->append_loc($1);
+        $$->append_loc($3);
+    }
+    | ADD expr_unit %prec NOT     {
+        $$ = new OperatorNode(op_type::Pos, $2, $1); }
     | ADD error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid expression.", next_loc($1));
     }
-    | SUB expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Neg, $2, $1); $$->loc = $1;}
+    | SUB expr_unit %prec NOT     {$$ = new OperatorNode(op_type::Neg, $2, $1); }
     | SUB error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid expression.", next_loc($1));
     }
-    | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2, $1); $$->loc = $1;}
+    | NOT expr_unit               {$$ = new OperatorNode(op_type::Not, $2, $1); }
     | NOT error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid expression.", next_loc($1));
     }
-    | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3, $2); $$->loc = $1->loc;} 
+    | expr_unit ASSIGN expr_unit  {$$ = new OperatorNode(op_type::Assign, $1, $3, $2); } 
     | ASSIGN error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -884,7 +933,7 @@ expr_unit:
         append_syntax_error("Invalid expression.", $$->loc);
         delete $1;
     }
-    | expr_unit ADDEQ expr_unit  {$$ = new OperatorNode(op_type::AddEq, $1, $3, $2); $$->loc = $1->loc;} 
+    | expr_unit ADDEQ expr_unit  {$$ = new OperatorNode(op_type::AddEq, $1, $3, $2); } 
     | ADDEQ error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -892,11 +941,11 @@ expr_unit:
     }
     | expr_unit ADDEQ error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit SUBEQ expr_unit  {$$ = new OperatorNode(op_type::SubEq, $1, $3, $2); $$->loc = $1->loc;} 
+    | expr_unit SUBEQ expr_unit  {$$ = new OperatorNode(op_type::SubEq, $1, $3, $2); } 
     | SUBEQ error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -904,11 +953,11 @@ expr_unit:
     }
     | expr_unit SUBEQ error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit MULEQ expr_unit  {$$ = new OperatorNode(op_type::MulEq, $1, $3, $2); $$->loc = $1->loc;} 
+    | expr_unit MULEQ expr_unit  {$$ = new OperatorNode(op_type::MulEq, $1, $3, $2); } 
     | MULEQ error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -916,11 +965,11 @@ expr_unit:
     }
     | expr_unit MULEQ error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit DIVEQ expr_unit  {$$ = new OperatorNode(op_type::DivEq, $1, $3, $2); $$->loc = $1->loc;} 
+    | expr_unit DIVEQ expr_unit  {$$ = new OperatorNode(op_type::DivEq, $1, $3, $2); } 
     | DIVEQ error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -928,32 +977,32 @@ expr_unit:
     }
     | expr_unit DIVEQ error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit ADD expr_unit     {$$ = new OperatorNode(op_type::Add, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit ADD expr_unit     {$$ = new OperatorNode(op_type::Add, $1, $3, $2); }
     | expr_unit ADD error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit SUB expr_unit     {$$ = new OperatorNode(op_type::Sub, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit SUB expr_unit     {$$ = new OperatorNode(op_type::Sub, $1, $3, $2); }
     | expr_unit SUB error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit MUL expr_unit     {$$ = new OperatorNode(op_type::Mul, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit MUL expr_unit     {$$ = new OperatorNode(op_type::Mul, $1, $3, $2); }
     | expr_unit MUL error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit DIV expr_unit     {$$ = new OperatorNode(op_type::Div, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit DIV expr_unit     {$$ = new OperatorNode(op_type::Div, $1, $3, $2); }
     | DIV error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -961,11 +1010,11 @@ expr_unit:
     }
     | expr_unit DIV error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit MOD expr_unit     {$$ = new OperatorNode(op_type::Mod, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit MOD expr_unit     {$$ = new OperatorNode(op_type::Mod, $1, $3, $2); }
     | MOD error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -973,18 +1022,18 @@ expr_unit:
     }
     | expr_unit MOD error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit BITAND expr_unit  {$$ = new OperatorNode(op_type::BitAnd, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit BITAND expr_unit  {$$ = new OperatorNode(op_type::BitAnd, $1, $3, $2); }
     | expr_unit BITAND error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit BITOR expr_unit   {$$ = new OperatorNode(op_type::BitOr, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit BITOR expr_unit   {$$ = new OperatorNode(op_type::BitOr, $1, $3, $2); }
     | BITOR error{
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -992,11 +1041,11 @@ expr_unit:
     }
     | expr_unit BITOR error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit XOR expr_unit     {$$ = new OperatorNode(op_type::Xor, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit XOR expr_unit     {$$ = new OperatorNode(op_type::Xor, $1, $3, $2); }
     | XOR error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1004,11 +1053,11 @@ expr_unit:
     }
     | expr_unit XOR error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit EQ expr_unit      {$$ = new OperatorNode(op_type::Eq, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit EQ expr_unit      {$$ = new OperatorNode(op_type::Eq, $1, $3, $2); }
     | EQ error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1016,11 +1065,11 @@ expr_unit:
     }
     | expr_unit EQ error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit NEQ expr_unit     {$$ = new OperatorNode(op_type::Neq, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit NEQ expr_unit     {$$ = new OperatorNode(op_type::Neq, $1, $3, $2); }
     | NEQ error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1028,11 +1077,11 @@ expr_unit:
     }
     | expr_unit NEQ error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit LE expr_unit      {$$ = new OperatorNode(op_type::Le, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit LE expr_unit      {$$ = new OperatorNode(op_type::Le, $1, $3, $2); }
     | LE error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1040,11 +1089,11 @@ expr_unit:
     }
     | expr_unit LE error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit GE expr_unit      {$$ = new OperatorNode(op_type::Ge, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit GE expr_unit      {$$ = new OperatorNode(op_type::Ge, $1, $3, $2); }
     | GE error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1052,11 +1101,11 @@ expr_unit:
     }
     | expr_unit GE error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit LT expr_unit      {$$ = new OperatorNode(op_type::Lt, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit LT expr_unit      {$$ = new OperatorNode(op_type::Lt, $1, $3, $2); }
     | LT error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1064,11 +1113,11 @@ expr_unit:
     }
     | expr_unit LT error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit GT expr_unit      {$$ = new OperatorNode(op_type::Gt, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit GT expr_unit      {$$ = new OperatorNode(op_type::Gt, $1, $3, $2); }
     | GT error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1076,11 +1125,11 @@ expr_unit:
     }
     | expr_unit GT error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit AND expr_unit     {$$ = new OperatorNode(op_type::And, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit AND expr_unit     {$$ = new OperatorNode(op_type::And, $1, $3, $2); }
     | AND error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1088,11 +1137,11 @@ expr_unit:
     }
     | expr_unit AND error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | expr_unit OR expr_unit      {$$ = new OperatorNode(op_type::Or, $1, $3, $2); $$->loc = $1->loc;}
+    | expr_unit OR expr_unit      {$$ = new OperatorNode(op_type::Or, $1, $3, $2); }
     | OR error {
         $$ = new AstNode(Err);
         $$->loc = $1;
@@ -1100,80 +1149,82 @@ expr_unit:
     }
     | expr_unit OR error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid expression.", next_loc($2));
         delete $1;
     }
-    | MUL expr_unit%prec NOT      {$$ = new OperatorNode(op_type::DeRef, $2, $1); $$->loc = $1;}
+    | MUL expr_unit%prec NOT      {$$ = new OperatorNode(op_type::DeRef, $2, $1); }
     | MUL error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid expression.", next_loc($1));
     }
-    | BITAND expr_unit %prec NOT  {$$ = new OperatorNode(op_type::Ref, $2, $1); $$->loc = $1; }
+    | BITAND expr_unit %prec NOT  {$$ = new OperatorNode(op_type::Ref, $2, $1); }
     | BITAND error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid expression.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid expression.", next_loc($1));
     }
     ;
 
 item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
-    | LP expr RP {$$ = $2;}
+    | LP expr RP {$$ = $2; $$->append_loc($1); $$->append_loc($3);}
     | item DOT ident {
         $$ = new OperatorNode(op_type::Access);
         $$->append($1);
         $$->append($3);
-        $$->loc = $2;
+        $$->append_loc($2);
     }
     | item LBRACKET expr RBRACKET {
         $$ = new OperatorNode(op_type::At);
         $$->append($1);
         $$->append($3);
-        $$->loc = $2;
+        $$->append_loc($2);
+        $$->append_loc($4);
     }
     | item LP item_list RP {
         $$ = new OperatorNode(op_type::Call);
         $$->append($1);
         $3->type = FuncArgs;
         $$->append($3);
-        $$->loc = $2;
+        $$->append_loc($2);
+        $$->append_loc($4);
     }
     | LP expr error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2->loc);
-        append_syntax_error("Missing ).", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Missing ).", next_loc($2->loc));
         delete $2;
     }
     | DOT ident {
         $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Missing instance identifier.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Missing instance identifier.", Lc($1));
         delete $2;
     }
     | item DOT error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid instance member", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid instance member", next_loc($2));
         delete $1;
     }
     | item LBRACKET RBRACKET {
         $$ = new AstNode(Err);
-        $$->loc = $3;
-        append_syntax_error("Missing expression.", $$->loc);
+        $$->loc = locator_merge($1->loc, $3);
+        append_syntax_error("Missing expression.", Lc($3));
         delete $1;
     }
     | item LBRACKET expr error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($3->loc);
-        append_syntax_error("Missing ]", $$->loc);
+        $$->loc = locator_merge($1->loc, $3->loc);
+        append_syntax_error("Missing ]", next_loc($3->loc));
         delete $1;
         delete $3;
     }
     | item LP item_list error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($3->loc);
-        append_syntax_error("Missing )", $$->loc);
+        $$->loc = locator_merge($1->loc, $3->loc);
+        append_syntax_error("Missing )", next_loc($3->loc));
         delete $1;
         delete $3;
     }
@@ -1214,11 +1265,13 @@ array_instance:
     LBRACKET item_list RBRACKET {
         $$ = $2;
         $$->type = ArrayInstance;
+        $$->append_loc($1);
+        $$->append_loc($3);
     }
     | LBRACKET item_list error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2->loc);
-        append_syntax_error("Missing ]", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Missing ]", next_loc($2->loc));
         delete $2;
     }
     ;
@@ -1226,18 +1279,20 @@ array_instance:
 struct_instance: 
     TSTRUCT LBRACE ident_value_list RBRACE {
         $$ = $3;
-        $$->loc = $1;
+        $$->append_loc($1);
+        $$->append_loc($2);
+        $$->append_loc($4);
     }
     | TSTRUCT LBRACE ident_value_list error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($3->loc);
-        append_syntax_error("Missing }", $$->loc);
+        $$->loc = locator_merge($1, $3->loc);
+        append_syntax_error("Missing }", next_loc($3->loc));
         delete $3;
     }
     | TSTRUCT error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid struct instance initializer.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid struct instance initializer.", Lc($1));
     }
     ;
 %%

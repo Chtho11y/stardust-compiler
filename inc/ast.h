@@ -69,7 +69,7 @@ struct AstNode{
 
     void append(AstNode* c){
         ch.push_back(c);
-        this->loc.merge(loc);
+        this->loc.merge(c->loc);
         c->parent = this;
     }
 
@@ -114,24 +114,24 @@ struct OperatorNode: AstNode{
 
     OperatorNode(op_type type, AstNode* ch1, Locator loc = {}):AstNode(Operator), type(type){
         append(ch1);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     OperatorNode(op_type type, AstNode* ch1, AstNode* ch2, Locator loc = {}):AstNode(Operator), type(type){
         append(ch1);
         append(ch2);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     OperatorNode(op_type type, AstNode* ch1, LocatorBuffer loc):AstNode(Operator), type(type){
         append(ch1);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     OperatorNode(op_type type, AstNode* ch1, AstNode* ch2, LocatorBuffer loc):AstNode(Operator), type(type){
         append(ch1);
         append(ch2);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     static std::string get_op_name(OperatorNode* node);
@@ -176,7 +176,13 @@ struct Adaptor<VarDecl>{
 
     Adaptor(AstNode* rt){
         if(rt->type != VarDecl){
-            throw "adaptor type mismatch";
+            // throw "adaptor type mismatch";
+            id = "@ERROR";
+            type = new AstNode(TypeDesc, "#err");
+            type_info = get_type("#err");
+            init_val = nullptr;
+            id_loc = rt->loc;
+            return;
         }
         int p = 0;
         if(rt->ch[0]->type == ConstDesc)
