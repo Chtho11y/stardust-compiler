@@ -211,29 +211,31 @@ int main(int argc, char* argv[]){
     }
     // print_sym_table(program_root);
     // if (!err.size())
-
-    if(err.size() > 0){
-        std::cout << "/******************************Error Detected******************************/" << std::endl;
-        for(auto [s, loc]: err){
-            if(s == ""){
-                std::cout << "undefined error" << std::endl;
-            }else{
-                std::cout << color(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
-                        << color(ansi::RESET) << s << std::endl;
-                // std::cout  << loc.col_l << " " << loc.col_r << std::endl;
-                pretty_print_line(loc);
-            }
-            // std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
+    std::sort(err.begin(), err.end(), [](const std::pair<std::string, Locator>& lhs, const std::pair<std::string, Locator>& rhs) {
+        return lhs.second < rhs.second;
+    });
+    // if(err.size() > 0){
+    std::cout << "/******************************Error Detected******************************/" << std::endl;
+    for(auto [s, loc]: err){
+        if(s == ""){
+            std::cout << "undefined error" << std::endl;
+        }else{
+            std::cout << color_if(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
+                    << color_if(ansi::RESET) << s << std::endl;
+            // std::cout  << loc.col_l << " " << loc.col_r << std::endl;
+            pretty_print_line(loc);
         }
-        return 0;
+        // std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
     }
+    // return 0;
+    // }
     
-    try{
-        IRContext context;
-        auto ir_root = ast_to_spl_ir(program_root);
-        ir_root->gen_code(context);
-        context.export_ir_code(stdout);
-    }catch(std::string s){
-        std::cout << s << std::endl;
-    }
+    // try{
+    //     IRContext context;
+    //     auto ir_root = ast_to_spl_ir(program_root);
+    //     ir_root->gen_code(context);
+    //     context.export_ir_code(stdout);
+    // }catch(std::string s){
+    //     std::cout << s << std::endl;
+    // }
 }
