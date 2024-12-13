@@ -1,0 +1,11 @@
+struct {
+    a : int, 
+    b : float
+};
+struct c{
+    b, 
+    c : float,
+    d
+};
+struct d{
+;

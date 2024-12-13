@@ -1,0 +1,103 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    StructDecl
+      Identifier: Student
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: weight
+          TypeDesc
+            Identifier: int
+    FuncDecl
+      Identifier: test_struct_in_function
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        StructDecl
+          Identifier: Point
+          StructMem
+            VarDecl
+              ConstDesc: let
+              Identifier: x
+              TypeDesc
+                Identifier: int
+            VarDecl
+              ConstDesc: let
+              Identifier: y
+              TypeDesc
+                Identifier: int
+            VarDecl
+              ConstDesc: let
+              Identifier: aa
+              TypeDesc
+                Identifier: Student
+        Stmt
+        VarDecl
+          ConstDesc: let
+          Identifier: p
+          TypeDesc
+            Identifier: Point
+          StructInstance
+            StructInstanceMem
+              Identifier: x
+              IntLiteral: 10
+            StructInstanceMem
+              Identifier: y
+              IntLiteral: 20
+            StructInstanceMem
+              Identifier: aa
+              StructInstance
+                StructInstanceMem
+                  Identifier: weight
+                  IntLiteral: 10
+        Operator: Add
+          Operator: Access
+            Identifier: p
+            Identifier: x
+          Operator: Access
+            Identifier: p
+            Identifier: y
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_struct_in_function#2: () -> int32, write#1: (int32) -> void
+    StructDecl: Student
+    weight: int32
+    FuncDecl(() -> int32)
+      Identifier: test_struct_in_function
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): p#3: Point#2
+        StructDecl: Point
+        x: int32
+        y: int32
+        aa: Student#1
+        Stmt(void)
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: p
+          TypeDesc: Point#2
+          StructInstance(Point#2)
+            StructInstanceMem
+              Identifier: x
+              IntLiteral(int32): 10
+            StructInstanceMem
+              Identifier: y
+              IntLiteral(int32): 20
+            StructInstanceMem
+              Identifier: aa
+              StructInstance(Student#1)
+                StructInstanceMem
+                  Identifier: weight
+                  IntLiteral(int32): 10
+        Operator(int32): Add
+          Operator(&int32): Access
+            Identifier(&Point#2): p
+            Identifier: x
+          Operator(&int32): Access
+            Identifier(&Point#2): p
+            Identifier: y
+
+/******************************Error Detected******************************/

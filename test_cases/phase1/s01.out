@@ -1,0 +1,142 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test_2_r03
+      FuncParams
+      TypeDesc: #auto
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: res
+          TypeDesc
+            Identifier: int
+          IntLiteral: 1
+        VarDecl
+          ConstDesc: let
+          Identifier: 3b
+          TypeDesc
+            Identifier: int
+          ExprList
+            Err
+            Operator: Assign
+              Identifier: C
+              Err
+            Operator: Assign
+              Identifier: d
+              Err
+        IfStmt
+          Operator: Neq
+            Identifier: b
+            Identifier: c
+          Stmts
+            Operator: Assign
+              Identifier: a
+              IntLiteral: 0
+        Stmt
+        WhileStmt
+          Operator: Gt
+            Identifier: n
+            IntLiteral: 0
+          Stmts
+            Operator: Assign
+              Identifier: res
+              Operator: Mul
+                Identifier: res
+                Identifier: n
+            Operator: Assign
+              Identifier: n
+              Operator: Sub
+                Identifier: n
+                IntLiteral: 1
+        Stmt
+        Stmt: return
+          Identifier: res
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_2_r03#2: () -> void, write#1: (int32) -> void
+    FuncDecl(() -> void)
+      Identifier: test_2_r03
+      FuncParams
+      TypeDesc: #auto
+      Stmts(void): 3b#6: int32, C#4: error, b#7: error, c#8: error, d#5: error, n#10: error, res#3: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: res
+          TypeDesc: int32
+          IntLiteral(int32): 1
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: 3b
+          TypeDesc: int32
+          ExprList(error)
+            Err(error)
+            Operator(error): Assign
+              Identifier(error): C
+              Err(error)
+            Operator(error): Assign
+              Identifier(error): d
+              Err(error)
+        IfStmt(void)
+          Operator(error): Neq
+            Identifier(error): b
+            Identifier(error): c
+          Stmts(void): a#9: error
+            Operator(error): Assign
+              Identifier(error): a
+              IntLiteral(int32): 0
+        Stmt(void)
+        WhileStmt(void)
+          Operator(error): Gt
+            Identifier(error): n
+            IntLiteral(int32): 0
+          Stmts(void)
+            Operator(error): Assign
+              Identifier(&int32): res
+              Operator(error): Mul
+                Identifier(&int32): res
+                Identifier(error): n
+            Operator(error): Assign
+              Identifier(error): n
+              Operator(error): Sub
+                Identifier(error): n
+                IntLiteral(int32): 1
+        Stmt(void)
+        Stmt(void): return
+          Identifier(&int32): res
+
+/******************************Error Detected******************************/
+../test//s01.sd:4:7: Error A: Invalid identifier.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |       ^~                             
+../test//s01.sd:4:22: Error B: Invalid expression.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                      ^               
+../test//s01.sd:4:24: Error C02: Variable 'C' is not declared.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                        ^             
+../test//s01.sd:4:29: Error B: Invalid expression.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                             ^        
+../test//s01.sd:4:31: Error C02: Variable 'd' is not declared.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                               ^      
+../test//s01.sd:4:37: Error B: Invalid expression.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                                     ^
+../test//s01.sd:5:7: Error C02: Variable 'b' is not declared.
+    5 |   if (b != c){
+      |       ^       
+../test//s01.sd:5:12: Error C02: Variable 'c' is not declared.
+    5 |   if (b != c){
+      |            ^  
+../test//s01.sd:6:5: Error C02: Variable 'a' is not declared.
+    6 |     a = 0;
+      |     ^     
+../test//s01.sd:8:10: Error C02: Variable 'n' is not declared.
+    8 |   while (n > 0)
+      |          ^     
+../test//s01.sd:13:10: Error C07: Failed to convert 'int32' to 'void' implicitly.
+   13 |   return res;
+      |          ^~~ 

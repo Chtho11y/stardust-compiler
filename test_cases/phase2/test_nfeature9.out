@@ -1,0 +1,89 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: []
+            TypeDesc
+              Identifier: int
+            IntLiteral: 10
+          ArrayInstance
+            IntLiteral: 0
+            IntLiteral: 0
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: []
+            TypeDesc: []
+              TypeDesc: *
+                TypeList
+                  TypeDesc: []
+                    TypeDesc
+                      Identifier: int
+                    IntLiteral: 10
+              IntLiteral: 10
+            IntLiteral: 10
+          ArrayInstance
+            ArrayInstance
+              Operator: Ref
+                Identifier: a
+        StructDecl
+          Identifier: c
+          StructMem
+            VarDecl
+              ConstDesc: let
+              Identifier: a
+              TypeDesc
+                Identifier: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: d
+          TypeDesc: #auto
+          ArrayInstance
+            StructInstance
+              StructInstanceMem
+                Identifier: a
+                IntLiteral: 1
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): main#2: () -> void, read#0: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> void)
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      Stmts(void): a#3: int32[10], b#4: int32[10]*[10][10], d#5: c#1[1]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32[10]
+          ArrayInstance(int32[10])
+            IntLiteral(int32): 0
+            IntLiteral(int32): 0
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32[10]*[10][10]
+          ArrayInstance(int32[10]*[10][10])
+            ArrayInstance(int32[10]*[10])
+              Operator(int32[10]*): Ref
+                Identifier(&int32[10]): a
+        StructDecl: c
+        a: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: d
+          TypeDesc: #auto
+          ArrayInstance(c#1[1])
+            StructInstance(c#1)
+              StructInstanceMem
+                Identifier: a
+                IntLiteral(int32): 1
+
+/******************************Error Detected******************************/

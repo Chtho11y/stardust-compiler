@@ -1,0 +1,86 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: do_nothing
+      FuncParams
+      TypeDesc: #auto
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+          IntLiteral: 10
+    FuncDecl
+      Identifier: add
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      Stmts
+        Stmt: return
+          Operator: Add
+            Identifier: a
+            Identifier: b
+    VarDecl
+      ConstDesc: let
+      Identifier: result
+      TypeDesc
+        Identifier: int
+      Operator: Call
+        Identifier: add
+        FuncArgs
+          IntLiteral: 5
+          IntLiteral: 3
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): add#4: (int32, int32) -> int32, do_nothing#2: () -> void, read#0: () -> int32, result#7: int32, write#1: (int32) -> void
+    FuncDecl(() -> void)
+      Identifier: do_nothing
+      FuncParams
+      TypeDesc: #auto
+      Stmts(void): x#3: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32
+          IntLiteral(int32): 10
+    FuncDecl((int32, int32) -> int32)
+      Identifier: add
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32
+      TypeDesc: int32
+      Stmts(void): a#5: int32, b#6: int32
+        Stmt(void): return
+          Operator(int32): Add
+            Identifier(&int32): a
+            Identifier(&int32): b
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: result
+      TypeDesc: int32
+      Operator(int32): Call
+        Identifier(&(int32, int32) -> int32): add
+        FuncArgs((int32, int32))
+          IntLiteral(int32): 5
+          IntLiteral(int32): 3
+
+/******************************Error Detected******************************/

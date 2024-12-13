@@ -1,0 +1,10 @@
+/******************************Error Detected******************************/
+../test2//test04.sd:2:5: Error C01: Member 'weight' is defined twice.
+    2 |     weight: int,
+      |     ^~~~~~      
+../test2//test04.sd:7:9: Error C14: Unknown type of variable 'amy'.
+    7 |     let amy: Student;
+      |         ^~~          
+../test2//test04.sd:9:9: Error C01: Variable 'age' is defined twice.
+    9 |     let age: float32;
+      |         ^~~          

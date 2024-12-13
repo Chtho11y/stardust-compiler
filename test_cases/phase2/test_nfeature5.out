@@ -1,0 +1,151 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test
+      FuncParams
+      TypeDesc
+        Identifier: int
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: #auto
+          IntLiteral: 1
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #auto
+          Operator: Add
+            Identifier: a
+            IntLiteral: 10
+        VarDecl
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: #auto
+          StmtsRet
+            IfStmt
+              Operator: Eq
+                Identifier: a
+                Identifier: b
+              StmtsRet
+                IntLiteral: 1
+              StmtsRet
+                IntLiteral: 2
+        VarDecl
+          ConstDesc: let
+          Identifier: d
+          TypeDesc: #auto
+          StmtsRet
+            VarDecl
+              ConstDesc: let
+              Identifier: a
+              TypeDesc: #auto
+              IntLiteral: 1
+            VarDecl
+              ConstDesc: let
+              Identifier: b
+              TypeDesc: #auto
+              IntLiteral: 10
+            Operator: Add
+              Identifier: a
+              Identifier: b
+        ForStmt
+          VarDecl
+            ConstDesc: let
+            Identifier: i
+            TypeDesc
+              Identifier: int
+            IntLiteral: 0
+          Operator: Lt
+            Identifier: i
+            IntLiteral: 5
+          Operator: Assign
+            Identifier: i
+            Operator: Add
+              Identifier: i
+              IntLiteral: 1
+          Stmts
+            Operator: Assign
+              Identifier: a
+              Operator: Add
+                Identifier: a
+                IntLiteral: 1
+        Stmt: return
+          Identifier: a
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test#2: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: test
+      FuncParams
+      TypeDesc: int32
+      Stmts(void): a#3: int32, b#4: int32, c#5: int32, d#8: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: #auto
+          IntLiteral(int32): 1
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #auto
+          Operator(int32): Add
+            Identifier(&int32): a
+            IntLiteral(int32): 10
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: #auto
+          StmtsRet(int32)
+            IfStmt(int32)
+              Operator(bool): Eq
+                Identifier(&int32): a
+                Identifier(&int32): b
+              StmtsRet(int32)
+                IntLiteral(int32): 1
+              StmtsRet(int32)
+                IntLiteral(int32): 2
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: d
+          TypeDesc: #auto
+          StmtsRet(int32): a#6: int32, b#7: int32
+            VarDecl(void)
+              ConstDesc: let
+              Identifier: a
+              TypeDesc: #auto
+              IntLiteral(int32): 1
+            VarDecl(void)
+              ConstDesc: let
+              Identifier: b
+              TypeDesc: #auto
+              IntLiteral(int32): 10
+            Operator(int32): Add
+              Identifier(&int32): a
+              Identifier(&int32): b
+        ForStmt(void): i#9: int32
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: i
+            TypeDesc: int32
+            IntLiteral(int32): 0
+          Operator(bool): Lt
+            Identifier(&int32): i
+            IntLiteral(int32): 5
+          Operator(&int32): Assign
+            Identifier(&int32): i
+            Operator(int32): Add
+              Identifier(&int32): i
+              IntLiteral(int32): 1
+          Stmts(void)
+            Operator(&int32): Assign
+              Identifier(&int32): a
+              Operator(int32): Add
+                Identifier(&int32): a
+                IntLiteral(int32): 1
+        Stmt(void): return
+          Identifier(&int32): a
+
+/******************************Error Detected******************************/

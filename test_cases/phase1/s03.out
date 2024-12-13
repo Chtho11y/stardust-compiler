@@ -1,0 +1,94 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test_1_r09
+      FuncParams
+      TypeDesc
+        Identifier: int
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: m
+          TypeDesc: #auto
+          IntLiteral: 1
+        VarDecl
+          ConstDesc: let
+          Identifier: n
+          TypeDesc: #auto
+          DoubleLiteral: 2.2
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: []
+            TypeDesc
+              Identifier: int
+            IntLiteral: 5
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc: []
+            TypeDesc
+              Identifier: int
+            IntLiteral: 10
+        Err
+        Err
+        Err
+        Stmt
+        Stmt: return
+          Operator: At
+            Identifier: x
+            Operator: At
+              Identifier: y
+              IntLiteral: 2
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_1_r09#2: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: test_1_r09
+      FuncParams
+      TypeDesc: int32
+      Stmts(void): m#3: int32, n#4: float32, x#5: int32[5], y#6: int32[10]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: m
+          TypeDesc: #auto
+          IntLiteral(int32): 1
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: n
+          TypeDesc: #auto
+          DoubleLiteral(float32): 2.2
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32[5]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: y
+          TypeDesc: int32[10]
+        Err(error)
+        Err(error)
+        Err(error)
+        Stmt(void)
+        Stmt(void): return
+          Operator(&int32): At
+            Identifier(&int32[5]): x
+            Operator(&int32): At
+              Identifier(&int32[10]): y
+              IntLiteral(int32): 2
+
+/******************************Error Detected******************************/
+../test//s03.sd:6:12: Error B: Invalid expression.
+    6 |     x[m] = ;
+      |            ^
+../test//s03.sd:7:12: Error B: Missing ]
+    7 |     y[n = 8;
+      |            ^
+../test//s03.sd:8:5: Error B: Missing expression.
+    8 |     =2;
+      |     ^  
+../test//s03.sd:8:5: Error B: Missing ; after expression.
+    8 |     =2;
+      |     ^  

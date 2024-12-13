@@ -1,0 +1,148 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: sum
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: res
+          TypeDesc
+            Identifier: int
+          Operator: Add
+            Operator: Add
+              Identifier: x
+              Identifier: y
+            Identifier: z
+        Identifier: res
+    FuncDecl
+      Identifier: test_2_r01
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: a1
+          TypeDesc
+            Identifier: int
+          IntLiteral: 1
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc
+            Identifier: int
+          Operator: Add
+            Identifier: a1
+            Identifier: a
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc
+            Identifier: int
+          Operator: Call
+            Identifier: sum
+            FuncArgs
+              Identifier: a
+              Identifier: b
+        VarDecl
+          ConstDesc: let
+          Identifier: c
+          TypeDesc
+            Identifier: float64
+          Operator: Call
+            Identifier: diff
+            FuncArgs
+              Identifier: a
+              Identifier: b
+        IntLiteral: 0
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, sum#2: (int32, int32) -> int32, test_2_r01#7: () -> int32, write#1: (int32) -> void
+    FuncDecl((int32, int32) -> int32)
+      Identifier: sum
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc: int32
+      TypeDesc: int32
+      StmtsRet(int32): res#6: int32, x#3: int32, y#4: int32, z#5: error
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: res
+          TypeDesc: int32
+          Operator(error): Add
+            Operator(int32): Add
+              Identifier(&int32): x
+              Identifier(&int32): y
+            Identifier(error): z
+        Identifier(&int32): res
+    FuncDecl(() -> int32)
+      Identifier: test_2_r01
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): a#9: error, a1#8: int32, b#10: int32, c#12: float64, diff#11: error
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a1
+          TypeDesc: int32
+          IntLiteral(int32): 1
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32
+          Operator(error): Add
+            Identifier(&int32): a1
+            Identifier(error): a
+        VarDecl(error)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32
+          Operator(int32): Call
+            Identifier(&(int32, int32) -> int32): sum
+            FuncArgs((error, &int32))
+              Identifier(error): a
+              Identifier(&int32): b
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: float64
+          Operator(error): Call
+            Identifier(error): diff
+            FuncArgs((error, &int32))
+              Identifier(error): a
+              Identifier(&int32): b
+        IntLiteral(int32): 0
+
+/******************************Error Detected******************************/
+../test2//test01.sd:4:28: Error C02: Variable 'z' is not declared.
+    4 |     let res: int = x + y + z;
+      |                            ^ 
+../test2//test01.sd:9:23: Error C02: Variable 'a' is not declared.
+    9 |     let b: int = a1 + a;
+      |                       ^ 
+../test2//test01.sd:10:9: Error C01: Variable 'b' is defined twice.
+   10 |     let b: int = sum(a,b);
+      |         ^                 
+../test2//test01.sd:11:22: Error C02: Variable 'diff' is not declared.
+   11 |     let c: float64 = diff(a, b);
+      |                      ^~~~       

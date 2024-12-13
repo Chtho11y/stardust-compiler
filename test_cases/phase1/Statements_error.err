@@ -1,0 +1,43 @@
+/******************************Error Detected******************************/
+../test//Statements_error.sd:2:5: Error B: Invalid assignment.
+    2 |     let a : int == error;
+      |     ^~~~~~~~~~~          
+../test//Statements_error.sd:2:17: Error B: Missing expression.
+    2 |     let a : int == error;
+      |                 ^~       
+../test//Statements_error.sd:2:17: Error B: Missing ; after expression.
+    2 |     let a : int == error;
+      |                 ^~       
+../test//Statements_error.sd:3:9: Error B: Invalid expression.
+    3 |     a + ;
+      |         ^
+../test//Statements_error.sd:4:7: Error C02: Variable 'a' is not declared.
+    4 |     + a;
+      |       ^ 
+../test//Statements_error.sd:7:13: Error B: Missing ]
+    7 |         b[i];
+      |             ^
+../test//Statements_error.sd:8:9: Error C02: Variable 'b' is not declared.
+    8 |         b[1 *] = c;
+      |         ^          
+../test//Statements_error.sd:8:14: Error B: Invalid expression.
+    8 |         b[1 *] = c;
+      |              ^     
+../test//Statements_error.sd:8:18: Error C02: Variable 'c' is not declared.
+    8 |         b[1 *] = c;
+      |                  ^ 
+../test//Statements_error.sd:9:9: Error B: Missing ; after expression.
+    9 |         f(1, 2 ));
+      |         ^~~~~~~~  
+../test//Statements_error.sd:9:17: Error B: Expected expression before ')'.
+    9 |         f(1, 2 ));
+      |                 ^ 
+../test//Statements_error.sd:10:9: Error B: Missing ; after expression.
+   10 |         f(1, 3
+      |         ^~~~~~
+../test//Statements_error.sd:11:9: Error B: Missing )
+   11 |         break;
+      |         ^~~~~ 
+../test//Statements_error.sd:12:16: Error C07: Failed to convert 'int32' to 'void' implicitly.
+   12 |         return 11;
+      |                ^~ 

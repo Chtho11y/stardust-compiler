@@ -1,0 +1,4 @@
+/******************************Error Detected******************************/
+../test2//test11.sd:4:18: Error C03: Expression should be function type, but it is 'int32'.
+    4 |     a[0][1] = abc();
+      |                  ^  

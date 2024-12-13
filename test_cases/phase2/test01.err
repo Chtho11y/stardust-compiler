@@ -1,0 +1,13 @@
+/******************************Error Detected******************************/
+../test2//test01.sd:4:28: Error C02: Variable 'z' is not declared.
+    4 |     let res: int = x + y + z;
+      |                            ^ 
+../test2//test01.sd:9:23: Error C02: Variable 'a' is not declared.
+    9 |     let b: int = a1 + a;
+      |                       ^ 
+../test2//test01.sd:10:9: Error C01: Variable 'b' is defined twice.
+   10 |     let b: int = sum(a,b);
+      |         ^                 
+../test2//test01.sd:11:22: Error C02: Variable 'diff' is not declared.
+   11 |     let c: float64 = diff(a, b);
+      |                      ^~~~       

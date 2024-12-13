@@ -1,0 +1,7 @@
+/******************************Error Detected******************************/
+../test2//test_nfeature4.sd:25:1: Error C01: Function 'read' is defined twice.
+   25 | func read() -> int {0}
+      | ^~~~~~~~~             
+../test2//test_nfeature4.sd:26:1: Error C01: Function 'write' is defined twice.
+   26 | func write(a: int) {}
+      | ^~~~~~~~~~           

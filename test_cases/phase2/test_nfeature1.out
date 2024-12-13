@@ -1,0 +1,106 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: sum
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: res
+          TypeDesc
+            Identifier: int
+          Operator: Add
+            Identifier: x
+            Identifier: y
+        Identifier: res
+    FuncDecl
+      Identifier: test_n1
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: #auto
+          IntLiteral: 1
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #auto
+          Operator: Add
+            Identifier: a
+            IntLiteral: 10
+        Operator: Assign
+          Identifier: b
+          Operator: Call
+            Identifier: sum
+            FuncArgs
+              Identifier: a
+              Identifier: b
+        IntLiteral: 0
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, sum#2: (int32, int32) -> int32, test_n1#6: () -> int32, write#1: (int32) -> void
+    FuncDecl((int32, int32) -> int32)
+      Identifier: sum
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc: int32
+      TypeDesc: int32
+      StmtsRet(int32): res#5: int32, x#3: int32, y#4: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: res
+          TypeDesc: int32
+          Operator(int32): Add
+            Identifier(&int32): x
+            Identifier(&int32): y
+        Identifier(&int32): res
+    FuncDecl(() -> int32)
+      Identifier: test_n1
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): a#7: int32, b#8: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: #auto
+          IntLiteral(int32): 1
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #auto
+          Operator(int32): Add
+            Identifier(&int32): a
+            IntLiteral(int32): 10
+        Operator(&int32): Assign
+          Identifier(&int32): b
+          Operator(int32): Call
+            Identifier(&(int32, int32) -> int32): sum
+            FuncArgs((&int32, &int32))
+              Identifier(&int32): a
+              Identifier(&int32): b
+        IntLiteral(int32): 0
+
+/******************************Error Detected******************************/

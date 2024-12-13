@@ -1,0 +1,174 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test_2_r10
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: []
+            TypeDesc: []
+              TypeDesc: []
+                TypeDesc: []
+                  TypeDesc
+                    Identifier: int
+                  IntLiteral: 2
+                IntLiteral: 4
+              IntLiteral: 6
+            IntLiteral: 8
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: []
+            TypeDesc: []
+              TypeDesc: []
+                TypeDesc
+                  Identifier: int
+                IntLiteral: 4
+              IntLiteral: 6
+            IntLiteral: 8
+        VarDecl
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: []
+            TypeDesc: []
+              TypeDesc
+                Identifier: int
+              IntLiteral: 6
+            IntLiteral: 8
+        VarDecl
+          ConstDesc: let
+          Identifier: d
+          TypeDesc: []
+            TypeDesc
+              Identifier: int
+            IntLiteral: 8
+        VarDecl
+          ConstDesc: let
+          Identifier: e
+          TypeDesc
+            Identifier: int
+        Operator: Assign
+          Operator: At
+            Identifier: a
+            IntLiteral: 0
+          Identifier: b
+        Operator: Assign
+          Operator: At
+            Operator: At
+              Identifier: a
+              IntLiteral: 0
+            IntLiteral: 1
+          Identifier: c
+        Operator: Assign
+          Operator: At
+            Operator: At
+              Operator: At
+                Identifier: a
+                IntLiteral: 0
+              IntLiteral: 1
+            IntLiteral: 3
+          Identifier: d
+        Operator: Assign
+          Operator: At
+            Operator: At
+              Operator: At
+                Operator: At
+                  Identifier: a
+                  IntLiteral: 0
+                IntLiteral: 1
+              IntLiteral: 3
+            IntLiteral: 5
+          Identifier: e
+        Operator: At
+          Operator: At
+            Operator: At
+              Operator: At
+                Operator: At
+                  Identifier: a
+                  Identifier: e
+                Identifier: e
+              Identifier: e
+            Identifier: e
+          Identifier: e
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_2_r10#2: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: test_2_r10
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(error): a#3: int32[8][6][4][2], b#4: int32[8][6][4], c#5: int32[8][6], d#6: int32[8], e#7: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32[8][6][4][2]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32[8][6][4]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: int32[8][6]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: d
+          TypeDesc: int32[8]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: e
+          TypeDesc: int32
+        Operator(&int32[8][6][4]): Assign
+          Operator(&int32[8][6][4]): At
+            Identifier(&int32[8][6][4][2]): a
+            IntLiteral(int32): 0
+          Identifier(&int32[8][6][4]): b
+        Operator(&int32[8][6]): Assign
+          Operator(&int32[8][6]): At
+            Operator(&int32[8][6][4]): At
+              Identifier(&int32[8][6][4][2]): a
+              IntLiteral(int32): 0
+            IntLiteral(int32): 1
+          Identifier(&int32[8][6]): c
+        Operator(&int32[8]): Assign
+          Operator(&int32[8]): At
+            Operator(&int32[8][6]): At
+              Operator(&int32[8][6][4]): At
+                Identifier(&int32[8][6][4][2]): a
+                IntLiteral(int32): 0
+              IntLiteral(int32): 1
+            IntLiteral(int32): 3
+          Identifier(&int32[8]): d
+        Operator(&int32): Assign
+          Operator(&int32): At
+            Operator(&int32[8]): At
+              Operator(&int32[8][6]): At
+                Operator(&int32[8][6][4]): At
+                  Identifier(&int32[8][6][4][2]): a
+                  IntLiteral(int32): 0
+                IntLiteral(int32): 1
+              IntLiteral(int32): 3
+            IntLiteral(int32): 5
+          Identifier(&int32): e
+        Operator(error): At
+          Operator(&int32): At
+            Operator(&int32[8]): At
+              Operator(&int32[8][6]): At
+                Operator(&int32[8][6][4]): At
+                  Identifier(&int32[8][6][4][2]): a
+                  Identifier(&int32): e
+                Identifier(&int32): e
+              Identifier(&int32): e
+            Identifier(&int32): e
+          Identifier(&int32): e
+
+/******************************Error Detected******************************/
+../test2//test10.sd:11:18: Error C03: Expression should be array or pointer type, but it is 'int32'.
+   11 |     a[e][e][e][e][e]
+      |                  ^  

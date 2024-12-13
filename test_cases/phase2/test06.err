@@ -1,0 +1,7 @@
+/******************************Error Detected******************************/
+../test2//test06.sd:21:12: Error C09: Type 'int32' has no member named 'age'.
+   21 |   mother.cc.age = father.cc.age;
+      |            ^                    
+../test2//test06.sd:21:28: Error C09: Type 'int32' has no member named 'age'.
+   21 |   mother.cc.age = father.cc.age;
+      |                            ^    

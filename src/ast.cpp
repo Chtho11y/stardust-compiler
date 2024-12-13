@@ -360,9 +360,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 tail_ret = true;
         }
         if(!tail_ret && !res->is_error() && !func.no_return()){
-            require_convertable(res, func.type_info->ret_type, func.id_loc);
+            require_convertable(res, func.type_info->ret_type, func.body->ch.size() ? func.body->ch.back()->loc : func.body->loc_list.back());
         }
-
         if(!flag){
             // append_error("Function " + func.id + " has been declared.", func.id_loc);
             append_multidef_error("Function", func.id, func.id_loc);

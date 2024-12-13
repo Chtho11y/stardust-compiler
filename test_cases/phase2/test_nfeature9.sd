@@ -5,5 +5,4 @@ func main() {
         a : int32
     }
     let d = [struct {a : 1}];
-    let e = [&struct {a : 1}];
 }

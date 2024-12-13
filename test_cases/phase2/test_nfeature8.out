@@ -1,0 +1,110 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: call
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: f
+          TypeDesc: ()
+            TypeList
+              TypeDesc
+                Identifier: int
+            TypeDesc
+              Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        Operator: Call
+          Identifier: f
+          FuncArgs
+            Identifier: x
+    FuncDecl
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      Stmts
+        FuncDecl
+          Identifier: abs
+          FuncParams
+            VarDecl
+              ConstDesc: let
+              Identifier: x
+              TypeDesc
+                Identifier: int
+          TypeDesc
+            Identifier: int
+          StmtsRet
+            IfStmt
+              Operator: Lt
+                Identifier: x
+                IntLiteral: 0
+              StmtsRet
+                Operator: Neg
+                  Identifier: x
+              StmtsRet
+                Identifier: x
+        Operator: Call
+          Identifier: call
+          FuncArgs
+            Identifier: abs
+            Operator: Neg
+              IntLiteral: 1
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): call#2: ((int32) -> int32, int32) -> int32, main#5: () -> void, read#0: () -> int32, write#1: (int32) -> void
+    FuncDecl(((int32) -> int32, int32) -> int32)
+      Identifier: call
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: f
+          TypeDesc: (int32) -> int32
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32
+      TypeDesc: int32
+      StmtsRet(int32): f#3: (int32) -> int32, x#4: int32
+        Operator(int32): Call
+          Identifier(&(int32) -> int32): f
+          FuncArgs((&int32))
+            Identifier(&int32): x
+    FuncDecl(() -> void)
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      Stmts(void): abs#6: (int32) -> int32
+        FuncDecl((int32) -> int32)
+          Identifier: abs
+          FuncParams
+            VarDecl
+              ConstDesc: let
+              Identifier: x
+              TypeDesc: int32
+          TypeDesc: int32
+          StmtsRet(int32): x#7: int32
+            IfStmt(int32)
+              Operator(bool): Lt
+                Identifier(&int32): x
+                IntLiteral(int32): 0
+              StmtsRet(int32)
+                Operator(int32): Neg
+                  Identifier(&int32): x
+              StmtsRet(int32)
+                Identifier(&int32): x
+        Operator(int32): Call
+          Identifier(&((int32) -> int32, int32) -> int32): call
+          FuncArgs((&(int32) -> int32, int32))
+            Identifier(&(int32) -> int32): abs
+            Operator(int32): Neg
+              IntLiteral(int32): 1
+
+/******************************Error Detected******************************/

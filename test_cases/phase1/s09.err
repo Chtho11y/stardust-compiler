@@ -1,0 +1,22 @@
+/******************************Error Detected******************************/
+../test//s09.sd:3:17: Error B: Invalid while-block.
+    3 |     while x != 0) {
+      |                 ^  
+../test//s09.sd:3:17: Error B: Expected expression before ')'.
+    3 |     while x != 0) {
+      |                 ^  
+../test//s09.sd:4:13: Error C12: Failed to infer the type of 'tmp'.
+    4 |         let tmp;
+      |             ^~~ 
+../test//s09.sd:5:13: Error A: Invalid identifier.
+    5 |         let 1_digit = x / 10;
+      |             ^~~~~~~          
+../test//s09.sd:6:46: Error B: Invalid if-block.
+    6 |         if rev < 0 / 10 || rev > 1000000 / 10) {
+      |                                              ^  
+../test//s09.sd:6:46: Error B: Expected expression before ')'.
+    6 |         if rev < 0 / 10 || rev > 1000000 / 10) {
+      |                                              ^  
+../test//s09.sd:10:26: Error A: Invalid identifier.
+   10 |         rev = rev * 10 + 1_digit;
+      |                          ^~~~~~~ 

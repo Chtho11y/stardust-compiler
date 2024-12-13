@@ -1,0 +1,76 @@
+/******************************Error Detected******************************/
+../test2//semantic_error.sd:5:13: Error C01: Variable 'a' is defined twice.
+    5 |         let a = 1;
+      |             ^     
+../test2//semantic_error.sd:11:9: Error C02: Variable 'b' is not declared.
+   11 |         b + b;
+      |         ^     
+../test2//semantic_error.sd:16:10: Error C03: Expression should be array or pointer type, but it is 'int32'.
+   16 |         1[0];
+      |          ^   
+../test2//semantic_error.sd:17:10: Error C03: Expression should be function type, but it is 'int32'.
+   17 |         1(1);
+      |          ^   
+../test2//semantic_error.sd:24:13: Error C04: no match operator: Or(float32, float32)
+   24 |         1.0 || 1.0;
+      |             ^~     
+../test2//semantic_error.sd:25:11: Error C04: no match operator: Add(&a#1, int32)
+   25 |         a + 1;
+      |           ^   
+../test2//semantic_error.sd:31:11: Error C05: lvalue required as left operand of assignment
+   31 |         1 = 1;
+      |           ^   
+../test2//semantic_error.sd:32:14: Error C05: Cannot assign to function.
+   32 |         main = main;
+      |              ^      
+../test2//semantic_error.sd:40:9: Error C06: cannot dereference pointer of void type.
+   40 |         *b;
+      |         ^  
+../test2//semantic_error.sd:41:9: Error C06: lvalue required as operand of reference
+   41 |         &1;
+      |         ^  
+../test2//semantic_error.sd:47:24: Error C07: Failed to convert 'float32' to 'int32' implicitly.
+   47 |         let b: int32 = 1.0;
+      |                        ^~~ 
+../test2//semantic_error.sd:48:11: Error C07: Failed to convert 'float32' to 'uint64' implicitly.
+   48 |         ""[1.0];
+      |           ^     
+../test2//semantic_error.sd:49:12: Error C07: Failed to convert 'float32' to 'bool' implicitly.
+   49 |         if 1.0 {} else{};
+      |            ^~~           
+../test2//semantic_error.sd:61:9: Error C07: Failed to convert 'void' to 'int32' implicitly.
+   61 |         }
+      |         ^
+../test2//semantic_error.sd:67:10: Error C08: Failed to convert 'int32' to 'st1#2'.
+   67 |         (st1)1;
+      |          ^~~   
+../test2//semantic_error.sd:75:10: Error C09: Type 'st#3' has no member named 'c'.
+   75 |         a.c = 1;
+      |          ^      
+../test2//semantic_error.sd:80:9: Error C10: break statement out of loop body.
+   80 |         break;
+      |         ^~~~~~
+../test2//semantic_error.sd:81:9: Error C10: continue statement out of loop body.
+   81 |         continue;
+      |         ^~~~~~~~~
+../test2//semantic_error.sd:82:15: Error C07: Failed to convert 'int32' to 'bool' implicitly.
+   82 |         while 1{
+      |               ^ 
+../test2//semantic_error.sd:89:13: Error C14: Unknown type of variable 'a'.
+   89 |         let a: int[1.0];
+      |             ^           
+../test2//semantic_error.sd:89:20: Error C11: Array length should be a int literal.
+   89 |         let a: int[1.0];
+      |                    ^~~  
+../test2//semantic_error.sd:95:13: Error C12: Failed to infer the type of 'a'.
+   95 |         let a;
+      |             ^ 
+../test2//semantic_error.sd:97:9: Error C12: No matched type for struct instance.
+   97 |         struct{a: 1};
+      |         ^~~~~~~~~~~~~
+../test2//semantic_error.sd:103:13: Error C13: Cannot call function '() -> void' with args: '(int32)'.
+  103 |         main(1);
+      |             ^   
+../test2//semantic_error.sd:108:13: Error C14: Variable cannot be declared as void type.
+  108 |         let a: void;
+      |             ^       

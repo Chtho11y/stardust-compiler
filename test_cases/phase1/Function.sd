@@ -1,0 +1,11 @@
+// 无返回值函数
+func do_nothing() {
+    let x: int = 10;
+}
+
+// 有返回值函数
+func add(a: int, b: int) -> int {
+    return a + b;
+}
+
+let result: int = add(5, 3);

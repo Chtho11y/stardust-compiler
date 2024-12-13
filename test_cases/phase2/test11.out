@@ -1,0 +1,73 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test_2_r11
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: abc
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: []
+            TypeDesc: []
+              TypeDesc
+                Identifier: int
+              IntLiteral: 1
+            IntLiteral: 5
+        Operator: Assign
+          Operator: At
+            Operator: At
+              Identifier: a
+              IntLiteral: 0
+            IntLiteral: 1
+          Operator: Call
+            Identifier: abc
+            FuncArgs
+        Operator: At
+          Operator: At
+            Identifier: a
+            Identifier: abc
+          Identifier: abc
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_2_r11#2: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: test_2_r11
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): a#4: int32[5][1], abc#3: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: abc
+          TypeDesc: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32[5][1]
+        Operator(error): Assign
+          Operator(&int32): At
+            Operator(&int32[5]): At
+              Identifier(&int32[5][1]): a
+              IntLiteral(int32): 0
+            IntLiteral(int32): 1
+          Operator(error): Call
+            Identifier(&int32): abc
+            FuncArgs(())
+        Operator(&int32): At
+          Operator(&int32[5]): At
+            Identifier(&int32[5][1]): a
+            Identifier(&int32): abc
+          Identifier(&int32): abc
+
+/******************************Error Detected******************************/
+../test2//test11.sd:4:18: Error C03: Expression should be function type, but it is 'int32'.
+    4 |     a[0][1] = abc();
+      |                  ^  

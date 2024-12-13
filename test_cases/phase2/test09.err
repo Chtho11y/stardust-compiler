@@ -1,0 +1,7 @@
+/******************************Error Detected******************************/
+../test2//test09.sd:9:15: Error B: Expected if-block with no return value.
+    9 |     if a == b {a = 1}
+      |               ^~~~~~~
+../test2//test09.sd:11:19: Error C13: Cannot call function '(int32, int32) -> int32' with args: '(&int32, &int32, &int32)'.
+   11 |     return compare(a, b, c);
+      |                   ^         

@@ -1,0 +1,4 @@
+/******************************Error Detected******************************/
+../test2//test02.sd:6:1: Error C01: Function 'sum' is defined twice.
+    6 | func sum(x: int, y: int) -> float32 {
+      | ^~~~~~~~                             

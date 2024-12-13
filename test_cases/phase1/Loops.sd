@@ -1,0 +1,13 @@
+// Test while and for loops
+func sum_to_n(n: int) -> int {
+    let sum: int = 0;
+    let i: int = 1;
+
+    while i <= n {
+        sum = sum + i;
+        i = i + 1;
+    };
+    return sum;
+}
+
+

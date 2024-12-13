@@ -1,0 +1,174 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    StructDecl
+      Identifier: Child
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: name
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: age
+          TypeDesc
+            Identifier: int
+    StructDecl
+      Identifier: Parent
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: c
+          TypeDesc
+            Identifier: Child
+        VarDecl
+          ConstDesc: let
+          Identifier: cc
+          TypeDesc
+            Identifier: int
+    FuncDecl
+      Identifier: test_2_r07
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: father
+          TypeDesc
+            Identifier: Parent
+        VarDecl
+          ConstDesc: let
+          Identifier: mother
+          TypeDesc
+            Identifier: Parent
+        Operator: Assign
+          Operator: Access
+            Operator: Access
+              Identifier: father
+              Identifier: c
+            Identifier: name
+          IntLiteral: 1
+        Operator: Assign
+          Operator: Access
+            Operator: Access
+              Identifier: father
+              Identifier: c
+            Identifier: age
+          IntLiteral: 1
+        Operator: Assign
+          Operator: Access
+            Identifier: father
+            Identifier: cc
+          IntLiteral: 30
+        Operator: Assign
+          Operator: Access
+            Operator: Access
+              Identifier: mother
+              Identifier: c
+            Identifier: name
+          Operator: Access
+            Operator: Access
+              Identifier: father
+              Identifier: c
+            Identifier: name
+        Operator: Assign
+          Operator: Access
+            Operator: Access
+              Identifier: mother
+              Identifier: cc
+            Identifier: age
+          Operator: Access
+            Operator: Access
+              Identifier: father
+              Identifier: cc
+            Identifier: age
+        Operator: Assign
+          Operator: Access
+            Identifier: mother
+            Identifier: cc
+          Operator: Access
+            Identifier: father
+            Identifier: cc
+        IntLiteral: 0
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_2_r07#2: () -> int32, write#1: (int32) -> void
+    StructDecl: Child
+    name: int32
+    age: int32
+    StructDecl: Parent
+    c: Child#1
+    cc: int32
+    FuncDecl(() -> int32)
+      Identifier: test_2_r07
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): father#3: Parent#2, mother#4: Parent#2
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: father
+          TypeDesc: Parent#2
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: mother
+          TypeDesc: Parent#2
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Operator(&Child#1): Access
+              Identifier(&Parent#2): father
+              Identifier: c
+            Identifier: name
+          IntLiteral(int32): 1
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Operator(&Child#1): Access
+              Identifier(&Parent#2): father
+              Identifier: c
+            Identifier: age
+          IntLiteral(int32): 1
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Identifier(&Parent#2): father
+            Identifier: cc
+          IntLiteral(int32): 30
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Operator(&Child#1): Access
+              Identifier(&Parent#2): mother
+              Identifier: c
+            Identifier: name
+          Operator(&int32): Access
+            Operator(&Child#1): Access
+              Identifier(&Parent#2): father
+              Identifier: c
+            Identifier: name
+        Operator(error): Assign
+          Operator(error): Access
+            Operator(&int32): Access
+              Identifier(&Parent#2): mother
+              Identifier: cc
+            Identifier: age
+          Operator(error): Access
+            Operator(&int32): Access
+              Identifier(&Parent#2): father
+              Identifier: cc
+            Identifier: age
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Identifier(&Parent#2): mother
+            Identifier: cc
+          Operator(&int32): Access
+            Identifier(&Parent#2): father
+            Identifier: cc
+        IntLiteral(int32): 0
+
+/******************************Error Detected******************************/
+../test2//test06.sd:21:12: Error C09: Type 'int32' has no member named 'age'.
+   21 |   mother.cc.age = father.cc.age;
+      |            ^                    
+../test2//test06.sd:21:28: Error C09: Type 'int32' has no member named 'age'.
+   21 |   mother.cc.age = father.cc.age;
+      |                            ^    

@@ -1,0 +1,180 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    StructDecl
+      Identifier: Apple
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: weight
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: round
+          TypeDesc
+            Identifier: float32
+    StructDecl
+      Identifier: Apple
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: weight
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: round
+          TypeDesc
+            Identifier: float32
+    FuncDecl
+      Identifier: test_2_r05
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: w1
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: w2
+          TypeDesc
+            Identifier: float64
+          DoubleLiteral: 1.05
+        VarDecl
+          ConstDesc: let
+          Identifier: aa
+          TypeDesc
+            Identifier: Apple
+        Operator: Assign
+          Operator: Access
+            Identifier: aa
+            Identifier: weight
+          Operator: Add
+            Identifier: w1
+            Identifier: w2
+        Operator: Assign
+          Operator: Access
+            Identifier: aa
+            Identifier: round
+          CharLiteral: 'c'
+        VarDecl
+          ConstDesc: let
+          Identifier: r
+          TypeDesc
+            Identifier: float32
+          DoubleLiteral: 2.5
+        Operator: Assign
+          Operator: Access
+            Identifier: aa
+            Identifier: weight
+          DoubleLiteral: 2.5
+        Operator: Assign
+          DoubleLiteral: 1.1
+          Operator: Access
+            Identifier: aa
+            Identifier: round
+        Operator: Assign
+          Operator: Access
+            Identifier: aa
+            Identifier: round
+          Operator: Add
+            Identifier: r
+            Identifier: aa
+        Operator: Assign
+          Operator: Access
+            Identifier: aa
+            Identifier: c
+          IntLiteral: 1
+        IntLiteral: 0
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_2_r05#2: () -> int32, write#1: (int32) -> void
+    StructDecl: Apple
+    weight: int32
+    round: float32
+    StructDecl: Apple
+    weight: int32
+    round: float32
+    FuncDecl(() -> int32)
+      Identifier: test_2_r05
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): aa#5: Apple#1, r#6: float32, w1#3: int32, w2#4: float64
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: w1
+          TypeDesc: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: w2
+          TypeDesc: float64
+          DoubleLiteral(float32): 1.05
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: aa
+          TypeDesc: Apple#1
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Identifier(&Apple#1): aa
+            Identifier: weight
+          Operator(float64): Add
+            Identifier(&int32): w1
+            Identifier(&float64): w2
+        Operator(&float32): Assign
+          Operator(&float32): Access
+            Identifier(&Apple#1): aa
+            Identifier: round
+          CharLiteral(char): 'c'
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: r
+          TypeDesc: float32
+          DoubleLiteral(float32): 2.5
+        Operator(&int32): Assign
+          Operator(&int32): Access
+            Identifier(&Apple#1): aa
+            Identifier: weight
+          DoubleLiteral(float32): 2.5
+        Operator(float32): Assign
+          DoubleLiteral(float32): 1.1
+          Operator(&float32): Access
+            Identifier(&Apple#1): aa
+            Identifier: round
+        Operator(error): Assign
+          Operator(&float32): Access
+            Identifier(&Apple#1): aa
+            Identifier: round
+          Operator(error): Add
+            Identifier(&float32): r
+            Identifier(&Apple#1): aa
+        Operator(error): Assign
+          Operator(error): Access
+            Identifier(&Apple#1): aa
+            Identifier: c
+          IntLiteral(int32): 1
+        IntLiteral(int32): 0
+
+/******************************Error Detected******************************/
+../test2//test05.sd:8:1: Error C01: Type 'Apple' is defined twice.
+    8 | struct Apple {
+      | ^~~~~~~~~~~~  
+../test2//test05.sd:17:13: Error C07: Failed to convert 'float64' to 'int32' implicitly.
+   17 |   aa.weight = w1 + w2;
+      |             ^         
+../test2//test05.sd:21:13: Error C07: Failed to convert 'float32' to 'int32' implicitly.
+   21 |   aa.weight = 2.5;
+      |             ^     
+../test2//test05.sd:22:7: Error C05: lvalue required as left operand of assignment
+   22 |   1.1 = aa.round;
+      |       ^          
+../test2//test05.sd:24:16: Error C04: no match operator: Add(&float32, &Apple#1)
+   24 |   aa.round = r + aa;
+      |                ^    
+../test2//test05.sd:26:5: Error C09: Type 'Apple#1' has no member named 'c'.
+   26 |   aa.c = 1;
+      |     ^      

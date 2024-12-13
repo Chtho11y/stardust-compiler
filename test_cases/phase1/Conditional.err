@@ -1,0 +1,25 @@
+/******************************Error Detected******************************/
+../test//Conditional.sd:3:5: Error C07: Failed to convert 'void' to 'char' implicitly.
+    3 |     if a > 0 {
+      |     ^~~~~~~~~~
+    4 |         return a; // Positive
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    5 |     } else if a < 0 {
+      | ~~~~~~~~~~~~~~~~~~~~~
+    6 |         return a; // Negative
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    7 |     } else {
+      | ~~~~~~~~~~~~
+    8 |         return a; // Zero
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~
+    9 |     }
+      | ~~~~~
+../test//Conditional.sd:4:16: Error C07: Failed to convert 'int32' to 'char' implicitly.
+    4 |         return a; // Positive
+      |                ^             
+../test//Conditional.sd:6:16: Error C07: Failed to convert 'int32' to 'char' implicitly.
+    6 |         return a; // Negative
+      |                ^             
+../test//Conditional.sd:8:16: Error C07: Failed to convert 'int32' to 'char' implicitly.
+    8 |         return a; // Zero
+      |                ^         

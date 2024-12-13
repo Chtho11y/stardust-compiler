@@ -1,0 +1,17 @@
+// 定义结构体
+struct Point {
+    x: int,
+    y: int
+}
+
+// 实例化结构体
+let p: Point = struct{x: 10, y: 20};
+
+// 嵌套结构体
+struct Circle {
+    center: Point,
+    radius: int
+}
+
+let center = struct{x: 0, y: 0};
+let c: Circle = struct{center: center, radius: 5};

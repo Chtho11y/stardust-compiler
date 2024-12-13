@@ -1,0 +1,4 @@
+/******************************Error Detected******************************/
+../test2//test03.sd:19:3: Error C07: Failed to convert 'float64' to 'int32' implicitly.
+   19 |   result
+      |   ^~~~~~

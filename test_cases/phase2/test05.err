@@ -1,0 +1,19 @@
+/******************************Error Detected******************************/
+../test2//test05.sd:8:1: Error C01: Type 'Apple' is defined twice.
+    8 | struct Apple {
+      | ^~~~~~~~~~~~  
+../test2//test05.sd:17:13: Error C07: Failed to convert 'float64' to 'int32' implicitly.
+   17 |   aa.weight = w1 + w2;
+      |             ^         
+../test2//test05.sd:21:13: Error C07: Failed to convert 'float32' to 'int32' implicitly.
+   21 |   aa.weight = 2.5;
+      |             ^     
+../test2//test05.sd:22:7: Error C05: lvalue required as left operand of assignment
+   22 |   1.1 = aa.round;
+      |       ^          
+../test2//test05.sd:24:16: Error C04: no match operator: Add(&float32, &Apple#1)
+   24 |   aa.round = r + aa;
+      |                ^    
+../test2//test05.sd:26:5: Error C09: Type 'Apple#1' has no member named 'c'.
+   26 |   aa.c = 1;
+      |     ^      
