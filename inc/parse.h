@@ -34,12 +34,22 @@ struct Locator{
     bool has_value()const {
         return line_st > 0 || col_r > 0;
     }
+    bool is_empty() {
+        return line_st == 0 && line_ed == 0 && col_l == 0 && col_r == 0;
+    }
     void merge(const Locator& loc) {
-        *this = locator_merge(*this, loc);
+        if (!is_empty())
+            *this = locator_merge(*this, loc);
+        else 
+            *this = loc;
     }
     void merge(const LocatorBuffer& loc) {
-        *this = locator_merge(*this, loc);
+        if (!is_empty())
+            *this = locator_merge(*this, loc);
+        else 
+            *this = loc;
     }
+
 };
 
 

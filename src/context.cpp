@@ -50,9 +50,9 @@ void insert_locator(Locator loc, std::string val) {
 }
 
 Locator get_next_locator(Locator loc) {
-    auto it = LocatorSet.lower_bound(std::make_pair(loc, std::string()));
-    if (++it == LocatorSet.end()) {
-        return (--it)->first;
+    auto it = LocatorSet.lower_bound(std::make_pair((Locator){loc.line_ed, loc.line_ed, loc.col_r + 1, loc.col_r}, std::string()));
+    if (it != LocatorSet.end()) {
+        return it->first;
     }
-    return it->first;
+    return (Locator){loc.line_ed, loc.line_ed, loc.col_r + 1, loc.col_r};
 }
