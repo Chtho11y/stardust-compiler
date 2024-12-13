@@ -179,6 +179,7 @@ type_desc:
         $$->append_loc($1);
         $$->append($2);
         $$->append_loc($3);
+        $$->append_loc($3);
         $$->append($4);
         #ifdef AUTO_FIX
         append_syntax_error("Missing ).", $4->loc, 1);
@@ -344,66 +345,78 @@ ident_type_list:
 ident_type_member: 
     ident_all COLON type_desc {
         $$ = new AstNode(VarDecl);
-        $$->loc = $1->loc;
         $$->append(new AstNode(ConstDesc, "let"));
         $$->append($1);
         $$->append($3);
+        $$->append_loc($2);
     }
     | ident_all COLON error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid type description.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid type description.", next_loc($2));
         delete $1;
         // yyerrok;
     }
     | ident type_desc {
+        #ifdef AUTO_FIX
+        $$ = new AstNode(VarDecl);
+        $$->append(new AstNode(ConstDesc, "let"));
+        $$->append($1);
+        $$->append($2);
+        $$->append_loc($2->loc);
+        #else
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1->loc);
-        append_syntax_error("Missing :.", $$->loc);
+        $$->loc = locator_merge($1->loc, $2->loc);
+        append_syntax_error("Missing :.", $2->loc);
         delete $1;
         delete $2;
+        #endif
     }
     | ident error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1->loc);
-        append_syntax_error("Missing :.", $$->loc);
+        $$->loc = $1->loc;
+        append_syntax_error("Missing :.", next_loc($1->loc));
         delete $1;
         // yyerrok;
     }
     | COLON type_desc {
         $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Missing identifier.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Missing identifier.", Lc($1));
         delete $2;
     }
     | type_desc {
         $$ = new AstNode(Err);
         $$->loc = $1->loc;
-        append_syntax_error("Missing identifier and :.", $$->loc);
+        append_syntax_error("Missing identifier and :.", $1->loc);
         delete $1;
     }
     | COLON {
         $$ = new AstNode(Err);
         $$->loc = $1;
-        append_syntax_error("Missing identifier and type_desc.", $$->loc);
+        append_syntax_error("Missing identifier and type_desc.", Lc($1));
     }
     ;
 
 ident_value_list:
-    {$$ = new AstNode(StructInstance); $$->loc = CurrentCursor;}
+    {$$ = new AstNode(StructInstance); }
     | ident_value_member {
         $$ = create_node_from(StructInstance, $1); 
-        $$->loc = $1->loc;
     }
     | ident_value_list COMMA ident_value_member{
         $$ = $1;
         $$->append($3);
+        $$->append_loc($2);
     }
     | ident_value_list COMMA {
-        $$ = new AstNode(Err);
-        $$->loc = $2;
+        $$ = $1;
+        $$->append_loc($2);
+        #ifdef AUTO_FIX
+        append_syntax_error("Missing initializer list member.", $$->loc, 1);
+        #else
         append_syntax_error("Missing initializer list member.", $$->loc);
-        delete $1;
+        $$->type = Err;
+        #endif
     }
     ;
 
@@ -412,59 +425,51 @@ ident_value_member:
         $$ = new AstNode(StructInstanceMem);
         $$->append($1);
         $$->append($3);
-        $$->loc = $1->loc;    
+        $$->append_loc($2);
     }
     | ident_all COLON error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($2);
-        append_syntax_error("Invalid value initializer.", $$->loc);
-        delete $1;
-        // yyerrok;
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Invalid value initializer.", next_loc($2));
     }
     | ident_all error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1->loc);
-        append_syntax_error("Invalid value initializer.", $$->loc);
-        delete $1;
-        // yyerrok;
+        $$->loc = $1->loc;
+        append_syntax_error("Invalid value initializer.", next_loc($$->loc));
     }
     | COLON expr_unit {
         $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Miising identifier.", $$->loc);
-        delete $2;
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Miising identifier.", Lc($1));
     }
-    // | expr_unit {
-
-    // }
     | COLON {
         $$ = new AstNode(Err);
         $$->loc = $1;
-        append_syntax_error("Missing ideifier and value.", $$->loc);
+        append_syntax_error("Missing ideifier and value.", Lc($1));
     }
     ;
 
 /**************struct declaration**************/
 struct_decl_ident: 
-    TSTRUCT ident_all{$$ = $2;}
+    TSTRUCT ident_all{$$ = $2; $$->append_loc($1);}
     ;
 
 struct_decl: 
     struct_decl_ident LBRACE ident_type_list RBRACE{
         $$ = create_node_from(StructDecl, $1);
-        $$->loc = $1->loc;
         $3->type = StructMem;
         $$->append($3);
+        $$->append_loc($2);
+        $$->append_loc($4);
         parser_context.set_type($1->str);
     }
     // | TSTRUCT error 
     | struct_decl_ident LBRACE ident_type_list error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($3->loc);
-        append_syntax_error("Missing }.", $$->loc);
+        $$->loc = locator_merge($1->loc, $3->loc);
+        append_syntax_error("Missing }.", next_loc($3->loc));
         delete $1;
         delete $3;
-        // yyerrok;
     }
     | struct_decl_ident error {
         $$ = new AstNode(Err);
@@ -477,20 +482,20 @@ struct_decl:
 
 /**************function declaration**************/
 func_decl_ident: 
-    TFUNC ident_all{$$ = $2;}
+    TFUNC ident_all{$$ = $2; $$->append_loc($1);}
     | TFUNC {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Missing function identifier.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Missing function identifier.", next_loc($1));
         
     };
 func_decl_ret_type: 
     {$$ = new AstNode(TypeDesc, "#auto");}
-    | ARROW type_desc{$$ = $2;}
+    | ARROW type_desc{$$ = $2; $$->append_loc($1);} 
     | ARROW error {
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Invalid return type description.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Invalid return type description.", next_loc($1));
     };
 
 func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
@@ -502,24 +507,42 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
 } block{
     parser_context.pop_block_env();
     $$ = create_node_from(FuncDecl, $1);
-    $$->loc = $1->loc;
     $$->append($3);
     $$->append($5);
     $$->append($7);
+    $$->append_loc($2);
+    $$->append_loc($4);
 }
-| func_decl_ident LP ident_type_list func_decl_ret_type block {
+| func_decl_ident LP ident_type_list func_decl_ret_type {
+    parser_context.push_block_env();
+    $3->type = FuncParams;
+    for(auto ch: $3->ch){
+        parser_context.set_var(ch->ch[1]->str);
+    }
+} block {
+    parser_context.pop_block_env();
+    #ifndef AUTO_FIX
     $$ = new AstNode(Err);
-    $$->loc = next_loc($3->loc);
-    append_syntax_error("Missing ).", $$->loc);
+    $$->loc = locator_merge($1->loc, $6->loc);
+    append_syntax_error("Missing ).", next_loc($3->loc));
     delete $1;
     delete $3;
     delete $4;
-    delete $5;
+    delete $6;
+    #else
+    $$ = create_node_from(FuncDecl, $1);
+    $$->append($3);
+    $$->append($4);
+    $$->append($6);
+    $$->append_loc($2);
+    $$->append_loc($4->loc);
+    append_syntax_error("Missing ).", next_loc($3->loc), 1);
+    #endif
 }
 | func_decl_ident error {
     $$ = new AstNode(Err);
-    $$->loc = next_loc($1->loc);
-    append_syntax_error("Inavlid function declaration.", $$->loc);
+    $$->loc = $1->loc;
+    append_syntax_error("Inavlid function declaration.", next_loc($1->loc));
     delete $1;
 }
 ;
@@ -535,73 +558,103 @@ block_ret:
         $$ = $2;
         $$->type = StmtsRet;
         $$->append($3);
-        $$->loc = locator_merge(Lc($1), Lc($4));
+        $$->append_loc($1);
+        $$->append_loc($4);
     }
     ;
     
 block_no_ret: 
-    block_begin stmts block_end{$$ = $2;}
-    // | block_begin stmts error block_end{
-
-    // } 
-    // | block_begin error {}
+    block_begin stmts block_end{
+        $$ = $2;
+        $$->append_loc($1);
+        $$->append_loc($3);
+    }
     | block_begin stmts YYEOF {
+        #ifndef AUTO_FIX
         $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("Unclosed {.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("Unclosed {.", Lc($1));
         delete $2;
+        #else
+        $$ = $2;
+        $$->append_loc($1);
+        $$->append_loc(next_loc($2->loc));
+        append_syntax_error("Unclosed {.", Lc($1), 1);
+        #endif
     }
     ;
 
 stmts:
-    {$$ = new BlockNode(Stmts); $$->loc = CurrentCursor;}
+    {$$ = new BlockNode(Stmts); }
     | stmts stmt {$$ = $1; $$->append($2);}
     | stmts error {
         $$ = $1;
-        append_syntax_error("Invalid statement.", CurrentCursor);
+        append_syntax_error("Invalid statement.", next_loc($1->loc));
     }
     ;
 
 stmt: single_decl | ctrl_no_ret | return_stmt | block_no_ret
-    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1; yyerrok;}
-    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1; yyerrok;}
-    | SEMI {$$ = new AstNode(Stmt); yyerrok;}
-    | expr SEMI{$$ = $1; yyerrok;}
+    | TBREAK SEMI{$$ = new AstNode(Stmt, "break"); $$->loc = $1; $$->append_loc($2); yyerrok;}
+    | TCONTIN SEMI{$$ = new AstNode(Stmt, "continue"); $$->loc = $1; $$->append_loc($2); yyerrok;}
+    | SEMI {$$ = new AstNode(Stmt); $$->append_loc($1); yyerrok;}
+    | expr SEMI{$$ = $1; $$->append_loc($2); yyerrok;}
     | TBREAK error {
+        #ifndef AUTO_FIX
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Missing ; after break.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Missing ; after break.", Lc($1));
+        #else
+        $$ = new AstNode(Stmt, "break");
+        $$->loc = $1;
+        $$->append_loc($1);
+        append_syntax_error("Missing ; after break.", Lc($1), 1);
+        yyerrok;
+        #endif
     }
     | TCONTIN error {
+        #ifndef AUTO_FIX
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1);
-        append_syntax_error("Miising ; after continue.", $$->loc);
+        $$->loc = $1;
+        append_syntax_error("Miising ; after continue.", Lc($1));
+        #else
+        $$ = new AstNode(Stmt, "continue");
+        $$->loc = $1;
+        $$->append_loc($1);
+        append_syntax_error("Miising ; after continue.", Lc($1), 1);
+        #endif
     }
     | expr error{
+        #ifndef AUTO_FIX
         $$ = new AstNode(Err);
-        $$->loc = next_loc($1->loc);
-        append_syntax_error("Missing ; after expressioin.", $$->loc);
+        $$->loc = $1->loc;
+        append_syntax_error("Missing ; after expression.", $1->loc);
+        #else
+        $$ =$1;
+        $$->append_loc($1);
+        append_syntax_error("Missing ; after expression.", $1->loc, 1);
+        #endif
+        
     }
     | TELSE block {
         $$ = new AstNode(Err);
-        $$->loc = $1;
-        append_syntax_error("else without if.", $$->loc);
+        $$->loc = locator_merge($1, $2->loc);
+        append_syntax_error("else without if.", Lc($1));
         delete $2;
     }
     | TELSE error {
         $$ = new AstNode(Err);
         $$->loc = $1;
-        append_syntax_error("else without if", $$->loc);
+        append_syntax_error("else without if", Lc($1));
     }
     | RP {
         $$ = new AstNode(Err);
         $$->loc = $1;
-        append_syntax_error("Expected expression before ')'.", $$->loc);
+        append_syntax_error("Expected expression before ')'.", Lc($1));
     }
     | RBRACKET{
         $$ = new AstNode(Err);
         $$->loc = $1;
-        append_syntax_error("Expecetd expression before ']", $$->loc);
+        append_syntax_error("Expecetd expression before ']", Lc($1));
     }
     ;
 
