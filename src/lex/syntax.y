@@ -93,9 +93,9 @@ program: {
     }
     ;
 
-ext_decl: {
-        $$ = new BlockNode(ExtDecl); 
-        // $$->loc = CurrentCursor;
+ext_decl:{
+        $$ = new BlockNode(ExtDecl);
+        inject_builtin_func((BlockNode*)$$);
     }
     | ext_decl SEMI {$$ = $1; $$->append_loc(Lc($2)); yyerrok;}
     | ext_decl single_decl {$$ = $1; $$->append($2); }

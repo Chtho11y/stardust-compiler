@@ -4,6 +4,8 @@
 #include <map>
 #include <memory>
 
+size_t VarType::ptr_size = 4;
+
 std::map<std::string, var_type_ptr> type_pool;
 std::vector<std::shared_ptr<PrimType>> prim_type_list;
 
@@ -58,7 +60,7 @@ bool is_convertable(var_type_ptr from, var_type_ptr to){
         if(fp->pr_kind < tp->pr_kind)
             return true;
         else if(fp->pr_kind == tp->pr_kind){
-            return (fp->size*2 + fp->unsig) <= (tp->size*2 + tp->unsig) ;
+            return (fp->siz*2 + fp->unsig) <= (tp->siz*2 + tp->unsig) ;
         }
     
     }else if(to->is_ptr()){

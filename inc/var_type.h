@@ -7,6 +7,8 @@
 
 struct VarType{
 
+    static size_t ptr_size;
+
     enum var_kind{
         Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Ref, Error, Auto
     };
@@ -19,6 +21,10 @@ struct VarType{
 
     virtual bool is_same(VarType* type) const = 0;
 
+    virtual size_t size() const{
+        return 0;
+    }
+
     bool is_type(var_kind _kind) const {return _kind == kind;}
     bool is_error()const {return is_type(Error);}
     bool is_void() const {return is_type(Void);}
@@ -27,6 +33,9 @@ struct VarType{
     bool is_prim() const {return is_type(Prim);}
     bool is_auto() const{return is_type(Auto);}
     bool is_ref() const {return is_type(Ref);}
+    virtual bool is_base() const{
+        return !(is_type(Struct) || is_type(Array));
+    }
 };
 
 using var_type_ptr = std::shared_ptr<VarType>;
@@ -59,7 +68,7 @@ struct AutoType: VarType{
 
     bool is_same(VarType* type) const override{
         return false;
-    } 
+    }
 };
 
 struct ErrorType: VarType{
@@ -79,11 +88,11 @@ struct PrimType:VarType{
         Bool, Char, Int, Float
     }pr_kind;
 
-    int size;
+    int siz;
     bool unsig;
 
-    PrimType(prim_kind kind, int size, bool unsig = false)
-        :VarType(Prim), pr_kind(kind), size(size), unsig(unsig){};
+    PrimType(prim_kind kind, int siz, bool unsig = false)
+        :VarType(Prim), pr_kind(kind), siz(siz), unsig(unsig){};
 
     std::string to_string() const override{
         std::string type_name;
@@ -95,14 +104,18 @@ struct PrimType:VarType{
             case Float: type_name = "float";break;
             case Char: return "char";
         }
-        return type_name + std::to_string(size);
+        return type_name + std::to_string(siz);
     }
 
     bool is_same(VarType* type) const{
         auto pm = dynamic_cast<PrimType*>(type);
         if(!pm)
             return false;
-        return pm->pr_kind == pr_kind && pm->size == size && pm->unsig == unsig;
+        return pm->pr_kind == pr_kind && pm->size() == size() && pm->unsig == unsig;
+    }
+
+    size_t size() const override{
+        return siz/8;
     }
 };
 
@@ -122,6 +135,14 @@ struct RefType: VarType{
         auto ref = dynamic_cast<RefType*>(type);
         return subtype->is_same(ref->subtype.get());
     }
+
+    size_t size() const override{
+        return subtype->size();
+    }
+
+    bool is_base() const override{
+        return subtype->is_base();
+    }
 };
 
 struct PointerType:VarType{
@@ -140,28 +161,36 @@ struct PointerType:VarType{
         if(!ptr)
             return false;
         return subtype->is_same(ptr->subtype.get());
-    } 
+    }
+
+    size_t size() const{
+        return ptr_size;
+    }
 };
 
 struct ArrayType:VarType{
     std::shared_ptr<VarType> subtype;
-    size_t size;
+    size_t len;
     
-    ArrayType(std::shared_ptr<VarType> type = nullptr, size_t size = 0): 
-        VarType(Array), subtype(type), size(size){}
+    ArrayType(std::shared_ptr<VarType> type = nullptr, size_t len = 0): 
+        VarType(Array), subtype(type), len(len){}
 
     std::string to_string() const{
         if(subtype->kind == Func)
-            return "(" + subtype->to_string() + ")[" + std::to_string(size) + "]";
-        return subtype->to_string() + "[" + std::to_string(size) + "]";
+            return "(" + subtype->to_string() + ")[" + std::to_string(len) + "]";
+        return subtype->to_string() + "[" + std::to_string(len) + "]";
     }
 
     bool is_same(VarType* type) const{
         auto arr = dynamic_cast<ArrayType*>(type);
-        if(!arr || size != arr->size)
+        if(!arr || len != arr->len)
             return false;
         return subtype->is_same(arr->subtype.get());
-    } 
+    }
+
+    size_t size() const override{
+        return len * subtype->size();
+    }
 };
 
 struct TupleType: VarType{
@@ -192,6 +221,13 @@ struct TupleType: VarType{
                 return false;
         return true;
     } 
+
+    size_t size() const override{
+        size_t res = 0;
+        for(auto& tp: members)
+            res += tp->size();
+        return res;
+    }
 };
 
 struct FuncType: VarType{
@@ -235,6 +271,10 @@ struct FuncType: VarType{
             if(!is_convertable(args[i], param_list[i]))
                 flag = false;
         return flag;
+    }
+
+    size_t size() const override{
+        return ptr_size;
     }
 };
 
@@ -283,6 +323,16 @@ struct StructType: VarType{
         return cnt == member.size();
     }
 
+    size_t offset_of(std::string& mem) const{
+        size_t res = 0;
+        for(auto [s, tp]: member){
+            if(s == mem)
+                return res;
+            res += tp->size();
+        }
+        return res;
+    }
+
     std::string to_string() const override{
         return name + "#" + std::to_string(id);
     }
@@ -291,12 +341,39 @@ struct StructType: VarType{
         auto st = dynamic_cast<StructType*>(type);
         return st && id == st->id;
     }
+
+    size_t size() const override{
+        size_t res = 0;
+        for(auto& [s, tp]: member)
+            res += tp->size();
+        return res;
+    }
 };
 
 struct VarInfo{
     std::string name;
     std::shared_ptr<VarType> type;
+    bool is_top = false;
+    int var_id;
+
+    std::string id_name() const{
+        return is_top && type->is_type(VarType::Func) ? name: "var_" + name + "_" + std::to_string(var_id);
+    }
+
+    std::string ptr_name() const{
+        return "ptr_" + name + "_" + std::to_string(var_id);
+    }
+
+    size_t size() const{
+        return decay(type)->size();
+    }
+
+    bool is_base(){
+        return decay(type)->is_base();
+    }
 };
+
+using var_info_ptr = std::shared_ptr<VarInfo>;
 
 void init_type_pool();
 var_type_ptr get_type(std::string name);

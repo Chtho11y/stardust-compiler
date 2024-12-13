@@ -27,13 +27,9 @@ error_list& get_error_list(){
 std::string str(){
     return "";
 }
+#include "util.h"
 
-template<class Tp, class ...Args>
-std::string str(Tp val, Args... args){
-    std::stringstream ss;
-    ss << val;
-    return ss.str() + str(args...);
-}
+using util::str;
 
 template<class ...Args>
 std::string str(var_type_ptr tp, Args... args){

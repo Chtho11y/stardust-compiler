@@ -3,6 +3,7 @@ backup/
 .vscode/
 test/
 test2/*.txt
+.VSCodeCounter/
 
 syntax.txt
 *.backup

@@ -101,11 +101,13 @@ struct AstNode{
     var_type_ptr get_id(std::string name);
     bool set_id(std::string name, var_type_ptr type);
 
+    std::shared_ptr<VarInfo> get_info(std::string name);
+
     AstNode* get_loop_parent();
     AstNode* get_func_parent();
 };
 
-using sym_table = std::map<std::string, VarInfo>;
+using sym_table = std::map<std::string, std::shared_ptr<VarInfo>>;
 
 struct OperatorNode: AstNode{
     op_type type;
@@ -160,6 +162,8 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node);
 std::shared_ptr<VarType> build_sym_table(AstNode* node);
 
 std::shared_ptr<VarType> op_type_eval(op_type op, std::vector<std::shared_ptr<VarType>> args, Locator loc);
+
+void inject_builtin_func(BlockNode* block);
 
 template<node_type type>
 struct Adaptor{};
