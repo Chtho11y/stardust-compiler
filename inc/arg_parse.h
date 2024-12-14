@@ -12,6 +12,8 @@ struct ArgParser{
     bool print_ast = true;
     bool print_ast_sym = true;
 
+    std::string ir_target = "spl";
+
     clipp::group get_parser(){
         using namespace clipp;
         return (
@@ -42,7 +44,12 @@ struct ArgParser{
             option("-h", "--help").call([this](){
                 std::cout << clipp::make_man_page(this->get_parser(), "stardust") << std::endl;
                 exit(0);
-            }) % "usage lines"
+            }) % "usage lines",
+
+            option("--ir=spl").set(ir_target, std::string("spl")) |
+            option("--ir=llvm").set(ir_target, std::string("llvm")).if_conflicted([](){
+                std::cout << "conflict setting of --ir target" << std::endl;
+            }) % "set intermediate representation format"
         );
     }
 

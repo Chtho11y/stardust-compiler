@@ -55,7 +55,9 @@ void IRContext::call_memcpy(std::string dst, std::string src, size_t siz){
 }
 
 bool math_op_support_check(op_type op){
-    return op_type::Add <= op && op <= op_type::Div || op_type::AddEq <= op && op <= op_type::DivEq;
+    return op_type::Add <= op && op <= op_type::Div || 
+            op_type::AddEq <= op && op <= op_type::DivEq ||
+            op_type::Pos == op || op_type::Neg == op;
 }
 
 bool cmp_op_support_check(op_type op){
@@ -130,7 +132,9 @@ IRNode* ast_to_spl_ir(AstNode* ast){
         auto op = (OperatorNode*)ast;
         if(math_op_support_check(op->type) || op->type == op_type::Assign){
             auto l = ast_to_spl_ir(op->ch[0]);
-            auto r = ast_to_spl_ir(op->ch[1]);
+            IRNode* r = nullptr;
+            if(op->ch.size() > 1)
+                r = ast_to_spl_ir(op->ch[1]);
             return new IrValueOpNode(l, r, op->type, ast);
         }else if(cmp_op_support_check(op->type)){
             auto l = ast_to_spl_ir(op->ch[0]);
@@ -224,7 +228,8 @@ IRNode* ast_to_spl_ir(AstNode* ast){
 
 void IrValueOpNode::gen_code(IRContext& ctx){
     lhs->gen_code(ctx);
-    rhs->gen_code(ctx);
+    if(rhs)
+        rhs->gen_code(ctx);
 
     if(op == op_type::Assign){
         if(origin->ret_var_type->is_base()){
@@ -240,14 +245,24 @@ void IrValueOpNode::gen_code(IRContext& ctx){
     if(op_type::Add <= op && op <= op_type::Div){
         std::string op_syms[4] = {"+", "-", "*", "/"};
         dst = ctx.get_new_id("v");
-        ctx.write_code(dst, " := ", lhs->dst, " ", op_syms[(int)op], " ", rhs->dst);
+        if(decay(lhs->ret_type)->is_ptr()){
+            //TODO
+            throw std::string("not implement");
+        }else{
+            ctx.write_code(dst, " := ", lhs->dst, " ", op_syms[(int)op], " ", rhs->dst);
+        }
     }else if(op_type::AddEq <= op && op <= op_type::DivEq){
         std::string op_syms[4] = {"+", "-", "*", "/"};
-        dst = ctx.get_new_id("v");
+        dst = lhs->dst;
+        addr = lhs->addr;
         ctx.write_code(lhs->dst, " := ", lhs->dst, " ", op_syms[(int)op - (int)op_type::AddEq], " ", rhs->dst);
+    }else if(op_type::Pos == op){
+        dst = ctx.get_new_id("v");
+        ctx.write_code(dst, " := ", "#0 + ", lhs->dst);
+    }else if(op_type::Neg == op){
+        dst = ctx.get_new_id("v");
+        ctx.write_code(dst, " := ", "#0 - ", lhs->dst);
     }else{
         throw std::string("unsupport op: " + get_op_name(op));
     }
-
-    
 }

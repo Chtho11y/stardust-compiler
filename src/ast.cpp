@@ -470,7 +470,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         require_convertable(cond, get_type("bool"), node->loc);
         auto ret1 = build_sym_table(node->ch[1]);
         auto ret2 = get_type("void");
-        if(node->ch[2])
+        if(node->ch.size() > 2)
             ret2 = build_sym_table(node->ch[2]);
 
         return node->ret_var_type = greater_type(ret1, ret2);

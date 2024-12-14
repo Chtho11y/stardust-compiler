@@ -188,6 +188,10 @@ struct Adaptor<VarDecl>{
         }
         return *this;
     }
+
+    bool is_signed() const{
+        return init_val->ret_var_type->is_signed();
+    }
 };
 
 template<>

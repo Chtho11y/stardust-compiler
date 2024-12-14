@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "llvm_ir.h"
+
 BlockNode* program_root = nullptr;
 
 int yyparse();
@@ -218,10 +220,15 @@ int main(int argc, char* argv[]){
     }
     
     try{
-        IRContext context;
-        auto ir_root = ast_to_spl_ir(program_root);
-        ir_root->gen_code(context);
-        context.export_ir_code(stdout);
+        if(parser.ir_target == "spl"){
+            IRContext context;
+            auto ir_root = ast_to_spl_ir(program_root);
+            ir_root->gen_code(context);
+            context.export_ir_code(stdout);
+        }else{
+            gen_module(program_root, "test");
+            write_llvm_ir(std::cout);
+        }
     }catch(std::string s){
         std::cout << s << std::endl;
     }

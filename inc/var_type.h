@@ -36,6 +36,9 @@ struct VarType{
     virtual bool is_base() const{
         return !(is_type(Struct) || is_type(Array));
     }
+    virtual bool is_signed() const{
+        return true;
+    }
 };
 
 using var_type_ptr = std::shared_ptr<VarType>;
@@ -114,6 +117,10 @@ struct PrimType:VarType{
         return pm->pr_kind == pr_kind && pm->size() == size() && pm->unsig == unsig;
     }
 
+    bool is_signed() const override{
+        return pr_kind != Bool && !unsig;
+    }
+
     size_t size() const override{
         return siz/8;
     }
@@ -143,6 +150,10 @@ struct RefType: VarType{
     bool is_base() const override{
         return subtype->is_base();
     }
+
+    bool is_signed() const override{
+        return subtype->is_signed();
+    }
 };
 
 struct PointerType:VarType{
@@ -165,6 +176,10 @@ struct PointerType:VarType{
 
     size_t size() const{
         return ptr_size;
+    }
+
+    bool is_signed() const override{
+        return false;
     }
 };
 

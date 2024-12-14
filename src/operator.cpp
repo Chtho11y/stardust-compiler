@@ -141,6 +141,39 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
         return args[0];
     }
 
+    case op_type::Add:{
+        if(decay(args[0])->is_ptr() || decay(args[0])->is_array()){
+            if(is_convertable(args[1], get_type("int"))){
+                    return decay(args[0]);         
+            }   
+        }else if(decay(args[1])->is_ptr() || decay(args[1])->is_array()){
+            if(is_convertable(args[0], get_type("int"))){
+                    return decay(args[1]);         
+            }    
+        }
+        break;
+    }
+
+    case op_type::Sub:{
+        auto l = decay(args[0]), r = decay(args[1]);
+        if(l->is_ptr() || l->is_array()){
+            if(is_convertable(r, get_type("int"))){
+                return l;         
+            }
+            if(is_convertable(r, l)){
+                return l;
+            }
+            if(is_convertable(l, r))
+                return r;
+        }else if(r->is_ptr() || r->is_array()){
+            if(is_convertable(l, get_type("int"))){
+                    return r;         
+            }    
+        }
+
+        break;
+    }
+
     case op_type::Ref:{
         if(!args[0]->is_ref()){
             append_ref_error("lvalue required as operand of reference", loc);

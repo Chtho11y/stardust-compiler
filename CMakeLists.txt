@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Specify the directories
 include_directories(inc)
+find_package(LLVM REQUIRED CONFIG)
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
 # Find the Flex package
 find_package(FLEX REQUIRED)
@@ -23,3 +26,6 @@ aux_source_directory(./src DIR_SRCS)
 
 # Create the executable
 add_executable(stardust ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cpp ${CMAKE_CURRENT_BINARY_DIR}/syntax.cpp ${DIR_SRCS})
+
+llvm_map_components_to_libnames(llvm_libs support core irreader)
+target_link_libraries(stardust ${llvm_libs})
