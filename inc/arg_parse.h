@@ -9,8 +9,8 @@ struct ArgParser{
     std::string output_path = "";
     std::string input_path = "../test/test.sd";
     bool show_warning = true;
-    bool print_ast = true;
-    bool print_ast_sym = true;
+    bool print_ast = false;
+    bool print_ast_sym = false;
     bool no_color = false;
 
     std::string ir_target = "spl";

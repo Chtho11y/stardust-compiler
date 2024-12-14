@@ -17,8 +17,19 @@ void init(std::string name){
     builder = std::make_unique<IRBuilder<>>(*llvm_ctx);
 }
 
+void inject_builtin_func(){
+    using namespace llvm;
+
+    FunctionType *fn_write_tp = FunctionType::get(Type::getVoidTy(*llvm_ctx), {Type::getInt32Ty(*llvm_ctx)}, false);
+    Function *fn_write = Function::Create(fn_write_tp, GlobalValue::ExternalLinkage, "write", *llvm_mod);
+
+    FunctionType *fn_read_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {}, false);
+    Function *fn_read = Function::Create(fn_read_tp, GlobalValue::ExternalLinkage, "read", *llvm_mod);
+}
+
 void gen_module(AstNode* ast, std::string module_name){
     init(module_name);
+    inject_builtin_func();
     gen_llvm_ir(ast, *builder);
     if(!main_fn)
         throw std::runtime_error("function 'main' not found");
@@ -526,6 +537,9 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
     }
 
     llvm::Function *function = builder.GetInsertBlock()->getModule()->getFunction(func_info->name);
+    if(ast_fn_tp->ret_type->is_void())
+        return builder.CreateCall(function, args);
+
     return builder.CreateCall(function, args, func_info->name + "_ret");
 }
 
