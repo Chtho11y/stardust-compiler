@@ -1,0 +1,13 @@
+/******************************Error Detected******************************/
+../test//s03.sd:6:12: Error B: Invalid expression.
+    6 |     x[m] = ;
+      |            ^
+../test//s03.sd:7:12: Error B: Missing ]
+    7 |     y[n = 8;
+      |            ^
+../test//s03.sd:8:5: Error B: Missing expression.
+    8 |     =2;
+      |     ^  
+../test//s03.sd:8:5: Error B: Missing ; after expression.
+    8 |     =2;
+      |     ^  

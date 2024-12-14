@@ -1,0 +1,10 @@
+// Test conditional branching
+func check_number(a: int) -> char {
+    if a > 0 {
+        return a; // Positive
+    } else if a < 0 {
+        return a; // Negative
+    } else {
+        return a; // Zero
+    }
+}

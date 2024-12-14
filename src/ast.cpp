@@ -325,7 +325,7 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         append_prim_shadowed_warning(x, loc)
 
 std::shared_ptr<VarType> build_sym_table(AstNode* node){
-    // std::cout << get_node_name(node) << std::endl;
+    // std::cout << node->str << " : " << get_node_name(node) << std::endl;
     if(node->is_block){
 
         auto block = static_cast<BlockNode*>(node);
@@ -360,9 +360,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 tail_ret = true;
         }
         if(!tail_ret && !res->is_error() && !func.no_return()){
-            require_convertable(res, func.type_info->ret_type, func.id_loc);
+            require_convertable(res, func.type_info->ret_type, func.body->ch.size() ? func.body->ch.back()->loc : func.body->loc_list.back());
         }
-
         if(!flag){
             // append_error("Function " + func.id + " has been declared.", func.id_loc);
             append_multidef_error("Function", func.id, func.id_loc);
@@ -392,7 +391,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         }
 
         if(res_type){
-            require_convertable(res_type, var.type_info, node->loc);
+            require_convertable(res_type, var.type_info, var.init_val->loc);
         }
         CHECK_PRIM_SHADOW(var.id, var.id_loc);
         if(!node->set_id(var.id, var.type_info)){
@@ -451,14 +450,13 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 if(id == "length")
                     return node->ret_var_type = get_type("int32");
             }
-            append_invalid_access_error(t, id, node->loc);
+            append_invalid_access_error(t, id, node->loc_list[0]);
             return node->ret_var_type = get_type("#err");
         }else{     
             for(auto ch: node->ch)
                 tp.push_back(build_sym_table(ch));
         }
-
-        return node->ret_var_type = op_type_eval(op->type, tp, node->loc);
+        return node->ret_var_type = op_type_eval(op->type, tp, op->type != op_type::Convert ? node->loc_list[0] : op->ch[1]->loc);
 
     }else if(node->type == ArrayInstance) {
         return node->ret_var_type = infer_array(node);
@@ -467,7 +465,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == IfStmt){
 
         auto cond = build_sym_table(node->ch[0]);
-        require_convertable(cond, get_type("bool"), node->loc);
+        require_convertable(cond, get_type("bool"), node->ch[0]->loc);
         auto ret1 = build_sym_table(node->ch[1]);
         auto ret2 = get_type("void");
         if(node->ch.size() > 2)
@@ -478,7 +476,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == WhileStmt){
 
         auto cond = build_sym_table(node->ch[0]);
-        require_convertable(cond, get_type("bool"), node->loc);
+        require_convertable(cond, get_type("bool"), node->ch[0]->loc);
         build_sym_table(node->ch[1]);
         return node->ret_var_type = get_type("void");
 
@@ -487,14 +485,13 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         build_sym_table(node->ch[0]);
         if(node->ch[1]->type != Stmt){
             auto cond = build_sym_table(node->ch[1]);
-            require_convertable(cond, get_type("bool"), node->loc);
+            require_convertable(cond, get_type("bool"), node->ch[1]->loc);
         }
         build_sym_table(node->ch[2]);
         build_sym_table(node->ch[3]);
         return node->ret_var_type = get_type("void");
 
     }else if(node->is_literal()){
-
         switch (node->type){
             case IntLiteral: return node->ret_var_type = get_type("int32");
             case DoubleLiteral: return node->ret_var_type = get_type("float32");
@@ -528,7 +525,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             if(node->ch.size())
                 res = build_sym_table(node->ch[0]);
             res = decay(res);
-            require_convertable(res, ret_type, node->loc);
+            require_convertable(res, ret_type, node->ch[0]->loc);
             return node->ret_var_type = get_type("void");
         }else if(node->str == "break" || node->str == "continue"){
             auto p = node->get_loop_parent();

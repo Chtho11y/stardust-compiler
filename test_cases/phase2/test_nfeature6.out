@@ -1,0 +1,53 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: outer_func
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        FuncDecl
+          Identifier: inner_func
+          FuncParams
+          TypeDesc
+            Identifier: int
+          StmtsRet
+            IntLiteral: 10
+        VarDecl
+          ConstDesc: let
+          Identifier: result
+          TypeDesc: #auto
+          Operator: Call
+            Identifier: inner_func
+            FuncArgs
+        Operator: Mul
+          Identifier: result
+          IntLiteral: 2
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): outer_func#2: () -> int32, read#0: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: outer_func
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): inner_func#3: () -> int32, result#4: int32
+        FuncDecl(() -> int32)
+          Identifier: inner_func
+          FuncParams
+          TypeDesc: int32
+          StmtsRet(int32)
+            IntLiteral(int32): 10
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: result
+          TypeDesc: #auto
+          Operator(int32): Call
+            Identifier(&() -> int32): inner_func
+            FuncArgs(())
+        Operator(int32): Mul
+          Identifier(&int32): result
+          IntLiteral(int32): 2
+
+/******************************Error Detected******************************/

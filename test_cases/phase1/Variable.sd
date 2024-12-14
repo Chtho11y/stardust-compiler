@@ -1,0 +1,8 @@
+// 基本变量声明
+let x: int = 10;
+const y: int = 20;
+let z = 30; // 类型推导
+
+// 带初始化和未初始化
+let a: int;
+const b: int = 42;

@@ -1,0 +1,105 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test1
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        IntLiteral: 1
+    FuncDecl
+      Identifier: test2
+      FuncParams
+      TypeDesc
+        Identifier: float64
+      StmtsRet
+        DoubleLiteral: 1.0
+    FuncDecl
+      Identifier: test_2_r08
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        IfStmt
+          Operator: Gt
+            Identifier: a
+            Identifier: b
+          StmtsRet
+            Operator: Call
+              Identifier: test1
+              FuncArgs
+          StmtsRet
+            Operator: Call
+              Identifier: test2
+              FuncArgs
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test1#2: () -> int32, test2#3: () -> float64, test_2_r08#4: (int32, int32) -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: test1
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32)
+        IntLiteral(int32): 1
+    FuncDecl(() -> float64)
+      Identifier: test2
+      FuncParams
+      TypeDesc: float64
+      StmtsRet(float32)
+        DoubleLiteral(float32): 1.0
+    FuncDecl((int32, int32) -> int32)
+      Identifier: test_2_r08
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32
+      TypeDesc: int32
+      StmtsRet(float64): a#5: int32, b#6: int32
+        IfStmt(float64)
+          Operator(bool): Gt
+            Identifier(&int32): a
+            Identifier(&int32): b
+          StmtsRet(int32)
+            Operator(int32): Call
+              Identifier(&() -> int32): test1
+              FuncArgs(())
+          StmtsRet(float64)
+            Operator(float64): Call
+              Identifier(&() -> float64): test2
+              FuncArgs(())
+
+/******************************Error Detected******************************/
+../test//test.sd:10:4: Error C07: Failed to convert 'float64' to 'int32' implicitly.
+   10 |    if (a > b)
+      |    ^~~~~~~~~~
+   11 |   {
+      | ~~~
+   12 |     test1()
+      | ~~~~~~~~~~~
+   13 |   }
+      | ~~~
+   14 |   else
+      | ~~~~~~
+   15 |   {
+      | ~~~
+   16 |     test2()
+      | ~~~~~~~~~~~
+   17 |   }
+      | ~~~

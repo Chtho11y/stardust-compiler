@@ -38,6 +38,7 @@ struct AstNode{
     Locator loc;
     AstNode* parent;
     std::vector<AstNode*> ch;
+    std::vector<Locator> loc_list;
 
     var_type_ptr ret_var_type = nullptr;
 
@@ -60,9 +61,25 @@ struct AstNode{
     AstNode(node_type type, Token tok):
         type(type), parent(nullptr), str(tok.val), loc(tok.loc){}
 
+    AstNode(node_type type, Locator loc):
+        type(type), loc(loc){}
+
+    AstNode(node_type type, LocatorBuffer loc):
+        type(type), loc(Locator{loc.line_st, loc.line_ed, loc.col_l, loc.col_r}){}
+
     void append(AstNode* c){
         ch.push_back(c);
+        this->loc.merge(c->loc);
         c->parent = this;
+    }
+
+    void append_loc(Locator loc) {
+        loc_list.push_back(loc);
+        this->loc.merge(loc);
+    }
+    
+    void append_loc(LocatorBuffer loc) {
+        append_loc(Locator{loc.line_st, loc.line_ed, loc.col_l, loc.col_r});
     }
 
     ~AstNode(){
@@ -99,24 +116,24 @@ struct OperatorNode: AstNode{
 
     OperatorNode(op_type type, AstNode* ch1, Locator loc = {}):AstNode(Operator), type(type){
         append(ch1);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     OperatorNode(op_type type, AstNode* ch1, AstNode* ch2, Locator loc = {}):AstNode(Operator), type(type){
         append(ch1);
         append(ch2);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     OperatorNode(op_type type, AstNode* ch1, LocatorBuffer loc):AstNode(Operator), type(type){
         append(ch1);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     OperatorNode(op_type type, AstNode* ch1, AstNode* ch2, LocatorBuffer loc):AstNode(Operator), type(type){
         append(ch1);
         append(ch2);
-        this->loc = loc;
+        append_loc(loc);
     }
 
     static std::string get_op_name(OperatorNode* node);
@@ -163,7 +180,13 @@ struct Adaptor<VarDecl>{
 
     Adaptor(AstNode* rt){
         if(rt->type != VarDecl){
-            throw "adaptor type mismatch";
+            // throw "adaptor type mismatch";
+            id = "@ERROR";
+            type = new AstNode(TypeDesc, "#err");
+            type_info = get_type("#err");
+            init_val = nullptr;
+            id_loc = rt->loc;
+            return;
         }
         int p = 0;
         if(rt->ch[0]->type == ConstDesc)

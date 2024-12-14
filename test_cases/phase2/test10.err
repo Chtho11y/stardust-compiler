@@ -1,0 +1,4 @@
+/******************************Error Detected******************************/
+../test2//test10.sd:11:18: Error C03: Expression should be array or pointer type, but it is 'int32'.
+   11 |     a[e][e][e][e][e]
+      |                  ^  

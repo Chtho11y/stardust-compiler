@@ -1,0 +1,87 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: sum_to_n
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: n
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: sum
+          TypeDesc
+            Identifier: int
+          IntLiteral: 0
+        VarDecl
+          ConstDesc: let
+          Identifier: i
+          TypeDesc
+            Identifier: int
+          IntLiteral: 1
+        WhileStmt
+          Operator: Le
+            Identifier: i
+            Identifier: n
+          Stmts
+            Operator: Assign
+              Identifier: sum
+              Operator: Add
+                Identifier: sum
+                Identifier: i
+            Operator: Assign
+              Identifier: i
+              Operator: Add
+                Identifier: i
+                IntLiteral: 1
+        Stmt
+        Stmt: return
+          Identifier: sum
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, sum_to_n#2: (int32) -> int32, write#1: (int32) -> void
+    FuncDecl((int32) -> int32)
+      Identifier: sum_to_n
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: n
+          TypeDesc: int32
+      TypeDesc: int32
+      Stmts(void): i#5: int32, n#3: int32, sum#4: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: sum
+          TypeDesc: int32
+          IntLiteral(int32): 0
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: i
+          TypeDesc: int32
+          IntLiteral(int32): 1
+        WhileStmt(void)
+          Operator(bool): Le
+            Identifier(&int32): i
+            Identifier(&int32): n
+          Stmts(void)
+            Operator(&int32): Assign
+              Identifier(&int32): sum
+              Operator(int32): Add
+                Identifier(&int32): sum
+                Identifier(&int32): i
+            Operator(&int32): Assign
+              Identifier(&int32): i
+              Operator(int32): Add
+                Identifier(&int32): i
+                IntLiteral(int32): 1
+        Stmt(void)
+        Stmt(void): return
+          Identifier(&int32): sum
+
+/******************************Error Detected******************************/

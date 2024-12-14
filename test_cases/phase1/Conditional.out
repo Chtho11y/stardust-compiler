@@ -1,0 +1,87 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: check_number
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: char
+      Stmts
+        IfStmt
+          Operator: Gt
+            Identifier: a
+            IntLiteral: 0
+          Stmts
+            Stmt: return
+              Identifier: a
+          IfStmt
+            Operator: Lt
+              Identifier: a
+              IntLiteral: 0
+            Stmts
+              Stmt: return
+                Identifier: a
+            Stmts
+              Stmt: return
+                Identifier: a
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): check_number#2: (int32) -> char, read#0: () -> int32, write#1: (int32) -> void
+    FuncDecl((int32) -> char)
+      Identifier: check_number
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32
+      TypeDesc: char
+      Stmts(void): a#3: int32
+        IfStmt(void)
+          Operator(bool): Gt
+            Identifier(&int32): a
+            IntLiteral(int32): 0
+          Stmts(void)
+            Stmt(void): return
+              Identifier(&int32): a
+          IfStmt(void)
+            Operator(bool): Lt
+              Identifier(&int32): a
+              IntLiteral(int32): 0
+            Stmts(void)
+              Stmt(void): return
+                Identifier(&int32): a
+            Stmts(void)
+              Stmt(void): return
+                Identifier(&int32): a
+
+/******************************Error Detected******************************/
+../test//Conditional.sd:3:5: Error C07: Failed to convert 'void' to 'char' implicitly.
+    3 |     if a > 0 {
+      |     ^~~~~~~~~~
+    4 |         return a; // Positive
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    5 |     } else if a < 0 {
+      | ~~~~~~~~~~~~~~~~~~~~~
+    6 |         return a; // Negative
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    7 |     } else {
+      | ~~~~~~~~~~~~
+    8 |         return a; // Zero
+      | ~~~~~~~~~~~~~~~~~~~~~~~~~
+    9 |     }
+      | ~~~~~
+../test//Conditional.sd:4:16: Error C07: Failed to convert 'int32' to 'char' implicitly.
+    4 |         return a; // Positive
+      |                ^             
+../test//Conditional.sd:6:16: Error C07: Failed to convert 'int32' to 'char' implicitly.
+    6 |         return a; // Negative
+      |                ^             
+../test//Conditional.sd:8:16: Error C07: Failed to convert 'int32' to 'char' implicitly.
+    8 |         return a; // Zero
+      |                ^         

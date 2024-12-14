@@ -1,0 +1,4 @@
+/******************************Error Detected******************************/
+../test2//test12.sd:6:13: Error C07: Failed to convert 'float64' to 'uint64' implicitly.
+    6 |     a[0] = a[b[0]];
+      |             ^      

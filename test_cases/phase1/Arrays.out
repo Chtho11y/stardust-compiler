@@ -1,0 +1,70 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    VarDecl
+      ConstDesc: let
+      Identifier: numbers
+      TypeDesc: []
+        TypeDesc
+          Identifier: int
+        IntLiteral: 5
+      ArrayInstance
+        IntLiteral: 1
+        IntLiteral: 2
+        IntLiteral: 3
+        IntLiteral: 4
+        IntLiteral: 5
+    VarDecl
+      ConstDesc: let
+      Identifier: first
+      TypeDesc
+        Identifier: int
+      Operator: At
+        Identifier: numbers
+        IntLiteral: 0
+    VarDecl
+      ConstDesc: let
+      Identifier: last
+      TypeDesc
+        Identifier: int
+      Operator: At
+        Identifier: numbers
+        Operator: Sub
+          Operator: Access
+            Identifier: numbers
+            Identifier: length
+          IntLiteral: 1
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): first#3: int32, last#4: int32, numbers#2: int32[5], read#0: () -> int32, write#1: (int32) -> void
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: numbers
+      TypeDesc: int32[5]
+      ArrayInstance(int32[5])
+        IntLiteral(int32): 1
+        IntLiteral(int32): 2
+        IntLiteral(int32): 3
+        IntLiteral(int32): 4
+        IntLiteral(int32): 5
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: first
+      TypeDesc: int32
+      Operator(&int32): At
+        Identifier(&int32[5]): numbers
+        IntLiteral(int32): 0
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: last
+      TypeDesc: int32
+      Operator(&int32): At
+        Identifier(&int32[5]): numbers
+        Operator(int32): Sub
+          Operator(int32): Access
+            Identifier(&int32[5]): numbers
+            Identifier: length
+          IntLiteral(int32): 1
+
+/******************************Error Detected******************************/

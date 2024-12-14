@@ -1,0 +1,34 @@
+/******************************Error Detected******************************/
+../test//s01.sd:4:7: Error A: Invalid identifier.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |       ^~                             
+../test//s01.sd:4:22: Error B: Invalid expression.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                      ^               
+../test//s01.sd:4:24: Error C02: Variable 'C' is not declared.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                        ^             
+../test//s01.sd:4:29: Error B: Invalid expression.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                             ^        
+../test//s01.sd:4:31: Error C02: Variable 'd' is not declared.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                               ^      
+../test//s01.sd:4:37: Error B: Invalid expression.
+    4 |   let 3b : int = 3 + , C= a*, d = 5/;
+      |                                     ^
+../test//s01.sd:5:7: Error C02: Variable 'b' is not declared.
+    5 |   if (b != c){
+      |       ^       
+../test//s01.sd:5:12: Error C02: Variable 'c' is not declared.
+    5 |   if (b != c){
+      |            ^  
+../test//s01.sd:6:5: Error C02: Variable 'a' is not declared.
+    6 |     a = 0;
+      |     ^     
+../test//s01.sd:8:10: Error C02: Variable 'n' is not declared.
+    8 |   while (n > 0)
+      |          ^     
+../test//s01.sd:13:10: Error C07: Failed to convert 'int32' to 'void' implicitly.
+   13 |   return res;
+      |          ^~~ 

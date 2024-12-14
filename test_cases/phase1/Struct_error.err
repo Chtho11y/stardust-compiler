@@ -1,0 +1,43 @@
+/******************************Error Detected******************************/
+../test//Struct_error.sd:1:8: Error B: Invalid external declaration.
+    1 | struct {
+      |        ^
+../test//Struct_error.sd:1:8: Error B: Invalid external declaration.
+    1 | struct {
+      |        ^
+../test//Struct_error.sd:2:5: Error B: Invalid external declaration.
+    2 |     a : int, 
+      |     ^        
+../test//Struct_error.sd:2:7: Error B: Invalid external declaration.
+    2 |     a : int, 
+      |       ^      
+../test//Struct_error.sd:2:9: Error B: Invalid external declaration.
+    2 |     a : int, 
+      |         ^~~  
+../test//Struct_error.sd:2:12: Error B: Invalid external declaration.
+    2 |     a : int, 
+      |            ^ 
+../test//Struct_error.sd:3:5: Error B: Invalid external declaration.
+    3 |     b : float
+      |     ^        
+../test//Struct_error.sd:3:7: Error B: Invalid external declaration.
+    3 |     b : float
+      |       ^      
+../test//Struct_error.sd:3:9: Error B: Invalid external declaration.
+    3 |     b : float
+      |         ^~~~~
+../test//Struct_error.sd:4:1: Error B: Expected block before }.
+    4 | };
+      | ^ 
+../test//Struct_error.sd:6:6: Error B: Missing :.
+    6 |     b, 
+      |      ^ 
+../test//Struct_error.sd:7:9: Error B: Undeclared type.
+    7 |     c : float,
+      |         ^~~~~ 
+../test//Struct_error.sd:9:1: Error B: Missing :.
+    9 | };
+      | ^ 
+../test//Struct_error.sd:11:1: Error B: Missing }.
+   11 | ;
+      | ^

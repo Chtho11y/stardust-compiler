@@ -1,0 +1,267 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: calculateBinomialCoefficient
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: row
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: col
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: coefficient
+          TypeDesc
+            Identifier: int
+          IntLiteral: 1
+        VarDecl
+          ConstDesc: let
+          Identifier: i
+          TypeDesc
+            Identifier: int
+          IntLiteral: 0
+        IfStmt
+          Operator: Lt
+            Identifier: row
+            Identifier: col
+          Stmts
+            Stmt: return
+              IntLiteral: 0
+        IfStmt
+          Operator: Gt
+            Identifier: col
+            Operator: Sub
+              Identifier: row
+              Identifier: col
+          Stmts
+            Operator: Assign
+              Identifier: col
+              Operator: Sub
+                Identifier: row
+                Identifier: col
+        WhileStmt
+          Operator: Lt
+            Identifier: i
+            Identifier: col
+          Stmts
+            Operator: Assign
+              Identifier: coefficient
+              Operator: Mul
+                Identifier: coefficient
+                Operator: Sub
+                  Identifier: row
+                  Identifier: i
+            Operator: Assign
+              Identifier: coefficient
+              Operator: Div
+                Identifier: coefficient
+                Operator: Add
+                  Identifier: i
+                  IntLiteral: 1
+            Operator: Assign
+              Identifier: i
+              Operator: Add
+                Identifier: i
+                IntLiteral: 1
+        Identifier: coefficient
+    FuncDecl
+      Identifier: read
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        IntLiteral: 0
+    FuncDecl
+      Identifier: write
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc
+            Identifier: int
+      TypeDesc: #auto
+      Stmts
+    FuncDecl
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: r
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: c
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: coe
+          TypeDesc
+            Identifier: int
+        Operator: Assign
+          Identifier: r
+          Operator: Call
+            Identifier: read
+            FuncArgs
+        Operator: Assign
+          Identifier: c
+          Operator: Call
+            Identifier: read
+            FuncArgs
+        Operator: Assign
+          Identifier: coe
+          Operator: Call
+            Identifier: calculateBinomialCoefficient
+            FuncArgs
+              Identifier: r
+              Identifier: c
+        Operator: Call
+          Identifier: write
+          FuncArgs
+            Identifier: coe
+        IntLiteral: 0
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): calculateBinomialCoefficient#2: (int32, int32) -> int32, main#8: () -> void, read#0: () -> int32, write#1: (int32) -> void
+    FuncDecl((int32, int32) -> int32)
+      Identifier: calculateBinomialCoefficient
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: row
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: col
+          TypeDesc: int32
+      TypeDesc: int32
+      StmtsRet(int32): coefficient#5: int32, col#4: int32, i#6: int32, row#3: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: coefficient
+          TypeDesc: int32
+          IntLiteral(int32): 1
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: i
+          TypeDesc: int32
+          IntLiteral(int32): 0
+        IfStmt(void)
+          Operator(bool): Lt
+            Identifier(&int32): row
+            Identifier(&int32): col
+          Stmts(void)
+            Stmt(void): return
+              IntLiteral(int32): 0
+        IfStmt(void)
+          Operator(bool): Gt
+            Identifier(&int32): col
+            Operator(int32): Sub
+              Identifier(&int32): row
+              Identifier(&int32): col
+          Stmts(void)
+            Operator(&int32): Assign
+              Identifier(&int32): col
+              Operator(int32): Sub
+                Identifier(&int32): row
+                Identifier(&int32): col
+        WhileStmt(void)
+          Operator(bool): Lt
+            Identifier(&int32): i
+            Identifier(&int32): col
+          Stmts(void)
+            Operator(&int32): Assign
+              Identifier(&int32): coefficient
+              Operator(int32): Mul
+                Identifier(&int32): coefficient
+                Operator(int32): Sub
+                  Identifier(&int32): row
+                  Identifier(&int32): i
+            Operator(&int32): Assign
+              Identifier(&int32): coefficient
+              Operator(int32): Div
+                Identifier(&int32): coefficient
+                Operator(int32): Add
+                  Identifier(&int32): i
+                  IntLiteral(int32): 1
+            Operator(&int32): Assign
+              Identifier(&int32): i
+              Operator(int32): Add
+                Identifier(&int32): i
+                IntLiteral(int32): 1
+        Identifier(&int32): coefficient
+    FuncDecl(error)
+      Identifier: read
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32)
+        IntLiteral(int32): 0
+    FuncDecl(error)
+      Identifier: write
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32
+      TypeDesc: #auto
+      Stmts(void): a#7: int32
+    FuncDecl(() -> void)
+      Identifier: main
+      FuncParams
+      TypeDesc: #auto
+      StmtsRet(int32): c#10: int32, coe#11: int32, r#9: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: r
+          TypeDesc: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: coe
+          TypeDesc: int32
+        Operator(&int32): Assign
+          Identifier(&int32): r
+          Operator(int32): Call
+            Identifier(&() -> int32): read
+            FuncArgs(())
+        Operator(&int32): Assign
+          Identifier(&int32): c
+          Operator(int32): Call
+            Identifier(&() -> int32): read
+            FuncArgs(())
+        Operator(&int32): Assign
+          Identifier(&int32): coe
+          Operator(int32): Call
+            Identifier(&(int32, int32) -> int32): calculateBinomialCoefficient
+            FuncArgs((&int32, &int32))
+              Identifier(&int32): r
+              Identifier(&int32): c
+        Operator(void): Call
+          Identifier(&(int32) -> void): write
+          FuncArgs((&int32))
+            Identifier(&int32): coe
+        IntLiteral(int32): 0
+
+/******************************Error Detected******************************/
+../test2//test_nfeature4.sd:25:1: Error C01: Function 'read' is defined twice.
+   25 | func read() -> int {0}
+      | ^~~~~~~~~             
+../test2//test_nfeature4.sd:26:1: Error C01: Function 'write' is defined twice.
+   26 | func write(a: int) {}
+      | ^~~~~~~~~~           

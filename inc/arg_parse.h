@@ -11,6 +11,7 @@ struct ArgParser{
     bool show_warning = true;
     bool print_ast = true;
     bool print_ast_sym = true;
+    bool no_color = false;
 
     std::string ir_target = "spl";
 
@@ -49,7 +50,8 @@ struct ArgParser{
             option("--ir=spl").set(ir_target, std::string("spl")) |
             option("--ir=llvm").set(ir_target, std::string("llvm")).if_conflicted([](){
                 std::cout << "conflict setting of --ir target" << std::endl;
-            }) % "set intermediate representation format"
+            }) % "set intermediate representation format",
+            option("-nc", "--no-color").set(no_color, true)
         );
     }
 

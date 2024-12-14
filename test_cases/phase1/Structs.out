@@ -1,0 +1,109 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    StructDecl
+      Identifier: Point
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc
+            Identifier: int
+    VarDecl
+      ConstDesc: let
+      Identifier: p
+      TypeDesc
+        Identifier: Point
+      StructInstance
+        StructInstanceMem
+          Identifier: x
+          IntLiteral: 10
+        StructInstanceMem
+          Identifier: y
+          IntLiteral: 20
+    StructDecl
+      Identifier: Circle
+      StructMem
+        VarDecl
+          ConstDesc: let
+          Identifier: center
+          TypeDesc
+            Identifier: Point
+        VarDecl
+          ConstDesc: let
+          Identifier: radius
+          TypeDesc
+            Identifier: int
+    VarDecl
+      ConstDesc: let
+      Identifier: center
+      TypeDesc: #auto
+      StructInstance
+        StructInstanceMem
+          Identifier: x
+          IntLiteral: 0
+        StructInstanceMem
+          Identifier: y
+          IntLiteral: 0
+    VarDecl
+      ConstDesc: let
+      Identifier: c
+      TypeDesc
+        Identifier: Circle
+      StructInstance
+        StructInstanceMem
+          Identifier: center
+          Identifier: center
+        StructInstanceMem
+          Identifier: radius
+          IntLiteral: 5
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): c#4: Circle#2, center#3: Point#1, p#2: Point#1, read#0: () -> int32, write#1: (int32) -> void
+    StructDecl: Point
+    x: int32
+    y: int32
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: p
+      TypeDesc: Point#1
+      StructInstance(Point#1)
+        StructInstanceMem
+          Identifier: x
+          IntLiteral(int32): 10
+        StructInstanceMem
+          Identifier: y
+          IntLiteral(int32): 20
+    StructDecl: Circle
+    center: Point#1
+    radius: int32
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: center
+      TypeDesc: #auto
+      StructInstance(Point#1)
+        StructInstanceMem
+          Identifier: x
+          IntLiteral(int32): 0
+        StructInstanceMem
+          Identifier: y
+          IntLiteral(int32): 0
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: c
+      TypeDesc: Circle#2
+      StructInstance(Circle#2)
+        StructInstanceMem
+          Identifier: center
+          Identifier(&Point#1): center
+        StructInstanceMem
+          Identifier: radius
+          IntLiteral(int32): 5
+
+/******************************Error Detected******************************/

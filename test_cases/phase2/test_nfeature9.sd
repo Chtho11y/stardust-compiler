@@ -1,0 +1,8 @@
+func main() {
+    let a : int[10] = [0, 0];
+    let b : (int[10])*[10][10] = [[&a]];
+    struct c {
+        a : int32
+    }
+    let d = [struct {a : 1}];
+}

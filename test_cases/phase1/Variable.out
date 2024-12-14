@@ -1,0 +1,61 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    VarDecl
+      ConstDesc: let
+      Identifier: x
+      TypeDesc
+        Identifier: int
+      IntLiteral: 10
+    VarDecl
+      ConstDesc: const
+      Identifier: y
+      TypeDesc
+        Identifier: int
+      IntLiteral: 20
+    VarDecl
+      ConstDesc: let
+      Identifier: z
+      TypeDesc: #auto
+      IntLiteral: 30
+    VarDecl
+      ConstDesc: let
+      Identifier: a
+      TypeDesc
+        Identifier: int
+    VarDecl
+      ConstDesc: const
+      Identifier: b
+      TypeDesc
+        Identifier: int
+      IntLiteral: 42
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): a#5: int32, b#6: int32, read#0: () -> int32, write#1: (int32) -> void, x#2: int32, y#3: int32, z#4: int32
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: x
+      TypeDesc: int32
+      IntLiteral(int32): 10
+    VarDecl(void)
+      ConstDesc: const
+      Identifier: y
+      TypeDesc: int32
+      IntLiteral(int32): 20
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: z
+      TypeDesc: #auto
+      IntLiteral(int32): 30
+    VarDecl(void)
+      ConstDesc: let
+      Identifier: a
+      TypeDesc: int32
+    VarDecl(void)
+      ConstDesc: const
+      Identifier: b
+      TypeDesc: int32
+      IntLiteral(int32): 42
+
+/******************************Error Detected******************************/

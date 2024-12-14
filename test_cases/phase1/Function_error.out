@@ -1,0 +1,154 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: f
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #err
+      Err
+      Stmts
+    FuncDecl
+      Identifier: f
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: #err
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #err
+      Err
+      Stmts
+    FuncDecl
+      Err
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: #err
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: #err
+      TypeDesc: #auto
+      Stmts
+    Err
+    Err
+    Err
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): #4: (error, error) -> void, f#2: (int32, error) -> error, read#0: () -> int32, write#1: (int32) -> void
+    FuncDecl((int32, error) -> error)
+      Identifier: f
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: error
+      Err
+      Stmts(void): a#3: int32
+    FuncDecl(error)
+      Identifier: f
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: error
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: error
+      Err
+      Stmts(void)
+    FuncDecl((error, error) -> void)
+      Err
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: error
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: error
+      TypeDesc: #auto
+      Stmts(void)
+    Err(error)
+    Err(error)
+    Err(error)
+
+/******************************Error Detected******************************/
+../test//Function_error.sd:1:17: Error C14: Unknown type of variable 'b'.
+    1 | func f(a : int, b : float) -> {
+      |                 ^              
+../test//Function_error.sd:1:21: Error B: Undeclared type.
+    1 | func f(a : int, b : float) -> {
+      |                     ^~~~~      
+../test//Function_error.sd:1:31: Error B: Invalid return type description.
+    1 | func f(a : int, b : float) -> {
+      |                               ^
+../test//Function_error.sd:4:1: Error C01: Function 'f' is defined twice.
+    4 | func f(a , b : float) -> {
+      | ^~~~~~                    
+../test//Function_error.sd:4:8: Error C14: Unknown type of variable 'a'.
+    4 | func f(a , b : float) -> {
+      |        ^                  
+../test//Function_error.sd:4:10: Error B: Missing :.
+    4 | func f(a , b : float) -> {
+      |          ^                
+../test//Function_error.sd:4:12: Error C14: Unknown type of variable 'b'.
+    4 | func f(a , b : float) -> {
+      |            ^              
+../test//Function_error.sd:4:16: Error B: Undeclared type.
+    4 | func f(a , b : float) -> {
+      |                ^~~~~      
+../test//Function_error.sd:4:26: Error B: Invalid return type description.
+    4 | func f(a , b : float) -> {
+      |                          ^
+../test//Function_error.sd:7:6: Error B: Missing function identifier.
+    7 | func (a , b : float)  {
+      |      ^                 
+../test//Function_error.sd:7:7: Error C14: Unknown type of variable 'a'.
+    7 | func (a , b : float)  {
+      |       ^                
+../test//Function_error.sd:7:9: Error B: Missing :.
+    7 | func (a , b : float)  {
+      |         ^              
+../test//Function_error.sd:7:11: Error C14: Unknown type of variable 'b'.
+    7 | func (a , b : float)  {
+      |           ^            
+../test//Function_error.sd:7:15: Error B: Undeclared type.
+    7 | func (a , b : float)  {
+      |               ^~~~~    
+../test//Function_error.sd:10:1: Error B: Inavlid function declaration.
+   10 | func (a , b : float) }
+      | ^~~~                  
+../test//Function_error.sd:10:6: Error B: Missing function identifier.
+   10 | func (a , b : float) }
+      |      ^                
+../test//Function_error.sd:10:9: Error B: Missing :.
+   10 | func (a , b : float) }
+      |         ^             
+../test//Function_error.sd:10:15: Error B: Undeclared type.
+   10 | func (a , b : float) }
+      |               ^~~~~   
+../test//Function_error.sd:10:22: Error B: Expected block before }.
+   10 | func (a , b : float) }
+      |                      ^
+../test//Function_error.sd:12:1: Error B: Expected block before }.
+   12 | }
+      | ^

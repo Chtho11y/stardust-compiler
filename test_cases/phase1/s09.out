@@ -1,0 +1,126 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: reverse
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: rev
+          TypeDesc: #auto
+          IntLiteral: 0
+        Err
+        Err
+        Stmts
+          VarDecl
+            ConstDesc: let
+            Identifier: tmp
+            TypeDesc: #auto
+          VarDecl
+            ConstDesc: let
+            Identifier: 1_digit
+            TypeDesc: #auto
+            Operator: Div
+              Identifier: x
+              IntLiteral: 10
+          Err
+          Err
+          Stmts
+            Stmt: return
+              IntLiteral: 0
+          Operator: Assign
+            Identifier: x
+            Operator: Div
+              Identifier: x
+              IntLiteral: 10
+          Operator: Assign
+            Identifier: rev
+            Operator: Add
+              Operator: Mul
+                Identifier: rev
+                IntLiteral: 10
+              Identifier: 1_digit
+        Stmt: return
+          Identifier: rev
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, reverse#2: (int32) -> int32, write#1: (int32) -> void
+    FuncDecl((int32) -> int32)
+      Identifier: reverse
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32
+      TypeDesc: int32
+      Stmts(void): rev#4: int32, x#3: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: rev
+          TypeDesc: #auto
+          IntLiteral(int32): 0
+        Err(error)
+        Err(error)
+        Stmts(void): 1_digit#5: int32
+          VarDecl(error)
+            ConstDesc: let
+            Identifier: tmp
+            TypeDesc: #auto
+          VarDecl(void)
+            ConstDesc: let
+            Identifier: 1_digit
+            TypeDesc: #auto
+            Operator(int32): Div
+              Identifier(&int32): x
+              IntLiteral(int32): 10
+          Err(error)
+          Err(error)
+          Stmts(void)
+            Stmt(void): return
+              IntLiteral(int32): 0
+          Operator(&int32): Assign
+            Identifier(&int32): x
+            Operator(int32): Div
+              Identifier(&int32): x
+              IntLiteral(int32): 10
+          Operator(&int32): Assign
+            Identifier(&int32): rev
+            Operator(int32): Add
+              Operator(int32): Mul
+                Identifier(&int32): rev
+                IntLiteral(int32): 10
+              Identifier(&int32): 1_digit
+        Stmt(void): return
+          Identifier(&int32): rev
+
+/******************************Error Detected******************************/
+../test//s09.sd:3:17: Error B: Invalid while-block.
+    3 |     while x != 0) {
+      |                 ^  
+../test//s09.sd:3:17: Error B: Expected expression before ')'.
+    3 |     while x != 0) {
+      |                 ^  
+../test//s09.sd:4:13: Error C12: Failed to infer the type of 'tmp'.
+    4 |         let tmp;
+      |             ^~~ 
+../test//s09.sd:5:13: Error A: Invalid identifier.
+    5 |         let 1_digit = x / 10;
+      |             ^~~~~~~          
+../test//s09.sd:6:46: Error B: Invalid if-block.
+    6 |         if rev < 0 / 10 || rev > 1000000 / 10) {
+      |                                              ^  
+../test//s09.sd:6:46: Error B: Expected expression before ')'.
+    6 |         if rev < 0 / 10 || rev > 1000000 / 10) {
+      |                                              ^  
+../test//s09.sd:10:26: Error A: Invalid identifier.
+   10 |         rev = rev * 10 + 1_digit;
+      |                          ^~~~~~~ 

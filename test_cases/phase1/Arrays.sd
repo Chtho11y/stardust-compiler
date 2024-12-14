@@ -1,0 +1,6 @@
+// 数组初始化
+let numbers: int[5] = [1, 2, 3, 4, 5];
+
+// 访问数组元素
+let first: int = numbers[0];
+let last: int = numbers[numbers.length - 1];

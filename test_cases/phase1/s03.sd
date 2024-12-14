@@ -1,0 +1,10 @@
+func test_1_r09()-> int{
+    let m = 1;
+    let n = 2.2;
+    let x: int[5];
+    let y: int[10];
+    x[m] = ;
+    y[n = 8;
+    =2;
+    return x[y[2]];
+}

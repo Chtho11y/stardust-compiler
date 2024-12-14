@@ -210,13 +210,13 @@ Program
 
 /**************************AST with symbols table**************************/
 Program(void)
-  ExtDecl(void): main: () -> void
+  ExtDecl(void): main#2: () -> void, read#0: () -> int32, write#1: (int32) -> void
     FuncDecl(() -> void)
       Identifier: main
       FuncParams
       TypeDesc: #auto
       Stmts(void)
-        Stmts(void): a: int32
+        Stmts(void): a#3: int32
           VarDecl(void)
             ConstDesc: let
             Identifier: a
@@ -227,7 +227,7 @@ Program(void)
             Identifier: a
             TypeDesc: #auto
             IntLiteral(int32): 1
-        Stmts(void): b: error
+        Stmts(void): b#4: error
           Operator(error): Add
             Identifier(error): b
             Identifier(error): b
@@ -239,15 +239,15 @@ Program(void)
             IntLiteral(int32): 1
             FuncArgs((int32))
               IntLiteral(int32): 1
-        Stmts(void): a: a#1
+        Stmts(void): a#5: a#1
           StructDecl: a
           VarDecl(void)
             ConstDesc: let
             Identifier: a
             TypeDesc: a#1
           Operator(error): Or
-            DoubleLiteral(float64): 1.0
-            DoubleLiteral(float64): 1.0
+            DoubleLiteral(float32): 1.0
+            DoubleLiteral(float32): 1.0
           Operator(error): Add
             Identifier(&a#1): a
             IntLiteral(int32): 1
@@ -258,7 +258,7 @@ Program(void)
           Operator(&() -> void): Assign
             Identifier(&() -> void): main
             Identifier(&() -> void): main
-        Stmts(void): a: int32*, b: void*
+        Stmts(void): a#7: int32*, b#6: void*
           VarDecl(void)
             ConstDesc: let
             Identifier: b
@@ -273,7 +273,7 @@ Program(void)
             Identifier(&void*): b
           Operator(error): Ref
             IntLiteral(int32): 1
-        Stmts(void): a: float32, b: int32, error_ret: () -> int32, normal_ret: () -> int32, tail_ret: () -> int32
+        Stmts(void): a#8: float32, b#9: int32, error_ret#12: () -> int32, normal_ret#11: () -> int32, tail_ret#10: () -> int32
           VarDecl(void)
             ConstDesc: let
             Identifier: a
@@ -283,12 +283,12 @@ Program(void)
             ConstDesc: let
             Identifier: b
             TypeDesc: int32
-            DoubleLiteral(float64): 1.0
+            DoubleLiteral(float32): 1.0
           Operator(&char): At
-            StringLiteral(char[2]): ""
-            DoubleLiteral(float64): 1.0
+            StringLiteral(char[1]): ""
+            DoubleLiteral(float32): 1.0
           IfStmt(void)
-            DoubleLiteral(float64): 1.0
+            DoubleLiteral(float32): 1.0
             Stmts(void)
             Stmts(void)
           Stmt(void)
@@ -315,7 +315,7 @@ Program(void)
           Operator(st1#2): Convert
             IntLiteral(int32): 1
             TypeDesc: st1#2
-        Stmts(void): a: st#3
+        Stmts(void): a#13: st#3
           StructDecl: st
           a: int32
           b: float32
@@ -340,7 +340,7 @@ Program(void)
             IntLiteral(int32): 1
             Stmts(void)
               Stmt(void): break
-        Stmts(void): a: error
+        Stmts(void): a#14: error
           VarDecl(void)
             ConstDesc: let
             Identifier: a
@@ -372,35 +372,85 @@ Program(void)
             Identifier(&() -> void): main
             FuncArgs((int32))
               IntLiteral(int32): 1
-        Stmts(void): a: error
+        Stmts(void): a#15: error
           VarDecl(void)
             ConstDesc: let
             Identifier: a
             TypeDesc: void
 
 /******************************Error Detected******************************/
-Error C01: Variable 'a' is defined twice. (5, 13) 
-Error C02: Variable 'b' is not declared. (11, 9) 
-Error C02: Variable 'b' is not declared. (11, 13) 
-Error C03: Expression should be array or pointer type, but it is 'int32'. (16, 10) 
-Error C03: Expression should be function type, but it is 'int32'. (17, 10) 
-Error C04: no match operator: Or(float64, float64) (24, 13) 
-Error C04: no match operator: Add(&a#1, int32) (25, 11) 
-Error C05: lvalue required as left operand of assignment (31, 11) 
-Error C05: Cannot assign to function. (32, 14) 
-Error C06: cannot dereference pointer of void type. (40, 9) 
-Error C06: lvalue required as operand of reference (41, 9) 
-Error C07: Failed to convert 'float64' to 'int32' implicitly. (47, 22) 
-Error C07: Failed to convert 'float64' to 'uint64' implicitly. (48, 11) 
-Error C07: Failed to convert 'float64' to 'bool' implicitly. (49, 9) 
-Error C07: Failed to convert 'void' to 'int32' implicitly. (59, 14) 
-Error C08: Failed to convert 'int32' to 'st1#2'. (67, 9) 
-Error C09: Type 'st#3' has no member named 'c'. (75, 10) 
-Error C10: break statement out of loop body. (80, 9) 
-Error C10: continue statement out of loop body. (81, 9) 
-Error C11: Array length should be a int literal. (89, 20) 
-Error C14: Unknown type of variable 'a'. (89, 13) 
-Error C12: Failed to infer the type of 'a'. (95, 13) 
-Error C12: No matched type for struct instance. (97, 9) 
-Error C13: Cannot call function '() -> void' with args: '(int32)'. (103, 13) 
-Error C14: Variable cannot be declared as void type. (108, 13) 
+../test2//semantic_error.sd:5:13: Error C01: Variable 'a' is defined twice.
+    5 |         let a = 1;
+      |             ^     
+../test2//semantic_error.sd:11:9: Error C02: Variable 'b' is not declared.
+   11 |         b + b;
+      |         ^     
+../test2//semantic_error.sd:16:10: Error C03: Expression should be array or pointer type, but it is 'int32'.
+   16 |         1[0];
+      |          ^   
+../test2//semantic_error.sd:17:10: Error C03: Expression should be function type, but it is 'int32'.
+   17 |         1(1);
+      |          ^   
+../test2//semantic_error.sd:24:13: Error C04: no match operator: Or(float32, float32)
+   24 |         1.0 || 1.0;
+      |             ^~     
+../test2//semantic_error.sd:25:11: Error C04: no match operator: Add(&a#1, int32)
+   25 |         a + 1;
+      |           ^   
+../test2//semantic_error.sd:31:11: Error C05: lvalue required as left operand of assignment
+   31 |         1 = 1;
+      |           ^   
+../test2//semantic_error.sd:32:14: Error C05: Cannot assign to function.
+   32 |         main = main;
+      |              ^      
+../test2//semantic_error.sd:40:9: Error C06: cannot dereference pointer of void type.
+   40 |         *b;
+      |         ^  
+../test2//semantic_error.sd:41:9: Error C06: lvalue required as operand of reference
+   41 |         &1;
+      |         ^  
+../test2//semantic_error.sd:47:24: Error C07: Failed to convert 'float32' to 'int32' implicitly.
+   47 |         let b: int32 = 1.0;
+      |                        ^~~ 
+../test2//semantic_error.sd:48:11: Error C07: Failed to convert 'float32' to 'uint64' implicitly.
+   48 |         ""[1.0];
+      |           ^     
+../test2//semantic_error.sd:49:12: Error C07: Failed to convert 'float32' to 'bool' implicitly.
+   49 |         if 1.0 {} else{};
+      |            ^~~           
+../test2//semantic_error.sd:61:9: Error C07: Failed to convert 'void' to 'int32' implicitly.
+   61 |         }
+      |         ^
+../test2//semantic_error.sd:67:10: Error C08: Failed to convert 'int32' to 'st1#2'.
+   67 |         (st1)1;
+      |          ^~~   
+../test2//semantic_error.sd:75:10: Error C09: Type 'st#3' has no member named 'c'.
+   75 |         a.c = 1;
+      |          ^      
+../test2//semantic_error.sd:80:9: Error C10: break statement out of loop body.
+   80 |         break;
+      |         ^~~~~~
+../test2//semantic_error.sd:81:9: Error C10: continue statement out of loop body.
+   81 |         continue;
+      |         ^~~~~~~~~
+../test2//semantic_error.sd:82:15: Error C07: Failed to convert 'int32' to 'bool' implicitly.
+   82 |         while 1{
+      |               ^ 
+../test2//semantic_error.sd:89:13: Error C14: Unknown type of variable 'a'.
+   89 |         let a: int[1.0];
+      |             ^           
+../test2//semantic_error.sd:89:20: Error C11: Array length should be a int literal.
+   89 |         let a: int[1.0];
+      |                    ^~~  
+../test2//semantic_error.sd:95:13: Error C12: Failed to infer the type of 'a'.
+   95 |         let a;
+      |             ^ 
+../test2//semantic_error.sd:97:9: Error C12: No matched type for struct instance.
+   97 |         struct{a: 1};
+      |         ^~~~~~~~~~~~~
+../test2//semantic_error.sd:103:13: Error C13: Cannot call function '() -> void' with args: '(int32)'.
+  103 |         main(1);
+      |             ^   
+../test2//semantic_error.sd:108:13: Error C14: Variable cannot be declared as void type.
+  108 |         let a: void;
+      |             ^       

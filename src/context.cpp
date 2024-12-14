@@ -1,28 +1,10 @@
 #include "context.h"
 
-error_list errors;
+
 
 ParserContext parser_context;
 
-void append_error(Locator loc){
-    errors.emplace_back(std::string(), loc);
-}
 
-void append_error(std::string str) {
-    errors.emplace_back(str, Locator());
-}
-
-void set_error_message(std::string str) {
-    (*--errors.end()).first = str;
-}
-
-void append_error(std::string str, Locator loc){
-    errors.push_back(std::make_pair(str, loc));
-}
-
-error_list& get_error_list(){
-    return errors;
-}
 
 Locator locator_merge(LocatorBuffer l1, LocatorBuffer l2){
     Locator a, b;
@@ -68,9 +50,9 @@ void insert_locator(Locator loc, std::string val) {
 }
 
 Locator get_next_locator(Locator loc) {
-    auto it = LocatorSet.lower_bound(std::make_pair(loc, std::string()));
-    if (++it == LocatorSet.end()) {
-        return (--it)->first;
+    auto it = LocatorSet.lower_bound(std::make_pair((Locator){loc.line_ed, loc.line_ed, loc.col_r + 1, loc.col_r}, std::string()));
+    if (it != LocatorSet.end()) {
+        return it->first;
     }
-    return it->first;
+    return (Locator){loc.line_ed, loc.line_ed, loc.col_r + 1, loc.col_r};
 }

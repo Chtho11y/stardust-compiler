@@ -1,0 +1,146 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: compare
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc
+            Identifier: int
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc
+            Identifier: int
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        IfStmt
+          Operator: Gt
+            Identifier: x
+            Identifier: y
+          StmtsRet
+            IntLiteral: 1
+          IfStmt
+            Operator: Gt
+              Identifier: y
+              Identifier: x
+            StmtsRet
+              Operator: Neg
+                IntLiteral: 1
+            StmtsRet
+              IntLiteral: 0
+    FuncDecl
+      Identifier: test_2_r09
+      FuncParams
+      TypeDesc
+        Identifier: int
+      Stmts
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc
+            Identifier: int
+          IntLiteral: 5
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc
+            Identifier: int
+          IntLiteral: 9
+        Err
+        VarDecl
+          ConstDesc: let
+          Identifier: c
+          TypeDesc
+            Identifier: int
+          IntLiteral: 7
+        Stmt: return
+          Operator: Call
+            Identifier: compare
+            FuncArgs
+              Identifier: a
+              Identifier: b
+              Identifier: c
+        Stmt: return
+          Operator: Call
+            Identifier: compare
+            FuncArgs
+              Identifier: a
+              Identifier: b
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): compare#2: (int32, int32) -> int32, read#0: () -> int32, test_2_r09#5: () -> int32, write#1: (int32) -> void
+    FuncDecl((int32, int32) -> int32)
+      Identifier: compare
+      FuncParams
+        VarDecl
+          ConstDesc: let
+          Identifier: x
+          TypeDesc: int32
+        VarDecl
+          ConstDesc: let
+          Identifier: y
+          TypeDesc: int32
+      TypeDesc: int32
+      StmtsRet(int32): x#3: int32, y#4: int32
+        IfStmt(int32)
+          Operator(bool): Gt
+            Identifier(&int32): x
+            Identifier(&int32): y
+          StmtsRet(int32)
+            IntLiteral(int32): 1
+          IfStmt(int32)
+            Operator(bool): Gt
+              Identifier(&int32): y
+              Identifier(&int32): x
+            StmtsRet(int32)
+              Operator(int32): Neg
+                IntLiteral(int32): 1
+            StmtsRet(int32)
+              IntLiteral(int32): 0
+    FuncDecl(() -> int32)
+      Identifier: test_2_r09
+      FuncParams
+      TypeDesc: int32
+      Stmts(void): a#6: int32, b#7: int32, c#8: int32
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32
+          IntLiteral(int32): 5
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: int32
+          IntLiteral(int32): 9
+        Err(error)
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: c
+          TypeDesc: int32
+          IntLiteral(int32): 7
+        Stmt(void): return
+          Operator(int32): Call
+            Identifier(&(int32, int32) -> int32): compare
+            FuncArgs((&int32, &int32, &int32))
+              Identifier(&int32): a
+              Identifier(&int32): b
+              Identifier(&int32): c
+        Stmt(void): return
+          Operator(int32): Call
+            Identifier(&(int32, int32) -> int32): compare
+            FuncArgs((&int32, &int32))
+              Identifier(&int32): a
+              Identifier(&int32): b
+
+/******************************Error Detected******************************/
+../test2//test09.sd:9:15: Error B: Expected if-block with no return value.
+    9 |     if a == b {a = 1}
+      |               ^~~~~~~
+../test2//test09.sd:11:19: Error C13: Cannot call function '(int32, int32) -> int32' with args: '(&int32, &int32, &int32)'.
+   11 |     return compare(a, b, c);
+      |                   ^         

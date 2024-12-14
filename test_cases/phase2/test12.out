@@ -1,0 +1,101 @@
+/****************************Full AST Structure****************************/
+Program
+  ExtDecl
+    FuncDecl
+      Identifier: test_2_r12
+      FuncParams
+      TypeDesc
+        Identifier: int
+      StmtsRet
+        VarDecl
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: []
+            TypeDesc
+              Identifier: int
+            IntLiteral: 3
+        VarDecl
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: []
+            TypeDesc
+              Identifier: float64
+            IntLiteral: 4
+        Operator: Assign
+          Operator: At
+            Identifier: a
+            IntLiteral: 0
+          Operator: At
+            Identifier: a
+            Operator: At
+              Identifier: a
+              IntLiteral: 2
+        Operator: Assign
+          Operator: At
+            Identifier: b
+            IntLiteral: 0
+          Operator: At
+            Identifier: b
+            Operator: At
+              Identifier: a
+              IntLiteral: 1
+        Operator: Assign
+          Operator: At
+            Identifier: a
+            IntLiteral: 0
+          Operator: At
+            Identifier: a
+            Operator: At
+              Identifier: b
+              IntLiteral: 0
+        IntLiteral: 0
+
+/**************************AST with symbols table**************************/
+Program(void)
+  ExtDecl(void): read#0: () -> int32, test_2_r12#2: () -> int32, write#1: (int32) -> void
+    FuncDecl(() -> int32)
+      Identifier: test_2_r12
+      FuncParams
+      TypeDesc: int32
+      StmtsRet(int32): a#3: int32[3], b#4: float64[4]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: a
+          TypeDesc: int32[3]
+        VarDecl(void)
+          ConstDesc: let
+          Identifier: b
+          TypeDesc: float64[4]
+        Operator(&int32): Assign
+          Operator(&int32): At
+            Identifier(&int32[3]): a
+            IntLiteral(int32): 0
+          Operator(&int32): At
+            Identifier(&int32[3]): a
+            Operator(&int32): At
+              Identifier(&int32[3]): a
+              IntLiteral(int32): 2
+        Operator(&float64): Assign
+          Operator(&float64): At
+            Identifier(&float64[4]): b
+            IntLiteral(int32): 0
+          Operator(&float64): At
+            Identifier(&float64[4]): b
+            Operator(&int32): At
+              Identifier(&int32[3]): a
+              IntLiteral(int32): 1
+        Operator(&int32): Assign
+          Operator(&int32): At
+            Identifier(&int32[3]): a
+            IntLiteral(int32): 0
+          Operator(&int32): At
+            Identifier(&int32[3]): a
+            Operator(&float64): At
+              Identifier(&float64[4]): b
+              IntLiteral(int32): 0
+        IntLiteral(int32): 0
+
+/******************************Error Detected******************************/
+../test2//test12.sd:6:13: Error C07: Failed to convert 'float64' to 'uint64' implicitly.
+    6 |     a[0] = a[b[0]];
+      |             ^      
