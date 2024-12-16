@@ -1,4 +1,5 @@
 #include "llvm_ir.h"
+#include "literal_process.h"
 #include <stack>
 #include <iostream>
 
@@ -9,6 +10,28 @@ llvm::Function* init_fn = nullptr, *main_fn = nullptr;
 std::string module_name;
 
 bool ir_is_generated = false;
+
+using llvm_val_info = std::pair<llvm::Type*, llvm::AllocaInst*>;
+// std::stack<std::map<std::string, llvm_val_info>> var_stack;
+std::map<size_t, llvm_val_info> var_table;
+std::map<size_t, llvm::GlobalVariable*> global_var_table;
+std::map<size_t, llvm::StructType*> struct_table;
+
+std::stack<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> loop_stack;
+
+void gen_llvm_struct(std::shared_ptr<StructType> st);
+llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder);
+llvm::Value* gen_llvm_ir_to_type(AstNode* ast, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder);
+
+struct loop_env_guard{
+    loop_env_guard(llvm::BasicBlock *cond, llvm::BasicBlock *end){
+        loop_stack.emplace(cond, end);
+    }
+
+    ~loop_env_guard(){
+        loop_stack.pop();
+    }
+};
 
 void init(std::string name){
     module_name = name;
@@ -25,6 +48,24 @@ void inject_builtin_func(){
 
     FunctionType *fn_read_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {}, false);
     Function *fn_read = Function::Create(fn_read_tp, GlobalValue::ExternalLinkage, "read", *llvm_mod);
+
+    FunctionType *fn_puts_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {Type::getInt8PtrTy(*llvm_ctx)}, false);
+    Function *fn_puts = Function::Create(fn_puts_tp, GlobalValue::ExternalLinkage, "puts", *llvm_mod);
+
+    FunctionType *fn_putchar_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {Type::getInt32Ty(*llvm_ctx)}, false);
+    Function *fn_putchar = Function::Create(fn_putchar_tp, GlobalValue::ExternalLinkage, "putchar", *llvm_mod);
+
+    FunctionType *fn_getchar_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {}, false);
+    Function *fn_getchar = Function::Create(fn_getchar_tp, GlobalValue::ExternalLinkage, "getchar", *llvm_mod);   
+
+    FunctionType *fn_malloc_tp = FunctionType::get(Type::getInt8PtrTy(*llvm_ctx), {Type::getInt64Ty(*llvm_ctx)}, false);
+    Function *fn_malloc = Function::Create(fn_malloc_tp, GlobalValue::ExternalLinkage, "malloc", *llvm_mod);
+
+    FunctionType *fn_free_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {Type::getInt8PtrTy(*llvm_ctx)}, false);
+    Function *fn_free = Function::Create(fn_free_tp, GlobalValue::ExternalLinkage, "free", *llvm_mod);
+
+    FunctionType *fn_clock_tp = FunctionType::get(Type::getInt64Ty(*llvm_ctx), {}, false);
+    Function *fn_clock = Function::Create(fn_clock_tp, GlobalValue::ExternalLinkage, "clock", *llvm_mod);
 }
 
 void gen_module(AstNode* ast, std::string module_name){
@@ -39,16 +80,6 @@ void gen_module(AstNode* ast, std::string module_name){
     }
     ir_is_generated = true;
 }
-
-using llvm_val_info = std::pair<llvm::Type*, llvm::AllocaInst*>;
-// std::stack<std::map<std::string, llvm_val_info>> var_stack;
-std::map<size_t, llvm_val_info> var_table;
-std::map<size_t, llvm::GlobalVariable*> global_var_table;
-std::map<size_t, llvm::StructType*> struct_table;
-
-void gen_llvm_struct(std::shared_ptr<StructType> st);
-llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder);
-llvm::Value* gen_llvm_ir_to_type(AstNode* ast, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder);
 
 llvm::AllocaInst* 
 get_alloc_inst(llvm::Function *func, llvm::Type *type, const std::string& name, 
@@ -113,6 +144,8 @@ llvm::StructType* get_llvm_struct(std::shared_ptr<StructType> type){
 
 llvm::PointerType* get_llvm_pointer(std::shared_ptr<PointerType> type){
     auto subtype = get_llvm_type(type->subtype);
+    if(subtype->isVoidTy())
+        return llvm::PointerType::get(llvm::Type::getInt8Ty(*llvm_ctx), 0);
     return llvm::PointerType::get(subtype, 0);
 }
 
@@ -347,8 +380,20 @@ llvm::Value* gen_math_op(OperatorNode *ast, IRBuilder<>& builder){
     auto res_tp = get_llvm_type(ast_tp);
     op_type op = ast->type;
 
-    auto lhs = gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, ast_tp, builder);
-    auto rhs = gen_llvm_ir_to_type(ast->ch[1], ast->ch[1]->ret_var_type, ast_tp, builder);
+    auto lhs = gen_llvm_ir(ast->ch[0], builder);
+    auto rhs = gen_llvm_ir(ast->ch[1], builder);
+
+    bool ptr_op = decay(ast_tp)->is_ptr() || decay(ast->ch[0]->ret_var_type)->is_ptr() || decay(ast->ch[1]->ret_var_type)->is_ptr();
+
+    if(!ptr_op){
+        lhs = gen_convert(lhs, ast->ch[0]->ret_var_type, ast_tp, builder);
+        rhs = gen_convert(rhs, ast->ch[1]->ret_var_type, ast_tp, builder);
+    }else{
+        if(!decay(ast->ch[0]->ret_var_type)->is_array())
+            lhs = gen_convert(lhs, ast->ch[0]->ret_var_type, decay(ast->ch[0]->ret_var_type), builder);
+        if(!decay(ast->ch[1]->ret_var_type)->is_array())
+            rhs = gen_convert(rhs, ast->ch[1]->ret_var_type, decay(ast->ch[1]->ret_var_type), builder);        
+    }
 
     switch(op){
     case op_type::Add:{
@@ -356,10 +401,38 @@ llvm::Value* gen_math_op(OperatorNode *ast, IRBuilder<>& builder){
             return builder.CreateAdd(lhs, rhs);
         else if(res_tp->isFloatingPointTy())
             return builder.CreateFAdd(lhs, rhs);
+        else if (lhs->getType()->isPointerTy() && rhs->getType()->isIntegerTy()){
+            // lhs->print(llvm::outs());
+            lhs = gen_convert(lhs, decay(ast->ch[0]->ret_var_type), as_ptr_type(ast->ch[0]->ret_var_type), builder);
+            return builder.CreateGEP(lhs, rhs);
+        }
+        else if (rhs->getType()->isPointerTy() && lhs->getType()->isIntegerTy()){
+            rhs = gen_convert(rhs, decay(ast->ch[1]->ret_var_type), as_ptr_type(ast->ch[1]->ret_var_type), builder);
+            return builder.CreateGEP(rhs, lhs);
+        }
+            
+
         break;
     }
 
     case op_type::Sub:{
+
+        if(ptr_op){
+            if (lhs->getType()->isPointerTy() && rhs->getType()->isIntegerTy()) {
+                llvm::Value* neg_rhs = builder.CreateNeg(rhs);
+                return builder.CreateGEP(lhs, neg_rhs);
+            } else if (lhs->getType()->isPointerTy() && rhs->getType()->isPointerTy()) {
+
+                auto elemSize = llvm::ConstantExpr::getSizeOf(
+                    lhs->getType()->getPointerElementType());
+                llvm::Value* lhsToInt = builder.CreatePtrToInt(lhs, builder.getInt64Ty());
+                llvm::Value* rhsToInt = builder.CreatePtrToInt(rhs, builder.getInt64Ty());
+                llvm::Value* diff = builder.CreateSub(lhsToInt, rhsToInt);
+                return builder.CreateExactSDiv(diff, elemSize);
+            }
+            break;
+        }
+
         if(res_tp->isIntegerTy())
             return builder.CreateSub(lhs, rhs);
         else if(res_tp->isFloatingPointTy())
@@ -458,7 +531,7 @@ llvm::Value* gen_cmp_op(OperatorNode *ast, IRBuilder<>& builder){
             return builder.CreateFCmpOGT(lhs, rhs);
     }
     case op_type::Lt :{
-        if(llvm_comm_tp->isIntegerTy() )
+        if(llvm_comm_tp->isIntegerTy() || llvm_comm_tp->isPointerTy())
             return comm_tp->is_signed() ? builder.CreateICmpSLT(lhs, rhs) : builder.CreateICmpULT(lhs, rhs);
         else if(llvm_comm_tp->isFloatingPointTy())
             return builder.CreateFCmpOLT(lhs, rhs);
@@ -490,7 +563,7 @@ llvm::Value* gen_assign_op(OperatorNode* ast, IRBuilder<>& builder){
             break;
         }
 
-        case op_type::Sub:{
+        case op_type::SubEq:{
             if(res_tp->isIntegerTy())
                 res = builder.CreateSub(lhs, rhs);
             else if(res_tp->isFloatingPointTy())
@@ -498,7 +571,7 @@ llvm::Value* gen_assign_op(OperatorNode* ast, IRBuilder<>& builder){
             break;
         }
 
-        case op_type::Mul:{
+        case op_type::MulEq:{
             if(res_tp->isIntegerTy())
                 res = builder.CreateMul(lhs, rhs);
             else if(res_tp->isFloatingPointTy())
@@ -506,14 +579,15 @@ llvm::Value* gen_assign_op(OperatorNode* ast, IRBuilder<>& builder){
             break;
         }
 
-        case op_type::Div:{
+        case op_type::DivEq:{
             if(res_tp->isIntegerTy())
                 res = ast_tp->is_signed() ? builder.CreateSDiv(lhs, rhs): builder.CreateUDiv(lhs, rhs);
             else if(res_tp->isFloatingPointTy())
                 res = builder.CreateFDiv(lhs, rhs);
             break;
         }
-
+        default:
+            throw std::invalid_argument("op is not assign");
         }
     }
     builder.CreateStore(res, lvalue);
@@ -545,10 +619,17 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
 
 llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
     if(ast->type == op_type::At){
+
         auto arr = gen_llvm_ir(ast->ch[0], builder);
         auto idx = gen_llvm_ir_to_type(ast->ch[1], ast->ch[1]->ret_var_type, get_type("uint64"), builder);
         auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
-        return builder.CreateGEP(arr, {zero, idx});
+        if(decay(ast->ch[0]->ret_var_type)->is_array())
+            return builder.CreateGEP(arr, {zero, idx});
+        else if(decay(ast->ch[0]->ret_var_type)->is_ptr()){
+            auto ptr = gen_convert(arr, ast->ch[0]->ret_var_type, decay(ast->ch[0]->ret_var_type), builder);
+            return builder.CreateGEP(ptr, idx);
+        }
+        throw std::invalid_argument("unexpected type");
 
     }else if(ast->type == op_type::Access){
         
@@ -586,6 +667,16 @@ llvm::Value* gen_operator(OperatorNode* ast, IRBuilder<>& builder){
     if(op == op_type::Access || op == op_type::At)
         return gen_access_op(ast, builder);
     
+    if(op == op_type::Ref){
+        auto ret = gen_llvm_ir(ast->ch[0], builder);
+        return ret;
+    }
+    
+    if(op == op_type::DeRef){
+        auto ptr = gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, decay(ast->ch[0]->ret_var_type), builder);
+        return ptr;
+    }
+    
     throw std::invalid_argument("unsupport op: " + get_op_name(op));
 }
 
@@ -594,13 +685,34 @@ llvm::Value* gen_literal(AstNode* ast, IRBuilder<>& builder){
     switch (ast->type)
     {
     case IntLiteral:
-        return ConstantInt::get(Type::getInt32Ty(*llvm_ctx), atoi(ast->str.c_str()));
+        return ConstantInt::get(Type::getInt32Ty(*llvm_ctx), parse_int(ast->str));
     
     case DoubleLiteral:
-        return ConstantFP::get(Type::getFloatTy(*llvm_ctx), atof(ast->str.c_str()));
+        return ConstantFP::get(Type::getFloatTy(*llvm_ctx), parse_double(ast->str));
     
     case BoolLiteral:
         return ConstantInt::get(Type::getInt1Ty(*llvm_ctx), ast->str == "true");
+
+    case CharLiteral:
+        return ConstantInt::get(Type::getInt8Ty(*llvm_ctx), parse_char(ast->str));
+
+    case node_type::StringLiteral:{
+        Constant *str_cnst = ConstantDataArray::getString(*llvm_ctx, parse_string(ast->str), true);
+        GlobalVariable *str_var = new GlobalVariable(
+            *llvm_mod,
+            str_cnst->getType(),
+            true,
+            GlobalValue::PrivateLinkage,
+            str_cnst,
+            ".str"
+        );
+
+        str_var->setAlignment(MaybeAlign(1));
+        auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
+        auto arr = builder.CreateGEP(str_var, zero);
+        // return builder.CreateLoad(arr);
+        return arr;
+    }
     
     default:
         throw std::invalid_argument("unsupported literal");
@@ -609,6 +721,40 @@ llvm::Value* gen_literal(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_for_stmt(AstNode* ast, IRBuilder<>& builder){
+    using llvm::BasicBlock;
+    auto fn = builder.GetInsertBlock()->getParent();
+    
+    BasicBlock *b_begin = BasicBlock::Create(*llvm_ctx, "for.begin", fn);
+    BasicBlock *b_nxt = BasicBlock::Create(*llvm_ctx, "for.nxt");
+    BasicBlock *b_cond = BasicBlock::Create(*llvm_ctx, "for.cond");
+    BasicBlock *b_end = BasicBlock::Create(*llvm_ctx, "for.end");
+
+    loop_env_guard _guard(b_nxt, b_end);
+
+    gen_llvm_ir(ast->ch[0], builder);
+
+    builder.CreateBr(b_cond);
+    builder.SetInsertPoint(b_begin);
+    gen_llvm_ir(ast->ch[3], builder);
+    builder.CreateBr(b_nxt);
+
+    builder.SetInsertPoint(b_nxt);
+    fn->getBasicBlockList().push_back(b_nxt);
+    gen_llvm_ir(ast->ch[2], builder);
+    builder.CreateBr(b_cond);
+
+    builder.SetInsertPoint(b_cond);
+    fn->getBasicBlockList().push_back(b_cond);
+    if(ast->ch[1]->type == Stmt && ast->ch[1]->str == ""){
+        builder.CreateBr(b_begin);
+    }else{
+        auto cond = gen_llvm_ir(ast->ch[1], builder);
+        builder.CreateCondBr(cond, b_begin, b_end);
+    }
+
+    builder.SetInsertPoint(b_end);
+    fn->getBasicBlockList().push_back(b_end);
+
     return nullptr;
 }
 
@@ -619,6 +765,8 @@ llvm::Value* gen_while_stmt(AstNode* ast, IRBuilder<>& builder){
     BasicBlock *b_begin = BasicBlock::Create(*llvm_ctx, "while.begin", fn);
     BasicBlock *b_cond = BasicBlock::Create(*llvm_ctx, "while.cond");
     BasicBlock *b_end = BasicBlock::Create(*llvm_ctx, "while.end");
+
+    loop_env_guard _guard(b_cond, b_end);
 
     builder.CreateBr(b_cond);
 
@@ -733,7 +881,7 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
     }
 
     case ForStmt:{
-        return nullptr;
+        return gen_for_stmt(ast, builder);
     }
 
     case VarDecl:{
@@ -747,17 +895,34 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
 
     case Stmt:{
         if(ast->str == "return"){
+            llvm::Value* res;
             if(ast->ch.size()){
                 auto ast_fn = Adaptor<FuncDecl>(ast->get_func_parent());
                 auto ret = gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, 
                                                             ast_fn.type_info->ret_type, builder);
-                return builder.CreateRet(ret);
+                res = builder.CreateRet(ret);
+            }else{
+                res =  builder.CreateRetVoid();
             }
-            return builder.CreateRetVoid();
+            
+            auto fn = builder.GetInsertBlock()->getParent();
+            llvm::BasicBlock *never_reach = llvm::BasicBlock::Create(*llvm_ctx, "never", fn);
+            builder.SetInsertPoint(never_reach);
+            return res;
         }else if(ast->str == "break"){
-
+            auto [nxt, end] = loop_stack.top();
+            builder.CreateBr(end);
+            auto fn = builder.GetInsertBlock()->getParent();
+            llvm::BasicBlock *never_reach = llvm::BasicBlock::Create(*llvm_ctx, "never", fn);
+            builder.SetInsertPoint(never_reach);
+            return nullptr;
         }else if(ast->str == "continue"){
-
+            auto [nxt, end] = loop_stack.top();
+            builder.CreateBr(nxt);
+            auto fn = builder.GetInsertBlock()->getParent();
+            llvm::BasicBlock *never_reach = llvm::BasicBlock::Create(*llvm_ctx, "never", fn);
+            builder.SetInsertPoint(never_reach);
+            return nullptr;
         }else if(ast->str == ""){
             return nullptr;
         }
@@ -788,6 +953,11 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
         return ret;
     }
 
+    case FuncDecl:{
+        throw std::invalid_argument("inner function is not support");
+        return nullptr;
+    }
+
     default:
         if(ast->is_literal()){
             return gen_literal(ast, builder);
@@ -799,12 +969,18 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_ptr ast_to, IRBuilder<>& builder){
-    // std::cout << "trying covert: " << ast_from->to_string() << " " 
-    //             << ast_from->is_ref() << " to " << ast_to->to_string() << " " << ast_to->is_ref() << std::endl;
+    // std::cout << "trying covert: " << ast_from->to_string() << " to " << ast_to->to_string() << std::endl;
     auto from = get_llvm_type(ast_from);
     auto to = get_llvm_type(ast_to);
     auto from_signed = ast_from->is_signed();
     auto to_signed = ast_to->is_signed();
+
+    if (decay(ast_from)->is_array() && ast_to->is_ptr()) {
+        // Array to Pointer Conversion
+        // Convert an array type to a pointer to its element type
+        // std::cout << "decay1" << std::endl;
+        return builder.CreateGEP(from_v, {builder.getInt32(0), builder.getInt32(0)});
+    }
 
     if(ast_from->is_ref() && !ast_to->is_ref()){
         // std::cout << "deref" << std::endl;
@@ -821,6 +997,20 @@ llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_pt
 
     if(ast_from->is_same(ast_to.get()))
         return from_v;
+
+    if(ast_from->is_ptr() && ast_to->is_ptr()){
+        return builder.CreatePointerCast(from_v, to, "ptr");
+    }
+
+    if (from->isPointerTy() && to->isIntegerTy()) {
+        // Pointer to Integer Conversion
+        return builder.CreatePtrToInt(from_v, to);
+    }
+
+    if (from->isIntegerTy() && to->isPointerTy()) {
+        // Integer to Pointer Conversion
+        return builder.CreateIntToPtr(from_v, to);
+    }
 
     if (from->isIntegerTy()) {
         if(to->isIntegerTy()){

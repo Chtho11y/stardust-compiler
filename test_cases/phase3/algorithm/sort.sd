@@ -1,0 +1,133 @@
+
+func print(x: int64){
+    let buf: char[20];
+    let cnt = 0;
+    if x == 0{
+        let v = putchar('0');
+        return;
+    }
+    while x > 0{
+        buf[cnt] = (char)(x%10) + '0';
+        x /= 10;
+        cnt += 1;
+    }
+    while cnt > 0{
+        cnt -= 1;
+        putchar(buf[cnt]);
+    }
+}
+
+func print_array(begin: int*, end: int*){
+    for; begin != end; begin = begin + 1{
+        print(*begin);
+        putchar(' ');
+    }
+    putchar('\n');
+}
+
+func swap(a: int*, b: int*){
+    let tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+
+/*
+func qsort(begin: int*, end: int*){
+    if(end - begin <= 1){
+        return;
+    }
+    print(end - begin);
+    putchar(':');
+    print((int)begin);
+
+    putchar('-');
+    putchar('>');
+
+    write((int)end);
+
+    let lt = begin;
+    let gt = end;
+    let p = lt;
+	let pivot = *begin;
+	write(pivot);
+    while p < gt{
+        print(*p);
+        putchar(':');
+        print((int)lt);
+        putchar(' ');
+        print((int)p);
+        putchar(' ');
+        print((int)gt);
+		if *p == pivot {
+			p = p + 1;
+			continue;
+		}
+
+		if *p < pivot {
+			swap(lt, p);
+			lt = lt + 1;
+			p = p + 1;
+		}else{
+			gt = gt  + (- 1);
+			swap(gt, p);
+		}
+        print_array(begin, end);
+	}
+	//qsort(begin, lt);
+	//qsort(gt, end);
+}
+*/
+
+func bubble_sort(begin: int*, end: int*){
+    let len = end - begin;
+    for let i = 0; i < len; i += 1{
+        for let j = 1; j + i < len; j += 1{
+            if begin[j] < begin[j - 1]{
+                swap(begin + j, begin + j - 1);
+            }
+        }
+    }
+}
+
+func main() -> int{
+    
+    let n = read();
+    let a: int* = malloc(4 * n);
+    let b: int* = malloc(4 * n);
+
+    for let i = 0; i < n; i += 1{
+        b[i] = a[i] = read();
+    }
+
+    let st = clock();
+    bubble_sort(b, b + n);
+    let ed = clock();
+
+    puts("bubble_sort result:");
+    print_array(b, b + n);
+
+    puts("time used:");
+    print(ed - st);
+    puts("ms");
+    
+/*
+    for let i = 0; i < n; i += 1{
+        b[i] = a[i];
+    }
+
+    st = clock();
+    qsort(b, b + n);
+    ed = clock();
+
+    puts("quick_sort result:");
+    print_array(b, b + n);
+    
+    puts("time used:");
+    print(ed - st);
+    puts("ms");
+*/
+    free(a);
+    free(b);
+
+    0
+}

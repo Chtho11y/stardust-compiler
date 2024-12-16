@@ -1,0 +1,32 @@
+
+func print(x: int){
+    let buf: char[20];
+    let cnt = 0;
+    while x > 0{
+        buf[cnt] = (char)(x%10) + '0';
+        x /= 10;
+        cnt += 1;
+    }
+    while cnt > 0{
+        cnt -= 1;
+        putchar(buf[cnt]);
+    }
+}
+
+func main()->int{
+    let a: int[5];
+    for let i = 0; i < 5; i += 1{
+        a[i] = read();
+    }
+
+    for let i = 0; i < 5; i += 1{
+        write(a[i]);
+    }
+
+    for let i = 0; i < 5; i += 1{
+        print(a[i]);
+        putchar(' ');
+    }
+    puts("");
+    0
+}

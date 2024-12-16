@@ -394,4 +394,5 @@ void init_type_pool();
 var_type_ptr get_type(std::string name);
 std::vector<std::shared_ptr<PrimType>>& get_prim_list();
 bool set_type(std::string name, var_type_ptr type);
+var_type_ptr as_ptr_type(var_type_ptr tp);
 

@@ -1,4 +1,6 @@
 #include<stdio.h>
+#include<stdlib.h>
+#include<time.h>
 
 int read(){
     int val = 0;

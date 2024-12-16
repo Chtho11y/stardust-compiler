@@ -229,7 +229,7 @@ int main(int argc, char* argv[]){
             }
             // std::cout << (s == "" ? "undefined error" : s) << " (" << loc.line_st + 1<< ", " << loc.col_l + 1 << ") " << std::endl;
         }
-        // return 0;
+        return 0;
     }
     
     try{
@@ -244,5 +244,7 @@ int main(int argc, char* argv[]){
         }
     }catch(std::string s){
         std::cout << s << std::endl;
+    }catch(std::exception& e){
+        std::cout << e.what() << std::endl;
     }
 }

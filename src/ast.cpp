@@ -1,6 +1,7 @@
 #include "ast.h"
 #include "context.h"
 #include "var_type.h"
+#include "literal_process.h"
 #include <iostream>
 
 AstContext ast_context;
@@ -139,12 +140,45 @@ bool AstNode::set_id(std::string name, var_type_ptr type){
 
 void inject_builtin_func(BlockNode* block){
     auto fn_read = std::make_shared<FuncType>();
-    auto fn_write = std::make_shared<FuncType>();
     fn_read->ret_type = get_type("int");
+    block->set_id("read", fn_read);
+
+    auto fn_write = std::make_shared<FuncType>();
     fn_write->param_list.push_back(get_type("int"));
     fn_write->ret_type = get_type("void");
-    block->set_id("read", fn_read);
     block->set_id("write", fn_write);
+
+    auto fn_putchar = std::make_shared<FuncType>();
+    fn_putchar->param_list.push_back(get_type("int32"));
+    fn_putchar->ret_type = get_type("int32");
+    block->set_id("putchar", fn_putchar);
+
+    auto fn_getchar = std::make_shared<FuncType>();
+    fn_getchar->ret_type = get_type("int32");
+    block->set_id("getchar", fn_getchar);
+
+    auto fn_puts = std::make_shared<FuncType>();
+    auto ptr = std::make_shared<PointerType>();
+    ptr->subtype = get_type("char");
+    fn_puts->param_list.push_back(ptr);
+    fn_puts->ret_type = get_type("int32");
+    block->set_id("puts", fn_puts);
+
+    auto fn_free = std::make_shared<FuncType>();
+    auto void_ptr = std::make_shared<PointerType>();
+    void_ptr->subtype = get_type("void");
+    fn_free->param_list.push_back(void_ptr);
+    fn_free->ret_type = get_type("int32");
+    block->set_id("free", fn_free);
+
+    auto fn_malloc = std::make_shared<FuncType>();
+    fn_malloc->param_list.push_back(get_type("int64"));
+    fn_malloc->ret_type = void_ptr;
+    block->set_id("malloc", fn_malloc);
+
+    auto fn_clock = std::make_shared<FuncType>();
+    fn_clock->ret_type = get_type("int64");
+    block->set_id("clock", fn_clock);
 }
 
 AstNode* AstNode::get_loop_parent(){
@@ -172,7 +206,7 @@ AstNode* AstNode::get_func_parent(){
 //error report for error-type or non-literal.
 size_t const_eval(AstNode* node){
     if(node->type == IntLiteral){
-        return atoi(node->str.c_str());
+        return parse_int(node->str);
     }else{
         append_array_len_error(node->loc);
     }
@@ -325,7 +359,7 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         append_prim_shadowed_warning(x, loc)
 
 std::shared_ptr<VarType> build_sym_table(AstNode* node){
-    // std::cout << node->str << " : " << get_node_name(node) << std::endl;
+    // std::cout << get_node_name(node) << " : " << node->str << std::endl;
     if(node->is_block){
 
         auto block = static_cast<BlockNode*>(node);
@@ -500,9 +534,9 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             case StringLiteral:{
                 //FIXME: escape the string.
                 auto res = std::make_shared<ArrayType>();
-                res->len = node->str.size() - 1;
+                res->len = parse_string(node->str).size() + 1;
                 res->subtype = get_type("char");
-                return node->ret_var_type = res;
+                return node->ret_var_type = ref_type(res);
             }
             default: return node->ret_var_type = get_type("#err");
         }
@@ -522,10 +556,11 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             }
             auto ret_type = std::dynamic_pointer_cast<FuncType>(p->ret_var_type)->ret_type;
             var_type_ptr res = get_type("void");
-            if(node->ch.size())
+            if(node->ch.size()){
                 res = build_sym_table(node->ch[0]);
-            res = decay(res);
-            require_convertable(res, ret_type, node->ch[0]->loc);
+                res = decay(res);
+                require_convertable(res, ret_type, node->ch[0]->loc);
+            }
             return node->ret_var_type = get_type("void");
         }else if(node->str == "break" || node->str == "continue"){
             auto p = node->get_loop_parent();

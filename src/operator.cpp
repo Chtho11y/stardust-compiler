@@ -67,7 +67,18 @@ void op_impl_init(){
     impl_prim_op(op_type::Neg, 1);
 }
 
-// #include<iostream>
+var_type_ptr as_ptr_type(var_type_ptr tp){
+    tp = decay(tp);
+    if(tp->is_ptr())
+        return tp;
+    if(tp->is_array()){
+        auto arr = std::dynamic_pointer_cast<ArrayType>(tp);
+        auto ptr = std::make_shared<PointerType>();
+        ptr->subtype = arr->subtype;
+        return ptr;
+    }
+    throw std::invalid_argument("not support");
+}
 
 var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc){
     switch (op)
@@ -143,12 +154,12 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
 
     case op_type::Add:{
         if(decay(args[0])->is_ptr() || decay(args[0])->is_array()){
-            if(is_convertable(args[1], get_type("int"))){
-                    return decay(args[0]);         
+            if(is_convertable(args[1], get_type("int64"))){
+                return as_ptr_type(args[0]);         
             }   
         }else if(decay(args[1])->is_ptr() || decay(args[1])->is_array()){
-            if(is_convertable(args[0], get_type("int"))){
-                    return decay(args[1]);         
+            if(is_convertable(args[0], get_type("int64"))){
+                return as_ptr_type(args[1]);         
             }    
         }
         break;
@@ -157,17 +168,15 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
     case op_type::Sub:{
         auto l = decay(args[0]), r = decay(args[1]);
         if(l->is_ptr() || l->is_array()){
-            if(is_convertable(r, get_type("int"))){
+            if(is_convertable(r, get_type("int64"))){
                 return l;         
             }
-            if(is_convertable(r, l)){
-                return l;
+            if(is_convertable(r, l) || is_convertable(l, r)){
+                return get_type("int64");
             }
-            if(is_convertable(l, r))
-                return r;
         }else if(r->is_ptr() || r->is_array()){
-            if(is_convertable(l, get_type("int"))){
-                    return r;         
+            if(is_convertable(l, get_type("int64"))){
+                return r;         
             }    
         }
 
@@ -198,11 +207,13 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
         return ref_type(sub);
     }
 
-
-    // case op_type::Eq: case op_type::Neq:{
-        
-    //     return get_type("bool");
-    // }
+    case op_type::Eq: case op_type::Neq: 
+    case op_type::Le: case op_type::Lt: case op_type::Ge: case op_type::Gt:{
+        auto op_l = decay(args[0]), op_r = decay(args[1]);
+        if((op_l->is_array() || op_l->is_ptr())&&(op_r->is_array() || op_r->is_ptr())) 
+            return get_type("bool");
+        break;
+    }
     
     default:
         break;
