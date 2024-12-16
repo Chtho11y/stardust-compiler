@@ -31,7 +31,6 @@ func swap(a: int*, b: int*){
     *b = tmp;
 }
 
-
 func qsort(begin: int*, end: int*){
     if(end - begin <= 1){
         return;
@@ -60,6 +59,47 @@ func qsort(begin: int*, end: int*){
 	qsort(gt, end);
 }
 
+func heapify(arr: int*, n: int, i: int) {
+    let left = 2 * i;
+    let right = 2 * i + 1;
+    let largest = i;
+
+    /*
+    largest =   if left <= n &&  arr[left] > arr[largest]{
+                    left
+                }else if right <= n && arr[right] > arr[largest]{
+                    right
+                }else{
+                    i
+                };
+                */
+    if left <= n &&  arr[left] > arr[largest]{
+        largest = left;
+    }
+
+    if right <= n && arr[right] > arr[largest]{
+        largest = right;
+    }
+
+    if largest != i {
+        swap(arr + i, arr + largest);
+        heapify(arr, n, largest);
+    }
+}
+
+func heap_sort(begin: int*, end: int*) {
+    let len = (int)(end - begin);
+    let base = begin - 1;
+
+    for let i = (len + 1)/2; i >= 1; i -= 1 {
+        heapify(base, len, i);
+    }
+
+    for let i = len; i >= 1; i -= 1 {
+        swap(base + 1, base + i);
+        heapify(base, i - 1, 1);
+    }
+}
 
 func bubble_sort(begin: int*, end: int*){
     let len = end - begin;
@@ -93,7 +133,6 @@ func main() -> int{
     print(ed - st);
     puts("ms");
 
-
     for let i = 0; i < n; i += 1{
         b[i] = a[i];
     }
@@ -103,6 +142,21 @@ func main() -> int{
     ed = clock();
 
     puts("quick_sort result:");
+    print_array(b, b + n);
+    
+    puts("time used:");
+    print(ed - st);
+    puts("ms");
+
+    for let i = 0; i < n; i += 1{
+        b[i] = a[i];
+    }
+
+    st = clock();
+    heap_sort(b, b + n);
+    ed = clock();
+
+    puts("heap_sort result:");
     print_array(b, b + n);
     
     puts("time used:");
