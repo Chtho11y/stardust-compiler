@@ -804,7 +804,7 @@ llvm::Value* gen_if_ret_stmt(AstNode* ast, IRBuilder<>& builder){
     auto br_then = gen_llvm_ir(ast->ch[1], builder);
     if(!no_ret)
         br_then = gen_convert(br_then, ast->ch[1]->ret_var_type, ast->ret_var_type, builder);
-    builder.CreateBr(b_else);
+    builder.CreateBr(b_end);
     BasicBlock *b_then_end = builder.GetInsertBlock();
 
     fn->getBasicBlockList().push_back(b_else);

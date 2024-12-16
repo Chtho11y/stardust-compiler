@@ -31,33 +31,17 @@ func swap(a: int*, b: int*){
     *b = tmp;
 }
 
-/*
+
 func qsort(begin: int*, end: int*){
     if(end - begin <= 1){
         return;
     }
-    print(end - begin);
-    putchar(':');
-    print((int)begin);
-
-    putchar('-');
-    putchar('>');
-
-    write((int)end);
 
     let lt = begin;
     let gt = end;
-    let p = lt;
+    let p = begin;
 	let pivot = *begin;
-	write(pivot);
     while p < gt{
-        print(*p);
-        putchar(':');
-        print((int)lt);
-        putchar(' ');
-        print((int)p);
-        putchar(' ');
-        print((int)gt);
 		if *p == pivot {
 			p = p + 1;
 			continue;
@@ -71,12 +55,11 @@ func qsort(begin: int*, end: int*){
 			gt = gt  + (- 1);
 			swap(gt, p);
 		}
-        print_array(begin, end);
 	}
-	//qsort(begin, lt);
-	//qsort(gt, end);
+	qsort(begin, lt);
+	qsort(gt, end);
 }
-*/
+
 
 func bubble_sort(begin: int*, end: int*){
     let len = end - begin;
@@ -109,8 +92,8 @@ func main() -> int{
     puts("time used:");
     print(ed - st);
     puts("ms");
-    
-/*
+
+
     for let i = 0; i < n; i += 1{
         b[i] = a[i];
     }
@@ -125,7 +108,7 @@ func main() -> int{
     puts("time used:");
     print(ed - st);
     puts("ms");
-*/
+
     free(a);
     free(b);
 
