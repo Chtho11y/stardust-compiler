@@ -147,6 +147,7 @@ void inject_builtin_func(BlockNode* block){
     fn_write->param_list.push_back(get_type("int"));
     fn_write->ret_type = get_type("void");
     block->set_id("write", fn_write);
+    block->set_id("exit", fn_write);
 
     auto fn_putchar = std::make_shared<FuncType>();
     fn_putchar->param_list.push_back(get_type("int32"));
@@ -305,7 +306,9 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             for(auto ch: params->ch)
                 res->param_list.push_back(ast_to_type(ch));
             res->ret_type = ast_to_type(ret);
-            return res;
+            auto ptr = std::make_shared<PointerType>();
+            ptr->subtype = res;
+            return ptr;
         }else if(node->str == "[]"){
             auto sub = node;
             while(sub->str == "[]")
@@ -421,7 +424,9 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 append_infer_failed_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
                 return node->ret_var_type = get_type("#err");
             }
-            var.type_info = res_type;
+            if(decay(res_type)->is_type(VarType::Func))
+                var.type_info = std::make_shared<PointerType>(res_type);
+            else var.type_info = res_type;
         }
 
         if(res_type){

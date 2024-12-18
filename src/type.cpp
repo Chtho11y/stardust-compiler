@@ -73,6 +73,8 @@ bool is_convertable(var_type_ptr from, var_type_ptr to){
             auto from_ptr = std::dynamic_pointer_cast<PointerType>(from);
             if(from_ptr->subtype->is_void() || to_ptr->subtype->is_void())
                 return true;
+        }else if(from->is_type(VarType::Func)){
+            return from->is_same(to_ptr->subtype.get());
         }
     }
     return false;
@@ -123,4 +125,11 @@ var_type_ptr decay(var_type_ptr ptr){
     while(ptr->is_ref())
         ptr = std::dynamic_pointer_cast<RefType>(ptr)->subtype;
     return ptr;
+}
+
+bool VarType::is_func_ptr() const{
+    if(!is_ptr())
+        return false;
+    auto ptr = dynamic_cast<const PointerType*>(this);
+    return ptr->subtype->is_func();
 }

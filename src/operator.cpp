@@ -104,11 +104,15 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
 
     case op_type::Call:{
         auto fn = decay(args[0]);
-        if(!fn->is_type(VarType::Func)){
+        if(fn->is_func_ptr()){
+            fn = std::dynamic_pointer_cast<PointerType>(fn)->subtype;
+        }
+        if(!fn->is_func()){
             // append_error("Expression should be function type, but it is " + fn->to_string(), loc);
             append_mismatch_op_error("function", fn, loc);
             return get_type("#err");
         }
+
         auto func = std::dynamic_pointer_cast<FuncType>(fn);
         if(!func->is_callable(args[1])){
             append_call_error(func, args[1], loc);

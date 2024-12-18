@@ -1,0 +1,51 @@
+
+func add(x: int, y: int)->int{
+    x + y
+}
+
+func sub(x: int, y: int)->int{
+    x - y
+}
+
+func div(x: int, y: int)->int{
+    x / y
+}
+
+func mul(x: int, y: int)->int{
+    x * y
+}
+
+func mod(x: int, y: int)->int{
+    x % y
+}
+
+func err(_x: int, _y: int)->int{
+    puts("invalid op, exited.");
+    exit(0);
+    0
+}
+
+func main()->int{
+    let op: ((int, int)->int)[128];
+    for let i = 0; i < 128; i += 1{
+        op[i] = err;
+    }
+    op['+'] = add;
+    op['-'] = sub;
+    op['*'] = mul;
+    op['/'] = div;
+    op['%'] = mod;
+
+    while true{
+        let a = read();
+        let ch = getchar();
+        while ch == ' ' || ch == '\n'{
+            ch = getchar();
+        }
+        let b = read();
+        write(op[ch](a, b));
+    }
+
+    0
+}
+

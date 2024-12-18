@@ -26,6 +26,7 @@ struct VarType{
     }
 
     bool is_type(var_kind _kind) const {return _kind == kind;}
+    bool is_func() const {return is_type(Func);}
     bool is_error()const {return is_type(Error);}
     bool is_void() const {return is_type(Void);}
     bool is_array()const {return is_type(Array);}
@@ -33,6 +34,9 @@ struct VarType{
     bool is_prim() const {return is_type(Prim);}
     bool is_auto() const{return is_type(Auto);}
     bool is_ref() const {return is_type(Ref);}
+
+    bool is_func_ptr() const;
+
     virtual bool is_base() const{
         return !(is_type(Struct) || is_type(Array));
     }
@@ -161,9 +165,15 @@ struct PointerType:VarType{
 
     PointerType(): VarType(Pointer){}
 
+    PointerType(std::shared_ptr<VarType> subtype): 
+        VarType(Pointer), subtype(decay(subtype)){}
+
     std::string to_string() const{
-        if(subtype->kind == Func)
+        if(subtype->kind == Func){
+            return subtype->to_string();
+        }else if(subtype->is_func_ptr()){
             return "(" + subtype->to_string() + ")*";
+        }
         return subtype->to_string() + "*";
     }
 

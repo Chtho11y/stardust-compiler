@@ -64,15 +64,6 @@ func heapify(arr: int*, n: int, i: int) {
     let right = 2 * i + 1;
     let largest = i;
 
-    /*
-    largest =   if left <= n &&  arr[left] > arr[largest]{
-                    left
-                }else if right <= n && arr[right] > arr[largest]{
-                    right
-                }else{
-                    i
-                };
-                */
     if left <= n &&  arr[left] > arr[largest]{
         largest = left;
     }
