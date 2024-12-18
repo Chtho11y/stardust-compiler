@@ -1,26 +1,7 @@
 
-func print(x: int64){
-    let buf: char[20];
-    let cnt = 0;
-    if x == 0{
-        let v = putchar('0');
-        return;
-    }
-    while x > 0{
-        buf[cnt] = (char)(x%10) + '0';
-        x /= 10;
-        cnt += 1;
-    }
-    while cnt > 0{
-        cnt -= 1;
-        putchar(buf[cnt]);
-    }
-}
-
 func print_array(begin: int*, end: int*){
     for; begin != end; begin = begin + 1{
-        print(*begin);
-        putchar(' ');
+        printf("%d ", *begin);
     }
     putchar('\n');
 }
@@ -120,9 +101,7 @@ func main() -> int{
     puts("bubble_sort result:");
     print_array(b, b + n);
 
-    puts("time used:");
-    print(ed - st);
-    puts("ms");
+    printf("time used: %dms.\n", ed - st);
 
     for let i = 0; i < n; i += 1{
         b[i] = a[i];
@@ -135,9 +114,7 @@ func main() -> int{
     puts("quick_sort result:");
     print_array(b, b + n);
     
-    puts("time used:");
-    print(ed - st);
-    puts("ms");
+    printf("time used: %dms.\n", ed - st);
 
     for let i = 0; i < n; i += 1{
         b[i] = a[i];
@@ -150,9 +127,7 @@ func main() -> int{
     puts("heap_sort result:");
     print_array(b, b + n);
     
-    puts("time used:");
-    print(ed - st);
-    puts("ms");
+    printf("time used: %dms.\n", ed - st);
 
     free(a);
     free(b);

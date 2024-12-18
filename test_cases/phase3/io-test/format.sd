@@ -1,0 +1,8 @@
+
+func main()->int{
+    let f: float64;
+    let d: int64;
+    scanf("%lf%lld", &f, &d);
+    printf("%.2f * %lld = %.2f\n", f, d, f * d);
+    0
+}

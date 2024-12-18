@@ -69,6 +69,10 @@ void inject_builtin_func(){
 
     FunctionType *fn_clock_tp = FunctionType::get(Type::getInt64Ty(*llvm_ctx), {}, false);
     Function *fn_clock = Function::Create(fn_clock_tp, GlobalValue::ExternalLinkage, "clock", *llvm_mod);
+
+    FunctionType *fn_printf_tp = FunctionType::get(Type::getInt32Ty(*llvm_ctx), {Type::getInt8PtrTy(*llvm_ctx)}, true);
+    Function *fn_printf = Function::Create(fn_printf_tp, GlobalValue::ExternalLinkage, "printf", *llvm_mod);    
+    Function *fn_scanf = Function::Create(fn_printf_tp, GlobalValue::ExternalLinkage, "scanf", *llvm_mod);  
 }
 
 void gen_module(AstNode* ast, std::string module_name){
@@ -163,7 +167,7 @@ llvm::FunctionType* get_llvm_func(std::shared_ptr<FuncType> type){
     for(auto tp: type->param_list)
         args.push_back(get_llvm_type(tp));
 
-    return llvm::FunctionType::get(ret, args, false);
+    return llvm::FunctionType::get(ret, args, type->is_vary);
 }
 
 };// type_aux
@@ -619,13 +623,24 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
 
     auto function = gen_llvm_ir_decay(ast->ch[0], builder);
     auto ast_args = ast->ch[1];
-    auto params_tp = ast_fn_tp->param_list;
+    auto& params_tp = ast_fn_tp->param_list;
 
 
     std::vector<llvm::Value*> args;
 
     for(size_t i = 0; i < ast_args->ch.size(); ++i){
-        args.push_back(gen_llvm_ir_to_type(ast_args->ch[i], ast_args->ch[i]->ret_var_type, params_tp[i], builder));
+        llvm::Value *arg;
+        auto arg_tp = ast_args->ch[i]->ret_var_type;
+        if(i < params_tp.size()){
+            arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, params_tp[i], builder);
+        }else{
+            if(decay(arg_tp)->is_array()){
+                arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, as_ptr_type(params_tp[i]), builder);
+            }else{
+                arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, decay(arg_tp), builder);
+            }
+        }
+        args.push_back(arg);
     }
 
     if(ast_fn_tp->ret_type->is_void())

@@ -180,6 +180,13 @@ void inject_builtin_func(BlockNode* block){
     auto fn_clock = std::make_shared<FuncType>();
     fn_clock->ret_type = get_type("int64");
     block->set_id("clock", fn_clock);
+
+    auto fn_printf = std::make_shared<FuncType>(true);
+    ptr = std::make_shared<PointerType>(get_type("char"));
+    fn_printf->param_list.push_back(ptr);
+    fn_printf->ret_type = get_type("int32");
+    block->set_id("printf", fn_printf);
+    block->set_id("scanf", fn_printf);
 }
 
 AstNode* AstNode::get_loop_parent(){
@@ -424,9 +431,10 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 append_infer_failed_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
                 return node->ret_var_type = get_type("#err");
             }
+
             if(decay(res_type)->is_type(VarType::Func))
                 var.type_info = std::make_shared<PointerType>(res_type);
-            else var.type_info = res_type;
+            else var.type_info = decay(res_type);
         }
 
         if(res_type){

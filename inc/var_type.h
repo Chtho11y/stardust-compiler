@@ -259,7 +259,9 @@ struct FuncType: VarType{
     std::vector<std::shared_ptr<VarType>> param_list;
     std::shared_ptr<VarType> ret_type;
 
-    FuncType():VarType(Func), ret_type(nullptr){}
+    bool is_vary;
+
+    FuncType(bool is_vary = false):VarType(Func), ret_type(nullptr), is_vary(is_vary){}
 
     std::string to_string() const override{
         std::string res = "(";
@@ -270,6 +272,8 @@ struct FuncType: VarType{
             else flag = true;
             res += ch->to_string();
         }
+        if(is_vary)
+            res += flag? ", ..." : "...";
         res += ") -> ";
         res += ret_type->to_string();
         return res;
@@ -290,9 +294,15 @@ struct FuncType: VarType{
             return false;
         auto& args = std::dynamic_pointer_cast<TupleType>(args_list)->members;
         bool flag = true;
-        if(args.size() != param_list.size())
+        
+        if(!is_vary){
+            if(args.size() > param_list.size())
+                return false;
+        }
+        if(args.size() < param_list.size())
             return false;
-        for(size_t i = 0; i < args.size(); ++i)
+
+        for(size_t i = 0; i < param_list.size(); ++i)
             if(!is_convertable(args[i], param_list[i]))
                 flag = false;
         return flag;
