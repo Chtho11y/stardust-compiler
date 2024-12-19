@@ -545,11 +545,11 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             case BoolLiteral: return node->ret_var_type = get_type("bool");
             case CharLiteral: return node->ret_var_type = get_type("char");
             case StringLiteral:{
-                //FIXME: escape the string.
                 auto res = std::make_shared<ArrayType>();
                 res->len = parse_string(node->str).size() + 1;
                 res->subtype = get_type("char");
-                return node->ret_var_type = ref_type(res);
+                auto ret = node->ret_var_type = ref_type(res, true);
+                return ret;
             }
             default: return node->ret_var_type = get_type("#err");
         }

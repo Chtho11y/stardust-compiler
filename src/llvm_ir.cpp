@@ -75,7 +75,36 @@ void inject_builtin_func(){
     Function *fn_scanf = Function::Create(fn_printf_tp, GlobalValue::ExternalLinkage, "scanf", *llvm_mod);  
 }
 
+void set_module_target(){
+    llvm::InitializeNativeTarget();
+    llvm::InitializeNativeTargetAsmPrinter();
+    llvm::InitializeNativeTargetAsmParser();
+
+    std::string targetTriple = llvm::sys::getProcessTriple();
+
+    std::string error;
+    llvm::Target const *target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+
+    if (!target) {
+        throw std::runtime_error("Error: Unable to find target: " + targetTriple);
+    }
+
+    llvm::TargetOptions targetOptions;
+    
+    llvm::TargetMachine *targetMachine = target->createTargetMachine(targetTriple, "generic", "", 
+                                    targetOptions, llvm::Optional<llvm::Reloc::Model>());
+
+    if (!targetMachine) {
+        throw std::runtime_error("Error: Unable to create target machine");
+    }
+
+    llvm_mod->setDataLayout(targetMachine->createDataLayout());
+    llvm_mod->setTargetTriple(targetTriple);
+}
+
 void gen_module(AstNode* ast, std::string module_name){
+    if(ir_is_generated)
+        return;
     init(module_name);
     inject_builtin_func();
     gen_llvm_ir(ast, *builder);
@@ -85,6 +114,7 @@ void gen_module(AstNode* ast, std::string module_name){
         IRBuilder<> main_st(&main_fn->getEntryBlock(), main_fn->getEntryBlock().begin());
         main_st.CreateCall(init_fn);
     }
+    set_module_target();
     ir_is_generated = true;
 }
 
@@ -650,11 +680,14 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
+    auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
+
     if(ast->type == op_type::At){
 
         auto arr = gen_llvm_ir(ast->ch[0], builder);
         auto idx = gen_llvm_ir_to_type(ast->ch[1], ast->ch[1]->ret_var_type, get_type("uint64"), builder);
-        auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
+        
+
         if(decay(ast->ch[0]->ret_var_type)->is_array())
             return builder.CreateGEP(arr, {zero, idx});
         else if(decay(ast->ch[0]->ret_var_type)->is_ptr()){
@@ -664,7 +697,24 @@ llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
         throw std::invalid_argument("unexpected type");
 
     }else if(ast->type == op_type::Access){
-        
+        auto tp = decay(ast->ch[0]->ret_var_type);
+        if(tp->is_array()){
+            auto len = dyn_ptr_cast<ArrayType>(tp)->len;
+            return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), len);
+        }
+
+        assert(tp->is_type(VarType::Struct));
+        assert(ast->ch[1]->type == Identifier);
+
+        auto st_tp = dyn_ptr_cast<StructType>(tp);
+        auto st = gen_llvm_ir(ast->ch[0], builder);
+
+        st->print(llvm::outs());
+
+        // auto ptr = gen_convert(st, ast->ch[0]->ret_var_type, tp, builder);
+        auto idx = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 
+                                            st_tp->index_of(ast->ch[1]->str));
+        return builder.CreateGEP(st, idx);
     }
 
     assert(false && "unreachable");
@@ -1022,7 +1072,7 @@ llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_pt
 
     if(ast_from->is_ref() && !ast_to->is_ref()){
         // std::cout << "deref" << std::endl;
-        if(ast_to->is_array()){
+        if(ast_to->is_array() || ast_to->is_type(VarType::Struct)){
             auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
             auto arr = builder.CreateGEP(from_v, zero);
             // return from_v;

@@ -27,5 +27,5 @@ aux_source_directory(./src DIR_SRCS)
 # Create the executable
 add_executable(stardust ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cpp ${CMAKE_CURRENT_BINARY_DIR}/syntax.cpp ${DIR_SRCS})
 
-llvm_map_components_to_libnames(llvm_libs support core irreader)
+llvm_map_components_to_libnames(llvm_libs ${LLVM_TARGETS_TO_BUILD} support core irreader codegen mc mcparser option)
 target_link_libraries(stardust ${llvm_libs})

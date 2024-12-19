@@ -51,7 +51,6 @@ bool is_convertable(var_type_ptr from, var_type_ptr to);
 bool is_force_convertable(var_type_ptr from, var_type_ptr to);
 void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc);
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
-var_type_ptr ref_type(var_type_ptr ptr);
 var_type_ptr decay(var_type_ptr ptr);
 
 struct VoidType: VarType{
@@ -132,11 +131,12 @@ struct PrimType:VarType{
 
 struct RefType: VarType{
     std::shared_ptr<VarType> subtype;
+    bool is_cnst = false;
 
     RefType(): VarType(Ref){}
 
-    RefType(std::shared_ptr<VarType> subtype)
-        : VarType(Ref), subtype(decay(subtype)){}
+    RefType(std::shared_ptr<VarType> subtype, bool is_cnst)
+        : VarType(Ref), subtype(decay(subtype)), is_cnst(is_cnst){}
 
     std::string to_string() const{
         return "&"+subtype->to_string();
@@ -368,6 +368,16 @@ struct StructType: VarType{
         return res;
     }
 
+    size_t index_of(std::string& nam) const{
+        size_t res = 0;
+        for(auto [s, tp]: member){
+            if(s == nam)
+                return res;
+            res++;
+        }
+        return res;       
+    }
+
     std::string to_string() const override{
         return name + "#" + std::to_string(id);
     }
@@ -414,5 +424,11 @@ void init_type_pool();
 var_type_ptr get_type(std::string name);
 std::vector<std::shared_ptr<PrimType>>& get_prim_list();
 bool set_type(std::string name, var_type_ptr type);
-var_type_ptr as_ptr_type(var_type_ptr tp);
 
+var_type_ptr as_ptr_type(var_type_ptr tp);
+var_type_ptr ref_type(var_type_ptr ptr, bool is_cnst = false);
+
+template<class T>
+std::shared_ptr<T> dyn_ptr_cast(var_type_ptr ptr){
+    return std::dynamic_pointer_cast<T>(ptr);
+}

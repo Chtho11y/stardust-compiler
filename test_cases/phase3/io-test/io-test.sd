@@ -24,9 +24,7 @@ func main()->int{
     }
 
     for let i = 0; i < 5; i += 1{
-        print(a[i]);
-        putchar(' ');
+        printf("%d%c", a[i], " \n"[i == 4]);
     }
-    puts("");
     0
 }
