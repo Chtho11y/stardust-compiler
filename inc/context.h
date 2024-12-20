@@ -57,7 +57,11 @@ struct ParserContext{
 struct AstContext{
     int type_id = 0;
     int var_id = 0;
+    
+    int generic_sub_cnt = 0;
 };
+
+struct generic_exception {};
 
 extern ParserContext parser_context;
 extern AstContext ast_context;

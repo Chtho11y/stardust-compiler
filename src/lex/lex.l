@@ -53,7 +53,8 @@ false {return make_token(TFALSE, true);}
 
 0[xX][0-9a-fA-F]+ {return make_token(HEX, true);}
 0[bB][01]+ {return make_token(BINARY, true);}
-{digit}+"."{digit}+([eE][+-]?{digit}+)? {return make_token(FLOAT, true);}
+{digit}*"."{digit}+([eE][+-]?{digit}+)? {return make_token(FLOAT, true);}
+{digit}+[eE][+-]?{digit}+ {return make_token(FLOAT, true);}
 \"([^\"\\]|\\["\\ntbfr])*\" {return make_token(STRING, true);}
 '([^'\\]|\\['\\ntbfr])' {return make_token(CHAR, true);}
 ({letter_}|{digit})+ {

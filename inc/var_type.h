@@ -10,7 +10,7 @@ struct VarType{
     static size_t ptr_size;
 
     enum var_kind{
-        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Ref, Error, Auto
+        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Generic, GenericParam, Ref, Error, Auto
     };
 
     var_kind kind;
@@ -34,6 +34,11 @@ struct VarType{
     bool is_prim() const {return is_type(Prim);}
     bool is_auto() const{return is_type(Auto);}
     bool is_ref() const {return is_type(Ref);}
+    bool is_struct() const{return is_type(Struct);}
+    bool is_generic() const{return is_type(Generic);}
+    bool is_generic_param() const{
+        return is_type(GenericParam);
+    }
 
     bool is_func_ptr() const;
 
@@ -42,6 +47,15 @@ struct VarType{
     }
     virtual bool is_signed() const{
         return true;
+    }
+
+    bool contain_loop() const{
+        std::set<size_t> reg;
+        return loop_check(reg);
+    }
+
+    virtual bool loop_check(std::set<size_t>&) const{
+        return false;
     }
 };
 
@@ -158,6 +172,10 @@ struct RefType: VarType{
     bool is_signed() const override{
         return subtype->is_signed();
     }
+
+    bool loop_check(std::set<size_t>& reg) const override{
+        return subtype->loop_check(reg);
+    }
 };
 
 struct PointerType:VarType{
@@ -215,6 +233,10 @@ struct ArrayType:VarType{
 
     size_t size() const override{
         return len * subtype->size();
+    }
+
+    bool loop_check(std::set<size_t>& reg) const override{
+        return subtype->loop_check(reg);
     }
 };
 
@@ -392,6 +414,58 @@ struct StructType: VarType{
         for(auto& [s, tp]: member)
             res += tp->size();
         return res;
+    }
+
+    bool loop_check(std::set<size_t>& reg) const override{
+        if(reg.count(id))
+            return true;
+        reg.insert(id);
+        for(auto [s, tp]: member)
+            if(tp->loop_check(reg))
+                return true;
+        return false;
+    }
+};
+
+template<class SrcTy>
+struct GenericStructType: VarType{
+    SrcTy* src;
+    size_t id;
+    std::string name;
+    std::vector<std::string> param_list;
+
+    GenericStructType(SrcTy* src, size_t id, std::string& name, std::vector<std::string>& param_list):
+        src(src), id(id), name(name), param_list(param_list), VarType(Generic){}
+
+    std::string to_string() const override{
+        std::string res = name;
+        for(size_t i = 0; i < param_list.size(); ++i){
+            res += (i == 0) ? "<": ", ";
+            res += param_list[i];
+        }
+        res.push_back('>');
+        res += "#" + std::to_string(id);
+        return res;
+    }
+
+    bool is_same(VarType* type) const override{
+        auto gen = dynamic_cast<StructType*>(type);
+        return gen && id == gen->id;
+    }
+};
+
+struct GenericParamType: VarType{
+    std::string name;
+
+    GenericParamType(std::string name):
+        VarType(GenericParam), name(name){};
+
+    std::string to_string() const override{
+        return name;
+    }
+
+    bool is_same(VarType* type) const override{
+        return false;
     }
 };
 

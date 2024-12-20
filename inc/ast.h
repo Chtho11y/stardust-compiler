@@ -10,6 +10,7 @@
 enum node_type{
     Program, 
     ExtDecl, FuncDecl, VarDecl, StructDecl, StructMem,
+    GenericParams, GenericBlock, GenericImpl,
     TypeDesc, ConstDesc,
     ArrayInstance, StructInstance, StructInstanceMems, StructInstanceMem,
     FuncParams, FuncArgs, TypeList,
@@ -97,6 +98,7 @@ struct AstNode{
 
     var_type_ptr get_type(std::string name);
     bool set_type(std::string name, var_type_ptr type);
+    void del_type(std::string name);
 
     var_type_ptr get_id(std::string name);
     bool set_id(std::string name, var_type_ptr type);
@@ -105,9 +107,25 @@ struct AstNode{
 
     AstNode* get_loop_parent();
     AstNode* get_func_parent();
+
+    virtual AstNode* clone() const{
+        AstNode* res = new AstNode();
+        for(auto node: ch){
+            res->append(node->clone());
+        }
+        res->type = type;
+        res->str = str;
+        res->loc = loc;
+        res->loc_list = loc_list;
+        res->ret_var_type = nullptr;
+        res->parent = nullptr;
+        res->is_block = is_block;
+        return res;
+    }
 };
 
 using sym_table = std::map<std::string, std::shared_ptr<VarInfo>>;
+using GenericType = GenericStructType<AstNode>;
 
 struct OperatorNode: AstNode{
     op_type type;
@@ -141,6 +159,21 @@ struct OperatorNode: AstNode{
     std::string op_name(){
         return get_op_name(this);
     }
+
+    virtual AstNode* clone() const{
+        OperatorNode* res = new OperatorNode(type);
+        for(auto node: ch){
+            res->append(node->clone());
+        }
+        res->AstNode::type = AstNode::type;
+        res->str = str;
+        res->loc = loc;
+        res->loc_list = loc_list;
+        res->ret_var_type = nullptr;
+        res->parent = nullptr;
+        res->is_block = is_block;
+        return res;
+    }
 };
 
 struct BlockNode: AstNode{
@@ -149,6 +182,20 @@ struct BlockNode: AstNode{
 
     BlockNode(node_type type): AstNode(type){
         is_block = true;
+    }
+
+    virtual AstNode* clone() const{
+        BlockNode* res = new BlockNode(type);
+        for(auto node: ch){
+            res->append(node->clone());
+        }
+        res->str = str;
+        res->loc = loc;
+        res->loc_list = loc_list;
+        res->ret_var_type = nullptr;
+        res->parent = nullptr;
+        res->is_block = is_block;
+        return res;
     }
 };
 
@@ -235,16 +282,37 @@ struct Adaptor<StructDecl>{
 
         type_info = std::make_shared<StructType>();
         type_info->name = id;
+    }
 
+    Adaptor<StructDecl>& build_type(){
+    
         for(auto ch: mem->ch){
             Adaptor<VarDecl> var(ch);
             type_info->member.emplace_back(var.id, var.type_info);
             mem_loc.push_back(var.id_loc);
         }
+        return *this;
     }
 
     Adaptor<StructDecl>& check_type(){
         int cnt = type_info->member.size();
+
+        if(type_info->is_error())
+            return *this;
+        
+        for(int i = 0; i < cnt; ++i){
+            auto tp = type_info->member[i].second;
+            if(tp->is_error()){
+                type_info = nullptr;
+                return *this;
+            }
+            if(tp->is_void()){
+                append_invalid_decl_error("Struct member cannot be declared as void type.", mem_loc[i]);
+                type_info = nullptr;
+                return *this;
+            }
+        }
+
         for(int i = 0; i < cnt; ++i)
             for(int j = i + 1; j < cnt; ++j)
                 if(type_info->member[i].first == type_info->member[j].first){
@@ -253,6 +321,12 @@ struct Adaptor<StructDecl>{
                     append_multidef_error("Member", nam, mem_loc[i]);
                     type_info = nullptr;
                 }
+        
+        if(type_info->contain_loop()){
+            append_invalid_decl_error("Struct " + id + " has infinity size.", id_loc);
+            type_info = nullptr;
+        }
+
         return *this;
     }
 };
@@ -294,6 +368,27 @@ struct Adaptor<FuncDecl>{
 
     bool no_return() const{
         return type_info->ret_type->is_void();
+    }
+};
+
+template<>
+struct Adaptor<GenericBlock>{
+
+    std::string name;
+    BlockNode* rt;
+    AstNode *proto, *impl_list;
+    std::vector<std::string> params;
+
+    Adaptor<GenericBlock>(AstNode* node){
+        if(node->type != GenericBlock)
+            throw "adaptor type mismatch";
+        rt = (BlockNode*)node;
+        proto = node->ch[0];
+        impl_list = node->ch[2];
+        for(auto ch: node->ch[1]->ch){
+            params.push_back(ch->str);
+        }
+        name = proto->ch[0]->str;
     }
 };
 

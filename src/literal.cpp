@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <cctype>
+#include <iostream>
 
 // Parse double literals, supporting decimal and scientific notation.
 double parse_double(const std::string &literal) {

@@ -187,6 +187,7 @@ llvm::PointerType* get_llvm_pointer(std::shared_ptr<PointerType> type){
     if(subtype->isVoidTy())
         return llvm::PointerType::get(llvm::Type::getInt8Ty(*llvm_ctx), 0);
     return llvm::PointerType::get(subtype, 0);
+    // return llvm::PointerType::get(llvm::Type::getInt8Ty(*llvm_ctx), 0);
 }
 
 llvm::FunctionType* get_llvm_func(std::shared_ptr<FuncType> type){
@@ -246,8 +247,13 @@ void gen_llvm_struct(std::shared_ptr<StructType> st){
     for (auto [name, tp] : st->member) {
         members.push_back(get_llvm_type(tp));
     }
-
-    struct_table[st->id] = llvm::StructType::create(*llvm_ctx, members, st->name + "." + std::to_string(st->id));
+    std::string simple_name = "";
+    for(auto ch: st->name){
+        if(!isalnum(ch) && ch != '$' && ch != '_')
+            break;
+        simple_name.push_back(ch);
+    }
+    struct_table[st->id] = llvm::StructType::create(*llvm_ctx, members, simple_name + "." + std::to_string(st->id));
 }
 
 void gen_default_ret(llvm::Type* type, IRBuilder<>& builder){
@@ -366,9 +372,9 @@ void gen_ext_decl_list(AstNode* ast, IRBuilder<>& builder){
             gen_ext_func_def(ch, builder);
         }else if(ch->type == VarDecl){
             gen_ext_var_decl(ch, builder);
-        }else{
-            assert(ch->type == StructDecl);
-            //skip StructDecl
+        }else {
+            assert(ch->type == StructDecl || ch->type == GenericBlock);
+            //skip Struct&Generic Decl
         }
     }
 }
@@ -658,17 +664,25 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
 
     std::vector<llvm::Value*> args;
 
+    auto upper_type = [](var_type_ptr tp)-> var_type_ptr{
+        tp = decay(tp);
+        if(tp->is_array())
+            return as_ptr_type(tp);
+        if(tp->is_prim()){
+            auto prim_tp = dyn_ptr_cast<PrimType>(tp);
+            auto lim = (prim_tp->pr_kind == PrimType::Float ? 64: 32);
+            return std::make_shared<PrimType>(std::max(prim_tp->pr_kind, PrimType::Int), std::max(lim, prim_tp->siz));
+        }
+        return tp;
+    };
+
     for(size_t i = 0; i < ast_args->ch.size(); ++i){
         llvm::Value *arg;
         auto arg_tp = ast_args->ch[i]->ret_var_type;
         if(i < params_tp.size()){
             arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, params_tp[i], builder);
         }else{
-            if(decay(arg_tp)->is_array()){
-                arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, as_ptr_type(params_tp[i]), builder);
-            }else{
-                arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, decay(arg_tp), builder);
-            }
+            arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, upper_type(arg_tp), builder);
         }
         args.push_back(arg);
     }
@@ -698,6 +712,7 @@ llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
 
     }else if(ast->type == op_type::Access){
         auto tp = decay(ast->ch[0]->ret_var_type);
+
         if(tp->is_array()){
             auto len = dyn_ptr_cast<ArrayType>(tp)->len;
             return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), len);
@@ -707,14 +722,18 @@ llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
         assert(ast->ch[1]->type == Identifier);
 
         auto st_tp = dyn_ptr_cast<StructType>(tp);
+        auto llvm_st = get_llvm_type(st_tp);
         auto st = gen_llvm_ir(ast->ch[0], builder);
 
-        st->print(llvm::outs());
+        // st->print(llvm::outs());
+        // st->getType()->print(llvm::outs());
 
         // auto ptr = gen_convert(st, ast->ch[0]->ret_var_type, tp, builder);
-        auto idx = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 
+        auto idx = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), 
                                             st_tp->index_of(ast->ch[1]->str));
-        return builder.CreateGEP(st, idx);
+        // std::cout << " " << st_tp->index_of(ast->ch[1]->str) << std::endl;
+
+        return builder.CreateGEP(st, {zero, idx});
     }
 
     assert(false && "unreachable");
@@ -770,7 +789,7 @@ llvm::Value* gen_literal(AstNode* ast, IRBuilder<>& builder){
         return ConstantInt::get(Type::getInt32Ty(*llvm_ctx), parse_int(ast->str));
     
     case DoubleLiteral:
-        return ConstantFP::get(Type::getFloatTy(*llvm_ctx), parse_double(ast->str));
+        return ConstantFP::get(Type::getFloatTy(*llvm_ctx), (float)parse_double(ast->str));
     
     case BoolLiteral:
         return ConstantInt::get(Type::getInt1Ty(*llvm_ctx), ast->str == "true");
@@ -1013,6 +1032,10 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
 
     case StructDecl:{
         //skip
+        return nullptr;
+    }
+
+    case GenericBlock:{
         return nullptr;
     }
 
