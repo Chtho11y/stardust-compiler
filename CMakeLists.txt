@@ -4,6 +4,9 @@ project(stardust)
 # Specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 
+# Set the path for llvm-10
+set(CMAKE_PREFIX_PATH "/usr/lib/llvm-10/lib/cmake/llvm" ${CMAKE_PREFIX_PATH})
+
 # Specify the directories
 include_directories(inc)
 find_package(LLVM REQUIRED CONFIG)

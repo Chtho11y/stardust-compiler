@@ -7,7 +7,7 @@
 struct ArgParser{
 
     std::string output_path = "";
-    std::string input_path = "../test/test.sd";
+    std::string input_path = "../test_cases/test.sd";
     bool show_warning = true;
     bool print_ast = false;
     bool print_ast_sym = false;

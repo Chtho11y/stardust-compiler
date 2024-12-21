@@ -15,7 +15,7 @@ AstNode* create_node_from(node_type type, AstNode* ch){
 
 std::string ast_node_name[] = {
     "Program", "ExtDecl",
-    "FuncDecl", "VarDecl", "StructDecl", "StructMem",
+    "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", 
     "TypeDesc", "ConstDesc",
     "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem",
     "FuncParams", "FuncArgs", "TypeList", 
@@ -343,6 +343,11 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             auto res = std::make_shared<PointerType>();
             res->subtype = ast_to_type(node->ch[0]);
             return res;
+        }else if(node->str == "&") {
+            auto res = build_sym_table(node->ch[0]);
+            if (res->is_error()) 
+                append_infer_failed_error("Failed to infer the type of expression.", node->ch[0]->loc);
+            return res;
         }else if(node->str == "#auto"){
             return std::make_shared<AutoType>();
         }else if(node->str == "#err"){
@@ -458,6 +463,20 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         if(!node->set_type(st.id, st.type_info)){
             // append_error("type " + st.id + " has been declared.", st.id_loc);
             append_multidef_error("Type", st.id, st.id_loc);
+            return node->ret_var_type = get_type("#err");
+        }
+        return node->ret_var_type = get_type("void");
+
+    }else if (node->type == TypeDef) {
+        auto tp_name = node->ch[0]->str;
+        auto type_info = ast_to_type(node->ch[1]);
+        if (type_info->is_error()) {
+            append_invalid_decl_error("Invalid type of \'" + tp_name + "\'.", node->ch[0]->loc);
+            return node->ret_var_type = get_type("#err");
+        }
+        CHECK_PRIM_SHADOW(tp_name, node->ch[0]->loc);
+        if (!node->set_type(tp_name, type_info)) {
+            append_multidef_error("Type", tp_name, node->ch[0]->loc);
             return node->ret_var_type = get_type("#err");
         }
         return node->ret_var_type = get_type("void");

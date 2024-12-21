@@ -337,7 +337,7 @@ void gen_ext_decl_list(AstNode* ast, IRBuilder<>& builder){
         }else if(ch->type == VarDecl){
             gen_ext_var_decl(ch, builder);
         }else{
-            assert(ch->type == StructDecl);
+            assert(ch->type == StructDecl || ch->type == TypeDef);
             //skip StructDecl
         }
     }
@@ -918,6 +918,10 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
 
     case VarDecl:{
         gen_var_decl(ast, builder);
+        return nullptr;
+    }
+
+    case TypeDef:{
         return nullptr;
     }
 
