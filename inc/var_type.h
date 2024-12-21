@@ -423,6 +423,7 @@ struct StructType: VarType{
         for(auto [s, tp]: member)
             if(tp->loop_check(reg))
                 return true;
+        reg.erase(id);
         return false;
     }
 };

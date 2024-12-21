@@ -243,17 +243,20 @@ llvm_val_info add_var(var_info_ptr var, IRBuilder<>& builder){
 
 void gen_llvm_struct(std::shared_ptr<StructType> st){
     std::vector<llvm::Type*> members;
-
-    for (auto [name, tp] : st->member) {
-        members.push_back(get_llvm_type(tp));
-    }
     std::string simple_name = "";
     for(auto ch: st->name){
         if(!isalnum(ch) && ch != '$' && ch != '_')
             break;
         simple_name.push_back(ch);
     }
-    struct_table[st->id] = llvm::StructType::create(*llvm_ctx, members, simple_name + "." + std::to_string(st->id));
+    auto res = llvm::StructType::create(*llvm_ctx, simple_name + "." + std::to_string(st->id));
+    struct_table[st->id] = res;
+
+    for (auto [name, tp] : st->member) {
+        members.push_back(get_llvm_type(tp));
+    }
+
+    res->setBody(members);
 }
 
 void gen_default_ret(llvm::Type* type, IRBuilder<>& builder){
@@ -1030,12 +1033,8 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
         break;
     }
 
-    case StructDecl:{
+    case StructDecl: case GenericBlock:{
         //skip
-        return nullptr;
-    }
-
-    case GenericBlock:{
         return nullptr;
     }
 
