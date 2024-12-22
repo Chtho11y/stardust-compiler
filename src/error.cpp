@@ -18,6 +18,8 @@ void set_error_message(std::string str) {
 
 void append_error(std::string str, Locator loc){
     errors.push_back(std::make_pair(str, loc));
+    // if(ast_context.generic_sub_cnt > 0)
+    //     throw generic_exception();
 }
 
 error_list& get_error_list(){
@@ -115,6 +117,10 @@ void append_invalid_decl_error(std::string desc, Locator loc){
 }
 
 void append_invalid_impl_error(std::string desc, Locator loc) {
+    std::string id = "Error C16";
+    append_error(id + ": " + desc, loc);
+}
+void append_generic_error(std::string desc, Locator loc){
     std::string id = "Error C15";
     append_error(id + ": " + desc, loc);
 }

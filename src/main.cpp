@@ -26,10 +26,10 @@ void print(AstNode* rt, int dep){
         //     print(ch, dep + 2);
         std::cout << "TypeDesc: " << ast_to_type(rt)->to_string() << std::endl;
     }else if(rt->type == StructDecl){
-        auto st = Adaptor<StructDecl>(rt);
+        auto st = Adaptor<StructDecl>(rt).build_type();
         std::cout << "StructDecl: " << st.id << std::endl;
         for(auto [id, tp]: st.type_info->member){
-            for(int i = 0; i < dep; ++i)
+            for(int i = 0; i < dep + 2; ++i)
                 std::cout << " ";
             std::cout << id << ": " << tp->to_string() << std::endl;  
         }
@@ -51,6 +51,14 @@ void print(AstNode* rt, int dep){
                 }else std::cout <<", ";
 
                 std::cout << info->name << "#" << info->var_id << ": " << info->type->to_string();
+            }
+            for(auto [name, info]: bl->type_table){
+                if(f){
+                    std::cout << ": ";
+                    f = false;
+                }else std::cout <<", ";
+
+                std::cout << info->to_string();
             }
         }
         std::cout << std::endl;

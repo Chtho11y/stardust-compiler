@@ -16,6 +16,7 @@ AstNode* create_node_from(node_type type, AstNode* ch){
 std::string ast_node_name[] = {
     "Program", "ExtDecl",
     "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", 
+    "GenericParams", "GenericBlock", "GenericImpl",
     "TypeDesc", "ConstDesc",
     "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem", "StructImpl", "MemFuncList", 
     "FuncParams", "FuncArgs", "TypeList", 
@@ -68,7 +69,7 @@ var_type_ptr AstNode::get_type(std::string name){
 bool AstNode::set_type(std::string name, var_type_ptr type){
     AstNode *rt = this;
     while(rt){
-        if(rt->is_block){
+        if(rt->type != GenericBlock && rt->is_block){
             auto block = static_cast<BlockNode*>(rt);
             if(block->type_table.count(name)){
                 return false;
@@ -80,6 +81,18 @@ bool AstNode::set_type(std::string name, var_type_ptr type){
         rt = rt->parent;
     }
     return false;
+}
+
+void AstNode::del_type(std::string name){
+    AstNode *rt = this;
+    while(rt){
+        if(rt->type != GenericBlock && rt->is_block){
+            auto block = static_cast<BlockNode*>(rt);
+            block->type_table.erase(name);
+            return;
+        }
+        rt = rt->parent;
+    }
 }
 
 var_type_ptr AstNode::get_id(std::string name){
@@ -303,8 +316,48 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
     }
 }
 
+var_type_ptr add_generic_impl(AstNode* node, std::vector<var_type_ptr>& args, std::string& sig){
+
+    if(ast_context.generic_sub_cnt > 20){
+        append_generic_error("Generic recursive replacements exceeds the limit", node->loc);
+        return get_type("#err");
+    }
+
+    ast_context.generic_sub_cnt++;
+    var_type_ptr res = get_type("#err");
+    AstNode* impl;
+    std::string nam;
+    try{
+        auto gen = Adaptor<GenericBlock>(node);
+        auto rt = gen.rt;
+        nam = gen.name;
+        for(size_t i = 0; i < args.size(); ++i){
+            rt->type_table[gen.params[i]] = args[i]; 
+        }
+
+        impl = gen.proto->clone();
+
+        impl->ch[0]->str = sig;
+        impl->parent = gen.impl_list;
+
+        build_sym_table(impl);
+
+        res = impl->get_type(sig);
+        gen.impl_list->append(impl);
+
+    }catch(generic_exception _){
+        res = get_type("#err");
+    }
+
+    ast_context.generic_sub_cnt--;
+    return res;
+}
+
 std::shared_ptr<VarType> ast_to_type(AstNode* node){
     // std::cout << get_node_name(node) << ": " << node->str << std::endl;
+    if(node->ret_var_type)
+        return node->ret_var_type;
+
     if(node->type == TypeDesc){
         if(node->str == "()"){
             auto res = std::make_shared<FuncType>();
@@ -315,7 +368,7 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             res->ret_type = ast_to_type(ret);
             auto ptr = std::make_shared<PointerType>();
             ptr->subtype = res;
-            return ptr;
+            return node->ret_var_type = ptr;
         }else if(node->str == "[]"){
             auto sub = node;
             while(sub->str == "[]")
@@ -323,18 +376,18 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             
             auto res = ast_to_type(sub);
             if(res->is_error())
-                return get_type("#err");
+                return node->ret_var_type = get_type("#err");
 
             if(res->is_void()){
                 append_invalid_decl_error("Cannot declare array of void type.", sub->loc);
-                return get_type("#err");
+                return node->ret_var_type = get_type("#err");
             }
         
             for(auto nd = node; nd != sub; nd = nd->ch[0]){
                 auto arr = std::make_shared<ArrayType>();
                 arr->len = const_eval(nd->ch[1]);
                 if(arr->len == 0)
-                    return get_type("#err");
+                    return node->ret_var_type = get_type("#err");
                 arr->subtype = res;
                 res = arr;
             }
@@ -342,29 +395,70 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
         }else if(node->str == "*"){
             auto res = std::make_shared<PointerType>();
             res->subtype = ast_to_type(node->ch[0]);
-            return res;
+            return node->ret_var_type = res;
         }else if(node->str == "&") {
             auto res = build_sym_table(node->ch[0]);
             if (res->is_error()) 
                 append_infer_failed_error("Failed to infer the type of expression.", node->ch[0]->loc);
-            return res;
+            return node->ret_var_type = res;
+        }else if(node->str == "<>"){
+            auto proto = ast_to_type(node->ch[0]);
+            if(!proto->is_generic()){
+                if(!proto->is_error())
+                    append_generic_error("Cannot use " + proto->to_string() + " as generic type.", node->ch[0]->loc);
+                return node->ret_var_type = get_type("#err");
+            }
+
+            auto gen = dyn_ptr_cast<GenericType>(proto);
+
+            auto args = node->ch[1];
+            std::vector<var_type_ptr> arg_list;
+            for(auto ch: args->ch){
+                auto tp = ast_to_type(ch);
+                if(tp->is_error())
+                    return node->ret_var_type = get_type("#err");
+                arg_list.push_back(decay(tp));
+            }
+
+            if(arg_list.size() != gen->param_list.size()){
+                append_generic_error("Generic parameters mismatch.", node->loc);
+                return node->ret_var_type = get_type("#err");
+            }
+
+
+            std::string signature = TupleType(arg_list).to_string();
+            signature.front() = '<';
+            signature.back() = '>';
+            signature = gen->name + "#" + std::to_string(gen->id) + signature;
+
+            auto ret = gen->src->get_type(signature);
+
+            if(!ret->is_error())
+                return node->ret_var_type = ret;
+            
+            auto res = add_generic_impl(gen->src, arg_list, signature);
+            if(res->is_error()){
+                append_generic_error("failed to substitute generic type " + signature, node->loc);
+            }
+            return node->ret_var_type = res;
+
         }else if(node->str == "#auto"){
-            return std::make_shared<AutoType>();
+            return node->ret_var_type = std::make_shared<AutoType>();
         }else if(node->str == "#err"){
-            return get_type("#err");
-        }else return ast_to_type(node->ch[0]);
+            return node->ret_var_type = get_type("#err");
+        }else return node->ret_var_type = ast_to_type(node->ch[0]);
     }else if(node->type == TypeList){
         if(node->ch.size() == 0){
-            return get_type("void");
+            return node->ret_var_type = get_type("void");
         }else if(node->ch.size() == 1){
-            return ast_to_type(node->ch[0]);
+            return node->ret_var_type = ast_to_type(node->ch[0]);
         }else{
-            return get_type("#err");
+            return node->ret_var_type = get_type("#err");
         }
     }else if(node->type == Identifier){
-        return node->get_type(node->str);
+        return node->ret_var_type = node->get_type(node->str);
     }else if(node->type == Err){
-        return get_type("#err");
+        return node->ret_var_type = get_type("#err");
     }
     return nullptr;
 }
@@ -413,7 +507,24 @@ void build_funcbody(AstNode* node, std::vector<std::pair<std::string, std::share
 
 std::shared_ptr<VarType> build_sym_table(AstNode* node){
     // std::cout << get_node_name(node) << " : " << node->str << std::endl;
-    if(node->is_block){
+    if(node->type == GenericBlock){
+        auto block = static_cast<BlockNode*>(node);
+        auto param = block->ch[1];
+        std::vector<std::string> param_list;
+        for(auto ch: param->ch){
+            if(block->type_table.count(ch->str))
+                append_multidef_error("Generic parameter", ch->str, ch->loc);
+            else
+                block->type_table[ch->str] = std::make_shared<GenericParamType>(ch->str);
+            param_list.push_back(ch->str);
+        }
+        auto name = node->ch[0]->ch[0]->str;
+        auto id = ++ast_context.type_id;
+        auto tp = std::make_shared<GenericType>(node, id, name, param_list);
+        node->set_type(name, tp);
+        node->append(new AstNode(GenericImpl));
+        return get_type("void");
+    }else if(node->is_block){
 
         auto block = static_cast<BlockNode*>(node);
         std::shared_ptr<VarType> res;
@@ -475,16 +586,29 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
     }else if(node->type == StructDecl){
 
-        auto st = Adaptor<StructDecl>(node).check_type();
-        if(!st.type_info)
-            return node->ret_var_type = get_type("#err");
-        st.type_info->id = ++ast_context.type_id;
-        CHECK_PRIM_SHADOW(st.id, st.id_loc);
+        auto st = Adaptor<StructDecl>(node);
+
+        auto tp = st.type_info;
+
         if(!node->set_type(st.id, st.type_info)){
             // append_error("type " + st.id + " has been declared.", st.id_loc);
             append_multidef_error("Type", st.id, st.id_loc);
             return node->ret_var_type = get_type("#err");
         }
+
+        st.type_info->id = ++ast_context.type_id;
+
+        st.build_type().check_type();
+
+        if(!st.type_info){
+            node->del_type(st.id);
+            if(ast_context.generic_sub_cnt > 0)
+                throw generic_exception();
+            return node->ret_var_type = get_type("#err");
+        }
+        
+        CHECK_PRIM_SHADOW(st.id, st.id_loc);
+
         return node->ret_var_type = get_type("void");
 
     }else if (node->type == TypeDef) {
@@ -590,11 +714,11 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             case BoolLiteral: return node->ret_var_type = get_type("bool");
             case CharLiteral: return node->ret_var_type = get_type("char");
             case StringLiteral:{
-                //FIXME: escape the string.
                 auto res = std::make_shared<ArrayType>();
                 res->len = parse_string(node->str).size() + 1;
                 res->subtype = get_type("char");
-                return node->ret_var_type = ref_type(res);
+                auto ret = node->ret_var_type = ref_type(res, true);
+                return ret;
             }
             default: return node->ret_var_type = get_type("#err");
         }

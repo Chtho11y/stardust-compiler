@@ -10,7 +10,7 @@ struct VarType{
     static size_t ptr_size;
 
     enum var_kind{
-        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Ref, Error, Auto, Lambda
+        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Generic, GenericParam, Ref, Error, Auto, Lambda
     };
 
     var_kind kind;
@@ -34,7 +34,11 @@ struct VarType{
     bool is_prim() const {return is_type(Prim);}
     bool is_auto() const{return is_type(Auto);}
     bool is_ref() const {return is_type(Ref);}
-    bool is_struct() const {return is_type(Struct);}
+    bool is_struct() const{return is_type(Struct);}
+    bool is_generic() const{return is_type(Generic);}
+    bool is_generic_param() const{
+        return is_type(GenericParam);
+    }
 
     bool is_func_ptr() const;
 
@@ -44,6 +48,15 @@ struct VarType{
     virtual bool is_signed() const{
         return true;
     }
+
+    bool contain_loop() const{
+        std::set<size_t> reg;
+        return loop_check(reg);
+    }
+
+    virtual bool loop_check(std::set<size_t>&) const{
+        return false;
+    }
 };
 
 using var_type_ptr = std::shared_ptr<VarType>;
@@ -52,7 +65,6 @@ bool is_convertable(var_type_ptr from, var_type_ptr to);
 bool is_force_convertable(var_type_ptr from, var_type_ptr to);
 void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc);
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
-var_type_ptr ref_type(var_type_ptr ptr);
 var_type_ptr decay(var_type_ptr ptr);
 var_type_ptr deref(var_type_ptr ptr);
 
@@ -134,11 +146,12 @@ struct PrimType:VarType{
 
 struct RefType: VarType{
     std::shared_ptr<VarType> subtype;
+    bool is_cnst = false;
 
     RefType(): VarType(Ref){}
 
-    RefType(std::shared_ptr<VarType> subtype)
-        : VarType(Ref), subtype(decay(subtype)){}
+    RefType(std::shared_ptr<VarType> subtype, bool is_cnst)
+        : VarType(Ref), subtype(decay(subtype)), is_cnst(is_cnst){}
 
     std::string to_string() const{
         return "&"+subtype->to_string();
@@ -159,6 +172,10 @@ struct RefType: VarType{
 
     bool is_signed() const override{
         return subtype->is_signed();
+    }
+
+    bool loop_check(std::set<size_t>& reg) const override{
+        return subtype->loop_check(reg);
     }
 };
 
@@ -217,6 +234,10 @@ struct ArrayType:VarType{
 
     size_t size() const override{
         return len * subtype->size();
+    }
+
+    bool loop_check(std::set<size_t>& reg) const override{
+        return subtype->loop_check(reg);
     }
 };
 
@@ -370,6 +391,16 @@ struct StructType: VarType{
         return res;
     }
 
+    size_t index_of(std::string& nam) const{
+        size_t res = 0;
+        for(auto [s, tp]: member){
+            if(s == nam)
+                return res;
+            res++;
+        }
+        return res;       
+    }
+
     std::string to_string() const override{
         return name + "#" + std::to_string(id);
     }
@@ -384,6 +415,59 @@ struct StructType: VarType{
         for(auto& [s, tp]: member)
             res += tp->size();
         return res;
+    }
+
+    bool loop_check(std::set<size_t>& reg) const override{
+        if(reg.count(id))
+            return true;
+        reg.insert(id);
+        for(auto [s, tp]: member)
+            if(tp->loop_check(reg))
+                return true;
+        reg.erase(id);
+        return false;
+    }
+};
+
+template<class SrcTy>
+struct GenericStructType: VarType{
+    SrcTy* src;
+    size_t id;
+    std::string name;
+    std::vector<std::string> param_list;
+
+    GenericStructType(SrcTy* src, size_t id, std::string& name, std::vector<std::string>& param_list):
+        src(src), id(id), name(name), param_list(param_list), VarType(Generic){}
+
+    std::string to_string() const override{
+        std::string res = name;
+        for(size_t i = 0; i < param_list.size(); ++i){
+            res += (i == 0) ? "<": ", ";
+            res += param_list[i];
+        }
+        res.push_back('>');
+        res += "#" + std::to_string(id);
+        return res;
+    }
+
+    bool is_same(VarType* type) const override{
+        auto gen = dynamic_cast<StructType*>(type);
+        return gen && id == gen->id;
+    }
+};
+
+struct GenericParamType: VarType{
+    std::string name;
+
+    GenericParamType(std::string name):
+        VarType(GenericParam), name(name){};
+
+    std::string to_string() const override{
+        return name;
+    }
+
+    bool is_same(VarType* type) const override{
+        return false;
     }
 };
 
@@ -432,5 +516,11 @@ void init_type_pool();
 var_type_ptr get_type(std::string name);
 std::vector<std::shared_ptr<PrimType>>& get_prim_list();
 bool set_type(std::string name, var_type_ptr type);
-var_type_ptr as_ptr_type(var_type_ptr tp);
 
+var_type_ptr as_ptr_type(var_type_ptr tp);
+var_type_ptr ref_type(var_type_ptr ptr, bool is_cnst = false);
+
+template<class T>
+std::shared_ptr<T> dyn_ptr_cast(var_type_ptr ptr){
+    return std::dynamic_pointer_cast<T>(ptr);
+}

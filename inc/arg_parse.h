@@ -13,7 +13,7 @@ struct ArgParser{
     bool print_ast_sym = false;
     bool no_color = false;
 
-    std::string ir_target = "spl";
+    std::string ir_target = "llvm";
 
     clipp::group get_parser(){
         using namespace clipp;
@@ -21,7 +21,7 @@ struct ArgParser{
             opt_value("input", input_path),
 
             option("-v", "--version").call([](){
-                std::cout << "stardust version 0.1.0" << std::endl;
+                std::cout << "stardust version 0.2.0" << std::endl;
                 exit(0);
             }) % "version info",
 

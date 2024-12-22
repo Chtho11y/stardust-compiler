@@ -142,6 +142,10 @@ var_type_ptr sp_op_eval(op_type op, std::vector<var_type_ptr>& args, Locator loc
         if(decay(args[0])->is_type(VarType::Func)){
             append_assign_error("Cannot assign to function.", loc);
         }
+        auto ref = dyn_ptr_cast<RefType>(args[0]);
+        if(ref->is_cnst){
+            append_assign_error("Cannot modify a const value.", loc);
+        }
         return args[0];
     }
 

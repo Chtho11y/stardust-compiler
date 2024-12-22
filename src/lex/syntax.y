@@ -34,7 +34,7 @@
 %type<node> program
 %type<node> ext_decl single_decl
 %type<node> var_decl func_decl struct_decl struct_impl
-%type<node> struct_decl_ident func_decl_ident func_decl_ret_type
+%type<node> struct_decl_ident generic_decl generic_params func_decl_ident func_decl_ret_type
 %type<node> type_def
 %type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member member_func_list
 %type<node> const_desc 
@@ -192,6 +192,13 @@ type_desc:
 
 type_item: 
     type_name {$$ = create_node_from(TypeDesc, $1);}
+    | type_name LT type_list GT {
+        $$ = new AstNode(TypeDesc, "<>");
+        $$->append($1);
+        $$->append($3);
+        $$->append_loc($2);
+        $$->append_loc($4);
+    }
     | LP type_list RP{$$ = $2; $$->append_loc($1); $$->append_loc($3);}
     | type_item LBRACKET expr RBRACKET{
         $$ = new AstNode(TypeDesc, "[]");
@@ -263,6 +270,13 @@ type_name:
     TYPENAME {
         $$ = new AstNode(Identifier, *$1); delete $1;
     }
+    /* | TYPENAME LT type_list GT{
+        $$ = new AstNode(TypeDesc, "<>");
+        $$->append(new AstNode(Identifier, *$1)); delete $1;
+        $$->append($3);
+        $$->append_loc($2);
+        $$->append_loc($4);
+    } */
     ;
 
 
@@ -489,9 +503,20 @@ ident_value_member:
     }
     ;
 
+/************template declaration**************/
+
+generic_params:
+    ident_all {$$ = new AstNode(GenericParams); $$->append($1);}
+    | generic_params COMMA ident_all {$$ = $1; $$->append($3);}
+    ;
+
+generic_decl:
+    LT generic_params GT {$$ = $2; $$->loc = $2->loc;}
+    ;
+
 /**************struct declaration**************/
 struct_decl_ident: 
-    TSTRUCT ident_all{$$ = $2; $$->append_loc($1);}
+    TSTRUCT ident_all{$$ = $2; $$->append_loc($1); parser_context.set_type($2->str);}
     ;
 
 struct_decl: 
@@ -502,6 +527,25 @@ struct_decl:
         $$->append_loc($2);
         $$->append_loc($4);
         parser_context.set_type($1->str);
+    }
+    |struct_decl_ident generic_decl {
+        parser_context.push_block_env();
+        for(auto ch: $2->ch){
+            parser_context.set_type(ch->str);
+        }
+    } LBRACE ident_type_list RBRACE{
+        $$ = create_node_from(StructDecl, $1);
+        $5->type = StructMem;
+        $$->append($5);
+        $$->append_loc($4);
+        $$->append_loc($6);
+        parser_context.pop_block_env();
+        parser_context.set_type($1->str);
+
+        auto gen = new BlockNode(GenericBlock);
+        gen->append($$);
+        gen->append($2);
+        $$ = gen;
     }
     // | TSTRUCT error 
     | struct_decl_ident LBRACE ident_type_list error {

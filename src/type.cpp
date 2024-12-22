@@ -115,10 +115,10 @@ var_type_ptr greater_type(var_type_ptr a, var_type_ptr b){
     else return get_type("void");
 }
 
-var_type_ptr ref_type(var_type_ptr ptr){
+var_type_ptr ref_type(var_type_ptr ptr, bool is_cnst){
     if(ptr->is_void() || ptr->is_error())
         return ptr;
-    return std::make_shared<RefType>(ptr);
+    return std::make_shared<RefType>(ptr, is_cnst);
 }
 
 var_type_ptr decay(var_type_ptr ptr){
