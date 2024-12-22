@@ -17,7 +17,7 @@ std::string ast_node_name[] = {
     "Program", "ExtDecl",
     "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", 
     "TypeDesc", "ConstDesc",
-    "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem",
+    "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem", "StructImpl", "MemFuncList", 
     "FuncParams", "FuncArgs", "TypeList", 
     "Stmts", "StmtsRet", "Stmt", "Expr", "ExprList",
     "Operator", "Identifier", 
@@ -373,6 +373,44 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
     if (get_type(x)->is_prim()) \
         append_prim_shadowed_warning(x, loc)
 
+// void impl_mem_func(AstNode* &node) {
+//     for (auto &ch : node->ch)
+//         impl_mem_func(ch);
+//     if (node->type == Identifier && node->str == "self") {
+//         auto op_node = new OperatorNode(op_type::DeRef);
+//         op_node->parent = node->parent;
+//         op_node->append(node);
+//         node = op_node;
+//     }
+// }
+
+void build_funcbody(AstNode* node, std::vector<std::pair<std::string, std::shared_ptr<VarType>>> inject_var_list = {}) {
+    auto func = Adaptor<FuncDecl>(node);
+
+    for(auto ch: func.params->ch){
+        auto var = Adaptor<VarDecl>(ch).check_type();
+        CHECK_PRIM_SHADOW(var.id, var.id_loc);
+        if(!var.type_info->is_error())
+            func.body->var_table[var.id] = std::make_shared<VarInfo>(VarInfo{var.id, var.type_info, 0, ast_context.var_id++});
+    }
+    if (inject_var_list.size())
+        for (auto &[id, type_info] : inject_var_list) {
+            func.body->var_table[id] = std::make_shared<VarInfo>(VarInfo{id, type_info, 0, ast_context.var_id++});
+        }
+
+    auto res = build_sym_table(func.body);
+
+    bool tail_ret = false;
+    if(func.body->ch.size()){
+        auto tail = func.body->ch.back();
+        if(tail->type == Stmt && tail->str == "return")
+            tail_ret = true;
+    }
+    if(!tail_ret && !res->is_error() && !func.no_return()){
+        require_convertable(res, func.type_info->ret_type, func.body->ch.size() ? func.body->ch.back()->loc : func.body->loc_list.back());
+    }
+}
+
 std::shared_ptr<VarType> build_sym_table(AstNode* node){
     // std::cout << get_node_name(node) << " : " << node->str << std::endl;
     if(node->is_block){
@@ -393,30 +431,12 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         auto flag = node->set_id(func.id, func.type_info);
         node->ret_var_type = func.type_info;
 
-        for(auto ch: func.params->ch){
-            auto var = Adaptor<VarDecl>(ch).check_type();
-            CHECK_PRIM_SHADOW(var.id, var.id_loc);
-            if(!var.type_info->is_error())
-                func.body->var_table[var.id] = std::make_shared<VarInfo>(VarInfo{var.id, var.type_info, 0, ast_context.var_id++});
-        }
+        build_funcbody(node);
 
-        auto res = build_sym_table(func.body);
-
-        bool tail_ret = false;
-        if(func.body->ch.size()){
-            auto tail = func.body->ch.back();
-            if(tail->type == Stmt && tail->str == "return")
-                tail_ret = true;
-        }
-        if(!tail_ret && !res->is_error() && !func.no_return()){
-            require_convertable(res, func.type_info->ret_type, func.body->ch.size() ? func.body->ch.back()->loc : func.body->loc_list.back());
-        }
         if(!flag){
-            // append_error("Function " + func.id + " has been declared.", func.id_loc);
             append_multidef_error("Function", func.id, func.id_loc);
             node->ret_var_type = get_type("#err");
         }
-
         return node->ret_var_type;
 
     }else if(node->type == VarDecl){
@@ -504,8 +524,9 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             auto id = op->ch[1]->str;
             if(t->is_error())
                 return node->ret_var_type = t;
-            bool is_ref = t->is_ref();
+            bool is_ref = t->is_ref() | t->is_ptr();
             t = decay(t);
+            t = deref(t);
             if(t->is_type(VarType::Struct)){
                 auto st = std::dynamic_pointer_cast<StructType>(t);
                 for(auto [n, tp]: st->member){
@@ -515,6 +536,11 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             }else if(t->is_array()){
                 if(id == "length")
                     return node->ret_var_type = get_type("int32");
+            }
+            auto mem_func_id = t->to_string() + "$" + id;
+            auto mem_func_type = op->get_id(mem_func_id);
+            if (mem_func_type != nullptr) {
+                return node->ret_var_type = mem_func_type;
             }
             append_invalid_access_error(t, id, node->loc_list[0]);
             return node->ret_var_type = get_type("#err");
@@ -611,6 +637,29 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             args->members.push_back(build_sym_table(ch));
         }
         return node->ret_var_type = args;
+    }
+    else if (node->type == StructImpl) {
+        auto id_type = node->get_type(node->ch[0]->str);
+        auto id = id_type->to_string();
+        if(id_type == nullptr){
+            append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
+            return get_type("#err");
+        }
+        for (auto &ch : node->ch[1]->ch) {
+            auto func = Adaptor<FuncDecl>(ch);
+            CHECK_PRIM_SHADOW(func.id, func.id_loc);
+            auto mem_func_type = std::make_shared<LambdaType>(id_type, func.type_info);
+            auto flag = node->set_id(id + "$" + func.id, mem_func_type);
+            node->ret_var_type = mem_func_type;
+
+            build_funcbody(ch, {std::make_pair("self", std::make_shared<PointerType>(id_type))});
+
+            if(!flag){
+                append_multidef_error("Member Function", id + "." + func.id, func.id_loc);
+                node->ret_var_type = get_type("#err");
+            }
+        }
+        return get_type("void");
     }else if(node->type == Err){
         return node->ret_var_type = get_type("#err");
     }else{

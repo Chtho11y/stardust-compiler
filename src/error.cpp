@@ -114,6 +114,11 @@ void append_invalid_decl_error(std::string desc, Locator loc){
     append_error(id + ": " + desc, loc);
 }
 
+void append_invalid_impl_error(std::string desc, Locator loc) {
+    std::string id = "Error C15";
+    append_error(id + ": " + desc, loc);
+}
+
 void append_syntax_error (std::string desc, Locator loc, bool is_fixed) {
     std::string id = "Error B";
     if (is_fixed)

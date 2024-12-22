@@ -26,17 +26,17 @@
 %token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN TTYPE TTYPEOF
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN TTYPE TTYPEOF TIMPL
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
 %type<token_id> block_begin block_end
 
 %type<node> program
 %type<node> ext_decl single_decl
-%type<node> var_decl func_decl struct_decl
+%type<node> var_decl func_decl struct_decl struct_impl
 %type<node> struct_decl_ident func_decl_ident func_decl_ret_type
 %type<node> type_def
-%type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member
+%type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member member_func_list
 %type<node> const_desc 
 %type<node> array_instance struct_instance 
 %type<node> opt_type_desc type_desc type_item type_list type_name
@@ -122,7 +122,7 @@ ext_decl:{
     }
     ;
 
-single_decl: var_decl | func_decl | struct_decl | type_def;
+single_decl: var_decl | func_decl | struct_decl | type_def | struct_impl;
 
 /**************type**************/
 opt_type_desc: 
@@ -904,6 +904,41 @@ return_stmt:
     }
     ;
 
+/**************struct member function**************/
+member_func_list:
+    func_decl {
+        $$ = new AstNode(MemFuncList);
+        $$->append($1);
+    }
+    | member_func_list func_decl {
+        $$ = $1;
+        $$->append($2);
+    }
+    | member_func_list error {
+        $$ = $1;
+        append_syntax_error("Invalid function declaration", next_loc($1->loc));
+    }
+;
+struct_impl:
+    TIMPL {
+        parser_context.push_block_env();
+        parser_context.set_var("self");
+    } ident_all LBRACE member_func_list RBRACE { 
+        parser_context.pop_block_env();
+        $$ = new AstNode(StructImpl);
+        $$->append($3);
+        $$->append($5);
+        $$->append_loc($1);
+        $$->append_loc($4);
+        $$->append_loc($6);
+    }
+    | TIMPL error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Invalid implement block.", Lc($1));
+    }
+;
+
 /**************expr**************/
 expr:
     expr_list
@@ -1259,6 +1294,19 @@ item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
         $$ = new AstNode(Err);
         $$->loc = locator_merge($1->loc, $3->loc);
         append_syntax_error("Missing )", next_loc($3->loc));
+        delete $1;
+        delete $3;
+    }
+    | type_name DOT error {
+        $$ = new AstNode(Err);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Identifier cannot be typename.", $1->loc);
+        delete $1;
+    }
+    | type_name LP item_list error {
+         $$ = new AstNode(Err);
+        $$->loc = locator_merge($1->loc, $3->loc);
+        append_syntax_error("Identifier cannot be typename.", $1->loc);
         delete $1;
         delete $3;
     }

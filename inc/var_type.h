@@ -10,7 +10,7 @@ struct VarType{
     static size_t ptr_size;
 
     enum var_kind{
-        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Ref, Error, Auto
+        Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Ref, Error, Auto, Lambda
     };
 
     var_kind kind;
@@ -34,6 +34,7 @@ struct VarType{
     bool is_prim() const {return is_type(Prim);}
     bool is_auto() const{return is_type(Auto);}
     bool is_ref() const {return is_type(Ref);}
+    bool is_struct() const {return is_type(Struct);}
 
     bool is_func_ptr() const;
 
@@ -53,6 +54,7 @@ void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc);
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b);
 var_type_ptr ref_type(var_type_ptr ptr);
 var_type_ptr decay(var_type_ptr ptr);
+var_type_ptr deref(var_type_ptr ptr);
 
 struct VoidType: VarType{
     VoidType(): VarType(Void){};
@@ -383,6 +385,22 @@ struct StructType: VarType{
             res += tp->size();
         return res;
     }
+};
+
+struct LambdaType: FuncType {
+    std::shared_ptr<VarType> obj;
+    // std::shared_ptr<FuncType> func;
+    LambdaType(std::shared_ptr<VarType> obj, std::shared_ptr<FuncType> func):  obj(obj) {
+        param_list = func->param_list;
+        ret_type = func->ret_type;
+    }
+    std::string to_string() const override {
+        return obj->to_string() + "$" + FuncType::to_string();
+    }
+    bool is_same(VarType* type) const override {
+        auto st = dynamic_cast<LambdaType*>(type);
+        return st && obj->is_same(st->obj.get()) && FuncType::is_same(dynamic_cast<FuncType*>(type));
+    } 
 };
 
 struct VarInfo{
