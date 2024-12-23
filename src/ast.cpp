@@ -763,12 +763,12 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         return node->ret_var_type = args;
     }
     else if (node->type == StructImpl) {
-        auto id_type = node->get_type(node->ch[0]->str);
+        auto id_type = ast_to_type(node->ch[0]);
         auto id = id_type->to_string();
-        if(id_type == nullptr){
-            append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
-            return get_type("#err");
-        }
+        // if(id_type == nullptr){
+        //     append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
+        //     return get_type("#err");
+        // }
         for (auto &ch : node->ch[1]->ch) {
             auto func = Adaptor<FuncDecl>(ch);
             CHECK_PRIM_SHADOW(func.id, func.id_loc);

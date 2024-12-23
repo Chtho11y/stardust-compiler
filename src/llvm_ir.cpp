@@ -308,6 +308,50 @@ llvm::Function* gen_ext_func_def(AstNode* ast, IRBuilder<>& builder){
     return llvm_fn;
 }
 
+llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder) {
+    using namespace llvm;
+    auto func_ada = Adaptor<FuncDecl>(ast);
+    auto lambda_type = std::dynamic_pointer_cast<LambdaType>(ast->ret_var_type);
+    auto func_type = std::make_shared<FuncType>();
+    
+    func_type->param_list = lambda_type->param_list;
+    func_type->param_list.push_back(std::make_shared<::PointerType>(lambda_type->obj));
+    func_type->ret_type = lambda_type->ret_type;
+
+    func_ada.param_name.push_back("self");
+
+    auto type_info = ast->get_info(lambda_type->obj->to_string() + "$" + func_ada.id);
+    if (!type_info->is_top)
+        throw std::invalid_argument("inner member function is not support.");
+    
+    auto llvm_fn_tp = (FunctionType*)get_llvm_type(func_type);
+    auto llvm_fn = Function::Create(llvm_fn_tp, Function::ExternalLinkage, func_ada.id, *llvm_mod);
+
+    auto bb = llvm::BasicBlock::Create(*llvm_ctx, func_ada.id, llvm_fn);
+    builder.SetInsertPoint(bb);
+
+    int idx = 0;
+    for (auto &arg : llvm_fn->args()) {
+        auto id = func_ada.body->get_info(func_ada.param_name[idx++]);
+        llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
+        builder.CreateStore(&arg, alloca);
+        var_table[id->var_id] = { arg.getType(), alloca};
+    }
+
+    auto ret = gen_llvm_ir(func_ada.body, builder);
+
+    if(func_ada.body->type == StmtsRet){
+        if(func_ada.no_return())
+            builder.CreateRetVoid();
+        else builder.CreateRet(ret);
+    }else if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+        llvm::Type *ret_type = llvm_fn->getReturnType();
+        gen_default_ret(ret_type, builder);
+    }
+
+    return llvm_fn;
+}
+
 void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
     using namespace llvm;
 
@@ -375,7 +419,12 @@ void gen_ext_decl_list(AstNode* ast, IRBuilder<>& builder){
             gen_ext_func_def(ch, builder);
         }else if(ch->type == VarDecl){
             gen_ext_var_decl(ch, builder);
-        }else {
+        }
+        // else if (ch->type == StructImpl) {
+        //     for (auto ch : ast->ch[1]->ch)
+        //         gen_ext_mem_func_def(ch, builder);
+        // }
+        else {
             assert(ch->type == StructDecl || ch->type == GenericBlock || ch->type == TypeDef);
             //skip Struct&Generic Decl
         }

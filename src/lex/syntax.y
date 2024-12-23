@@ -967,7 +967,7 @@ struct_impl:
     TIMPL {
         parser_context.push_block_env();
         parser_context.set_var("self");
-    } ident_all LBRACE member_func_list RBRACE { 
+    } type_desc LBRACE member_func_list RBRACE { 
         parser_context.pop_block_env();
         $$ = new AstNode(StructImpl);
         $$->append($3);
