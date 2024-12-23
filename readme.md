@@ -1,23 +1,20 @@
 ## TODO
 
-- **Literal Processing**  
-  + different format int literal for array length
-  + string literal and char literal escaping
-- **Syntax Error Handling**：
-  - locator refactoring  
-    
-  
+- **Type Alias**(Done)
 
-### Optional
+- **Constant evaluation**
 
-- **Type Alias**
-
-- **Constant expression**
-
-- **Member Function**
+- **Member Function / Lambda Function**(Ongoing)
 
 - **Enum / Tuple**
 
 - **Function Overload Support**  
-- **Unify Function Type and Function Pointer**  
-- **Array Instance**  (Done)
+- **Unify Function Type and Function Pointer**(Done)  
+- **Array Instance**(Done)
+- **Generic**(Ongoing)
+- **Reference Type**
+
+- **File Inclusion**
+
+- **Macro**
+- 
