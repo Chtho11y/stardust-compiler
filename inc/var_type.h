@@ -400,6 +400,14 @@ struct StructType: VarType{
         return res;       
     }
 
+    var_type_ptr type_of(std::string& nam) const{
+        for(auto& [s, tp]: member){
+            if(s == nam)
+                return tp;
+        }
+        return nullptr;
+    }
+
     std::string to_string() const override{
         return name + "#" + std::to_string(id);
     }

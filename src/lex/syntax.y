@@ -22,11 +22,11 @@
     LocatorBuffer token_id;
 };
 
-%token<str> INT NAME TYPENAME INVALID_NAME TTRUE TFALSE
+%token<str> INT NAME TYPENAME INVALID_NAME TTRUE TFALSE TNULL
 %token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN 
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
 %type<token_id> block_begin block_end
@@ -438,9 +438,9 @@ ident_type_member:
     ;
 
 ident_value_list:
-    {$$ = new AstNode(StructInstance); }
+    {$$ = new AstNode(StructInstanceMems); }
     | ident_value_member {
-        $$ = create_node_from(StructInstance, $1); 
+        $$ = create_node_from(StructInstanceMems, $1); 
     }
     | ident_value_list COMMA ident_value_member{
         $$ = $1;
@@ -1303,6 +1303,7 @@ literal:
     | FLOAT {$$ = new AstNode(DoubleLiteral, *$1); delete $1;}
     | CHAR  {$$ = new AstNode(CharLiteral, *$1); delete $1;}
     | STRING{$$ = new AstNode(StringLiteral, *$1); delete $1;}
+    | TNULL {$$ = new AstNode(PointerLiteral, *$1); delete $1;}
 
 /**************instance**************/
 array_instance: 
@@ -1321,13 +1322,14 @@ array_instance:
     ;
 
 struct_instance: 
-    TSTRUCT LBRACE ident_value_list RBRACE {
-        $$ = $3;
-        $$->append_loc($1);
+    type_name LBRACE ident_value_list RBRACE {
+        $$ = new AstNode(StructInstance);
+        $$->append($3);
+        $$->append($1);
         $$->append_loc($2);
         $$->append_loc($4);
     }
-    | TSTRUCT LBRACE ident_value_list error {
+    /* | TSTRUCT LBRACE ident_value_list error {
         $$ = new AstNode(Err);
         $$->loc = locator_merge($1, $3->loc);
         append_syntax_error("Missing }", next_loc($3->loc));
@@ -1337,7 +1339,7 @@ struct_instance:
         $$ = new AstNode(Err);
         $$->loc = $1;
         append_syntax_error("Invalid struct instance initializer.", Lc($1));
-    }
+    } */
     ;
 %%
 

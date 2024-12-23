@@ -20,6 +20,7 @@ enum node_type{
     CharLiteral,
     StringLiteral,
     BoolLiteral,
+    PointerLiteral,
     DoubleLiteral,
     IfStmt, WhileStmt, ForStmt,
     Err
@@ -252,6 +253,9 @@ struct Adaptor<VarDecl>{
     Adaptor<VarDecl>& check_type(){
         if(type_info->is_void()){
             append_invalid_decl_error("Variable cannot be declared as void type.", id_loc);
+            type_info = get_type("#err");
+        }else if(type_info->is_generic()){
+            append_invalid_decl_error("Variable cannot be declared as generic type directly.", id_loc);
             type_info = get_type("#err");
         }else if(type_info->is_error()){
             append_invalid_decl_error("Unknown type of variable \'" + id + "\'.", id_loc);

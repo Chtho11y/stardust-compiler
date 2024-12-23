@@ -45,7 +45,7 @@ const {return make_token(TCONST);}
 break {return make_token(TBREAK);}
 return {return make_token(TRETURN);}
 
-
+null {return make_token(TNULL, true);}
 true {return make_token(TTRUE, true);}
 false {return make_token(TFALSE, true);}
 {letter_}({letter_}|{digit})* {return make_token(NAME, true);}

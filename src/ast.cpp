@@ -13,6 +13,8 @@ AstNode* create_node_from(node_type type, AstNode* ch){
     return p;
 }
 
+var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum);
+
 std::string ast_node_name[] = {
     "Program", "ExtDecl",
     "FuncDecl", "VarDecl", "StructDecl", "StructMem",
@@ -22,7 +24,7 @@ std::string ast_node_name[] = {
     "FuncParams", "FuncArgs", "TypeList", 
     "Stmts", "StmtsRet", "Stmt", "Expr", "ExprList",
     "Operator", "Identifier", 
-    "IntLiteral", "CharLiteral", "StringLiteral", "BoolLiteral", "DoubleLiteral", 
+    "IntLiteral", "CharLiteral", "StringLiteral", "BoolLiteral", "PointerLiteral", "DoubleLiteral", 
     "IfStmt", "WhileStmt", "ForStmt",
     "Err"
 };
@@ -234,12 +236,17 @@ size_t const_eval(AstNode* node){
     return 0;
 }
 
-var_type_ptr lookup_struct(AstNode* node){
+var_type_ptr lookup_struct(AstNode* node, var_type_ptr assum = nullptr){
     bool err = false;
     StructType::member_list mem;
+    std::shared_ptr<StructType> st = nullptr;
+    if(assum && assum->is_struct()){
+        st = dyn_ptr_cast<StructType>(assum);
+    }
+
     for(auto ch: node->ch){
         auto id = ch->ch[0]->str;
-        auto tp = build_sym_table(ch->ch[1]);
+        auto tp = build_sym_table_with_assum(ch->ch[1], (st? st->type_of(id): nullptr));
         for(auto& [s, t]: mem)
             if(s == id){
                 // append_error("member + \'" + id + "\' is defined twice.", ch->ch[0]->loc);
@@ -253,34 +260,37 @@ var_type_ptr lookup_struct(AstNode* node){
     }
     if(err)
         return get_type("#err");
+    
+    if(st && st->match(mem))
+        return st;
 
-    auto p = node->parent;
-    while(p){
-        if(p->is_block){
-            auto block = static_cast<BlockNode*>(p);
-            auto& tb = block->type_table;
-            var_type_ptr res;
-            int cnt = 0;
-            for(auto& [s, tp]: tb){
-                if(tp->is_type(VarType::Struct)){
-                    auto st = std::dynamic_pointer_cast<StructType>(tp);
-                    if(st->match(mem)){
-                        res = tp;
-                        cnt++;
-                    }
-                }
-            }
-            if(cnt == 1){
-                return res;
-            }else if(cnt > 1){
-                append_infer_failed_error("Failed to infer the type of struct.", node->loc);
-                // append_error("Failed to infer the type of struct.", node->loc);
-                return get_type("#err");
-            }
-        }
-        p = p->parent;
-    }
-    append_infer_failed_error("No matched type for struct instance.", node->loc);
+    // auto p = node->parent;
+    // while(p){
+    //     if(p->is_block){
+    //         auto block = static_cast<BlockNode*>(p);
+    //         auto& tb = block->type_table;
+    //         var_type_ptr res;
+    //         int cnt = 0;
+    //         for(auto& [s, tp]: tb){
+    //             if(tp->is_type(VarType::Struct)){
+    //                 auto st = std::dynamic_pointer_cast<StructType>(tp);
+    //                 if(st->match(mem)){
+    //                     res = tp;
+    //                     cnt++;
+    //                 }
+    //             }
+    //         }
+    //         if(cnt == 1){
+    //             return res;
+    //         }else if(cnt > 1){
+    //             append_infer_failed_error("Failed to infer the type of struct.", node->loc);
+    //             // append_error("Failed to infer the type of struct.", node->loc);
+    //             return get_type("#err");
+    //         }
+    //     }
+    //     p = p->parent;
+    // }
+    append_infer_failed_error("Memeber mismatch for struct instance.", node->loc);
     // append_error("No matched type for struct instance.", node->loc);
     return get_type("#err");
 }
@@ -295,7 +305,7 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
         res->subtype = arr->subtype;
         res->len = std::max(node->ch.size(), arr->len);
         for(auto ch: node->ch){
-            auto tp = infer_array(ch, arr->subtype);
+            auto tp = build_sym_table_with_assum(ch, arr->subtype);
             require_convertable(tp, arr->subtype, ch->loc);
         }
         return node->ret_var_type = res;
@@ -458,6 +468,41 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
     return nullptr;
 }
 
+var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum){
+    if(assum == nullptr || assum->is_error() || assum->is_void() || assum->is_auto())
+        return node->ret_var_type = build_sym_table(node);
+    if(node->type == ArrayInstance){
+        return node->ret_var_type = infer_array(node, assum);
+    }else if(node->type == StructInstance){
+        return node->ret_var_type = lookup_struct(node, assum);
+    }else if(node->is_literal()){
+        switch (node->type){
+            case IntLiteral: {
+                if(!assum->is_prim()) return build_sym_table(node);
+                auto assum_tp = dyn_ptr_cast<PrimType>(assum);
+                auto literal_tp = dyn_ptr_cast<PrimType>(get_type("int32"));
+                if(assum_tp->pr_kind > literal_tp->pr_kind)
+                    return build_sym_table(node);
+                return node->ret_var_type = assum_tp;
+            }
+            case DoubleLiteral:{
+                if(!assum->is_prim()) return build_sym_table(node);
+                auto assum_tp = dyn_ptr_cast<PrimType>(assum);
+                auto literal_tp =  dyn_ptr_cast<PrimType>(get_type("float64"));
+                if(assum_tp->pr_kind != literal_tp->pr_kind)
+                    return build_sym_table(node);
+                return node->ret_var_type = assum_tp;
+            }
+            case PointerLiteral:{
+                return assum->is_ptr() ? node->ret_var_type = assum: build_sym_table(node);
+            }
+            default: return build_sym_table(node);
+        }
+    }else if(node->type == StmtsRet){
+        return build_sym_table_with_assum(node, assum);
+    }else return build_sym_table(node);
+}
+
 #define CHECK_PRIM_SHADOW(x, loc)\
     if (get_type(x)->is_prim()) \
         append_prim_shadowed_warning(x, loc)
@@ -531,10 +576,7 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
         std::shared_ptr<VarType> res_type = nullptr;
         if(var.init_val){
-            if(var.type_info->is_array())
-                res_type = infer_array(var.init_val, var.type_info);
-            else 
-                res_type = build_sym_table(var.init_val);
+            res_type = build_sym_table_with_assum(var.init_val, var.type_info);
         }
         if(var.type_info->is_auto()){
             if(res_type == nullptr){
@@ -602,8 +644,10 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         std::vector<var_type_ptr> tp;
 
         if(op->type == op_type::Convert){
-            tp.push_back(build_sym_table(op->ch[0]));
-            tp.push_back(ast_to_type(op->ch[1]));
+            auto ltp = ast_to_type(op->ch[1]);
+            auto val = build_sym_table_with_assum(op->ch[0], ltp);
+            tp.push_back(val);
+            tp.push_back(ltp);
         }else if(op->type == op_type::Access){
             auto t = build_sym_table(op->ch[0]);
             auto id = op->ch[1]->str;
@@ -632,7 +676,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->type == ArrayInstance) {
         return node->ret_var_type = infer_array(node);
     }else if(node->type == StructInstance) {
-        return node->ret_var_type = lookup_struct(node);
+        auto tp = ast_to_type(node->ch[1]);
+        return node->ret_var_type = lookup_struct(node->ch[0], tp);
     }else if(node->type == IfStmt){
 
         auto cond = build_sym_table(node->ch[0]);
@@ -665,9 +710,12 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
     }else if(node->is_literal()){
         switch (node->type){
             case IntLiteral: return node->ret_var_type = get_type("int32");
-            case DoubleLiteral: return node->ret_var_type = get_type("float32");
+            case DoubleLiteral: return node->ret_var_type = get_type("float64");
             case BoolLiteral: return node->ret_var_type = get_type("bool");
             case CharLiteral: return node->ret_var_type = get_type("char");
+            case PointerLiteral:{
+                return node->ret_var_type = std::make_shared<PointerType>(get_type("void"));
+            }
             case StringLiteral:{
                 auto res = std::make_shared<ArrayType>();
                 res->len = parse_string(node->str).size() + 1;

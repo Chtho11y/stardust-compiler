@@ -335,7 +335,7 @@ void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
         BasicBlock *bb = BasicBlock::Create(*llvm_ctx, "entry", init_val_fn);
         IRBuilder<> init_builder(bb);
 
-        Value *init_ret = gen_llvm_ir_to_type(decl.init_val, decl.init_val->ret_var_type, decay(decl.type_info), init_builder);
+        Value *init_ret = gen_llvm_ir_to_type(decl.init_val, decl.init_val->ret_var_type, decay(info->type), init_builder);
         if (!init_ret) {
             throw std::runtime_error("Failed to generate IR for init_expr.");
         }
@@ -349,7 +349,7 @@ void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
             IRBuilder<>(bb).CreateRetVoid();
         }
 
-        IRBuilder<> init_fn_builder(&init_fn->getEntryBlock(), init_fn->getEntryBlock().begin());
+        IRBuilder<> init_fn_builder(&init_fn->getEntryBlock(), --(init_fn->getEntryBlock().end()));
 
         init_ret = init_fn_builder.CreateCall(init_val_fn);
         init_fn_builder.CreateStore(init_ret, var);
@@ -789,16 +789,19 @@ llvm::Value* gen_literal(AstNode* ast, IRBuilder<>& builder){
     switch (ast->type)
     {
     case IntLiteral:
-        return ConstantInt::get(Type::getInt32Ty(*llvm_ctx), parse_int(ast->str));
+        return ConstantInt::get(get_llvm_type(ast->ret_var_type), parse_int(ast->str));
     
     case DoubleLiteral:
-        return ConstantFP::get(Type::getFloatTy(*llvm_ctx), (float)parse_double(ast->str));
+        return ConstantFP::get(get_llvm_type(ast->ret_var_type), (float)parse_double(ast->str));
     
     case BoolLiteral:
         return ConstantInt::get(Type::getInt1Ty(*llvm_ctx), ast->str == "true");
 
     case CharLiteral:
         return ConstantInt::get(Type::getInt8Ty(*llvm_ctx), parse_char(ast->str));
+    
+    case PointerLiteral:
+        return ConstantPointerNull::get((llvm::PointerType*)get_llvm_type(ast->ret_var_type));
 
     case node_type::StringLiteral:{
         Constant *str_cnst = ConstantDataArray::getString(*llvm_ctx, parse_string(ast->str), true);
@@ -953,6 +956,40 @@ llvm::Value* gen_if_stmt(AstNode* ast, IRBuilder<>& builder){
     return br_then;
 }
 
+llvm::Value* gen_struct_inst(AstNode* ast, IRBuilder<>& builder){
+    auto st_tp = dyn_ptr_cast<StructType>(ast->ret_var_type);
+    auto tp = get_llvm_type(ast->ret_var_type);
+    auto st = builder.CreateAlloca(tp);
+    auto mem = ast->ch[0];
+    //llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), val);
+    auto zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), 0);
+    for(auto ch: mem->ch){
+        auto nam = ch->ch[0]->str;
+        auto mem_tp = st_tp->type_of(nam);
+        auto val = gen_llvm_ir_to_type(ch->ch[1], ch->ch[1]->ret_var_type, decay(mem_tp), builder);
+        auto idx = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), st_tp->index_of(nam));
+        auto addr = builder.CreateGEP(st, {zero, idx});
+        builder.CreateStore(val, addr);
+    }
+    return builder.CreateLoad(st);
+}
+
+llvm::Value* gen_array_inst(AstNode* ast, IRBuilder<>& builder){
+    auto arr_tp = dyn_ptr_cast<ArrayType>(ast->ret_var_type);
+    auto tp = get_llvm_type(ast->ret_var_type);
+    auto arr = builder.CreateAlloca(tp);
+    //llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), val);
+    auto zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), 0);
+    for(size_t i = 0; i < ast->ch.size(); ++i){
+        auto ch = ast->ch[i];
+        auto val = gen_llvm_ir_to_type(ch, ch->ret_var_type, decay(arr_tp->subtype), builder);
+        auto idx = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), i);
+        auto addr = builder.CreateGEP(arr, {zero, idx});
+        builder.CreateStore(val, addr);
+    }
+    return builder.CreateLoad(arr);
+}
+
 llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
     // std::cout << get_node_name(ast) << std::endl;
     switch (ast->type)
@@ -1066,6 +1103,14 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
     case FuncDecl:{
         throw std::invalid_argument("inner function is not support");
         return nullptr;
+    }
+
+    case StructInstance:{
+        return gen_struct_inst(ast, builder);
+    }
+
+    case ArrayInstance:{
+        return gen_array_inst(ast, builder);
     }
 
     default:
