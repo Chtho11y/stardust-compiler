@@ -127,6 +127,12 @@ var_type_ptr decay(var_type_ptr ptr){
     return ptr;
 }
 
+var_type_ptr deref(var_type_ptr ptr) {
+    while(ptr->is_ptr())
+        ptr = std::dynamic_pointer_cast<PointerType>(ptr)->subtype;
+    return ptr;
+}
+
 bool VarType::is_func_ptr() const{
     if(!is_ptr())
         return false;

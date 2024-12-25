@@ -34,6 +34,8 @@ void append_call_error(var_type_ptr fn, var_type_ptr args, Locator loc);
 void append_invalid_decl_error(std::string desc, Locator loc);
 void append_generic_error(std::string desc, Locator loc);
 
+void append_invalid_impl_error(std::string desc, Locator loc);
+
 void append_lexeme_error(std::string desc, Locator loc);
 
 void append_syntax_error(std::string desc, Locator loc, bool is_fixed = false);

@@ -44,6 +44,9 @@ while {return make_token(TWHILE);}
 const {return make_token(TCONST);}
 break {return make_token(TBREAK);}
 return {return make_token(TRETURN);}
+type {return make_token(TTYPE);}
+typeof {return make_token(TTYPEOF);}
+impl {return make_token(TIMPL);}
 
 null {return make_token(TNULL, true);}
 true {return make_token(TTRUE, true);}

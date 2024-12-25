@@ -217,7 +217,8 @@ IRNode* ast_to_spl_ir(AstNode* ast){
 
         auto res = new IrBlockNode(ast);
         for(auto ch: ast->ch)
-            res->body.push_back(ast_to_spl_ir(ch));
+            if (ch->type != TypeDef)
+                res->body.push_back(ast_to_spl_ir(ch));
         return res;
 
     }else if(ast->type == StructDecl){

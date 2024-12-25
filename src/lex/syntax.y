@@ -26,16 +26,17 @@
 %token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
 %token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN 
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN TTYPE TTYPEOF TIMPL
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
 %type<token_id> block_begin block_end
 
 %type<node> program
 %type<node> ext_decl single_decl
-%type<node> var_decl func_decl struct_decl
+%type<node> var_decl func_decl struct_decl struct_impl
 %type<node> struct_decl_ident generic_decl generic_params func_decl_ident func_decl_ret_type
-%type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member
+%type<node> type_def
+%type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member member_func_list
 %type<node> const_desc 
 %type<node> array_instance struct_instance 
 %type<node> opt_type_desc type_desc type_item type_list type_name
@@ -121,7 +122,7 @@ ext_decl:{
     }
     ;
 
-single_decl: var_decl | func_decl | struct_decl;
+single_decl: var_decl | func_decl | struct_decl | type_def | struct_impl;
 
 /**************type**************/
 opt_type_desc: 
@@ -211,6 +212,13 @@ type_item:
         $$->append($1);
         $$->append_loc($2);
     }
+    | TTYPEOF LP expr RP {
+        $$ = new AstNode(TypeDesc, "&");
+        $$->append($3);
+        $$->append_loc($1);
+        $$->append_loc($2);
+        $$->append_loc($4);
+    }
     | LP type_list error {
         $$ = new AstNode(TypeDesc, "#err");
         $$->append_loc($1);
@@ -223,6 +231,13 @@ type_item:
         $$->append_loc($2);
         $$->append($3);
         append_syntax_error("Missing ]", next_loc($3->loc));
+    }
+    | TTYPEOF LP expr error {
+        $$ = new AstNode(TypeDesc, "#err");
+        $$->append_loc($1);
+        $$->append_loc($2);
+        $$->append($3);
+        append_syntax_error("Missing )", next_loc($3->loc));
     }
     ;
 
@@ -613,9 +628,28 @@ func_decl: func_decl_ident LP ident_type_list RP func_decl_ret_type {
 | func_decl_ident error {
     $$ = new AstNode(Err);
     $$->loc = $1->loc;
-    append_syntax_error("Inavlid function declaration.", $1->loc);
+    append_syntax_error("Invalid function declaration.", $1->loc);
     delete $1;
 }
+;
+
+/**************type define**************/
+type_def:
+    TTYPE ident_all ASSIGN type_desc SEMI{
+        $$ = new AstNode(TypeDef);
+        $$->loc = locator_merge($1, $5);
+        $$->append($2);
+        $$->append($4);
+        $$->append_loc($1);
+        $$->append_loc($3);
+        $$->append_loc($5);
+        parser_context.set_type($2->str);
+    }
+    | TTYPE error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Invalid type define.", Lc($1));
+    }
 ;
 
 /**************block and statements**************/
@@ -640,7 +674,7 @@ block_no_ret:
         $$->append_loc($1);
         $$->append_loc($3);
     }
-    /* | block_begin stmts YYEOF {
+    | block_begin stmts YYEOF {
         #ifndef AUTO_FIX
         $$ = new AstNode(Err);
         $$->loc = locator_merge($1, $2->loc);
@@ -652,7 +686,7 @@ block_no_ret:
         $$->append_loc(next_loc($2->loc));
         append_syntax_error("Unclosed {.", Lc($1), 1);
         #endif
-    } */
+    }
     ;
 
 stmts:
@@ -913,6 +947,41 @@ return_stmt:
         append_syntax_error("Missing ; after return.", Lc($1));
     }
     ;
+
+/**************struct member function**************/
+member_func_list:
+    func_decl {
+        $$ = new AstNode(MemFuncList);
+        $$->append($1);
+    }
+    | member_func_list func_decl {
+        $$ = $1;
+        $$->append($2);
+    }
+    | member_func_list error {
+        $$ = $1;
+        append_syntax_error("Invalid function declaration", next_loc($1->loc));
+    }
+;
+struct_impl:
+    TIMPL {
+        parser_context.push_block_env();
+        parser_context.set_var("self");
+    } type_desc LBRACE member_func_list RBRACE { 
+        parser_context.pop_block_env();
+        $$ = new AstNode(StructImpl);
+        $$->append($3);
+        $$->append($5);
+        $$->append_loc($1);
+        $$->append_loc($4);
+        $$->append_loc($6);
+    }
+    | TIMPL error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Invalid implement block.", Lc($1));
+    }
+;
 
 /**************expr**************/
 expr:
@@ -1269,6 +1338,19 @@ item: ident | literal | array_instance | struct_instance | block_ret | ctrl_ret
         $$ = new AstNode(Err);
         $$->loc = locator_merge($1->loc, $3->loc);
         append_syntax_error("Missing )", next_loc($3->loc));
+        delete $1;
+        delete $3;
+    }
+    | type_name DOT error {
+        $$ = new AstNode(Err);
+        $$->loc = locator_merge($1->loc, $2);
+        append_syntax_error("Identifier cannot be typename.", $1->loc);
+        delete $1;
+    }
+    | type_name LP item_list error {
+         $$ = new AstNode(Err);
+        $$->loc = locator_merge($1->loc, $3->loc);
+        append_syntax_error("Identifier cannot be typename.", $1->loc);
         delete $1;
         delete $3;
     }
