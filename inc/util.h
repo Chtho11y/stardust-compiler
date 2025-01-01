@@ -57,19 +57,3 @@ enum ANSIColor {
 std::string color(ANSIColor foreground, ANSIColor style = RESET);
 
 }//namespace asni
-
-namespace util{
-
-template<class Tp, class ...Args>
-std::string str(Tp val, Args... args){
-    std::stringstream ss;
-    ss << val;
-    if constexpr (sizeof...(args) > 0)
-        return ss.str() + str(args...);
-    else
-        return ss.str();
-}
-
-uint64_t str_to_int(const std::string& str);
-
-}//namespace util

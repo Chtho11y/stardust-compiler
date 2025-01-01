@@ -20,10 +20,9 @@ std::map<size_t, llvm::StructType*> struct_table;
 
 std::stack<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> loop_stack;
 
-void gen_llvm_struct(std::shared_ptr<StructType> st);
+void gen_llvm_struct(sd::StructType* st);
 llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder);
 llvm::Value* gen_llvm_ir_to_type(AstNode* ast, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder);
-llvm::Value* gen_llvm_ir_decay(AstNode* ast, IRBuilder<>& builder);
 
 struct loop_env_guard{
     loop_env_guard(llvm::BasicBlock *cond, llvm::BasicBlock *end){
@@ -139,10 +138,11 @@ llvm::Value* get_var_inst(size_t id){
 
 namespace type_aux{
 
-llvm::Type* get_llvm_prim(std::shared_ptr<PrimType> type){
+llvm::Type* get_llvm_prim(sd::PrimType* type){
     using llvm::Type;
+    using sd::PrimType;
 
-    switch (type->pr_kind){
+    switch (type->kind){
 
     case PrimType::Int :{
         switch (type->siz){
@@ -171,18 +171,18 @@ llvm::Type* get_llvm_prim(std::shared_ptr<PrimType> type){
     throw std::invalid_argument("unsupport type: " + type->to_string());
 }
 
-llvm::ArrayType* get_llvm_array(std::shared_ptr<ArrayType> type){
+llvm::ArrayType* get_llvm_array(sd::ArrayType* type){
     auto subtype = get_llvm_type(type->subtype);
     return llvm::ArrayType::get(subtype, type->len);
 }
 
-llvm::StructType* get_llvm_struct(std::shared_ptr<StructType> type){
+llvm::StructType* get_llvm_struct(sd::StructType* type){
     if(!struct_table.count(type->id))
         gen_llvm_struct(type);
     return struct_table[type->id];
 }
 
-llvm::PointerType* get_llvm_pointer(std::shared_ptr<PointerType> type){
+llvm::PointerType* get_llvm_pointer(sd::PointerType* type){
     auto subtype = get_llvm_type(type->subtype);
     if(subtype->isVoidTy())
         return llvm::PointerType::get(llvm::Type::getInt8Ty(*llvm_ctx), 0);
@@ -190,7 +190,13 @@ llvm::PointerType* get_llvm_pointer(std::shared_ptr<PointerType> type){
     // return llvm::PointerType::get(llvm::Type::getInt8Ty(*llvm_ctx), 0);
 }
 
-llvm::FunctionType* get_llvm_func(std::shared_ptr<FuncType> type){
+llvm::PointerType* get_llvm_ref(sd::RefType* type){
+    auto subtype = get_llvm_type(type->subtype);
+    return llvm::PointerType::get(subtype, 0);
+    // return llvm::PointerType::get(llvm::Type::getInt8Ty(*llvm_ctx), 0);
+}
+
+llvm::FunctionType* get_llvm_func(sd::FuncType* type){
     std::vector<llvm::Type*> args;
 
     auto ret = get_llvm_type(type->ret_type);
@@ -205,27 +211,30 @@ llvm::FunctionType* get_llvm_func(std::shared_ptr<FuncType> type){
 
 llvm::Type* get_llvm_type(var_type_ptr type){
     using namespace type_aux;
+    using sd::type_kind;
 
-    type = decay(type);
-    switch(type->kind){
+    switch(type->type){
 
-    case VarType::Prim: 
-        return get_llvm_prim(std::dynamic_pointer_cast<PrimType>(type));
+    case type_kind::Prim: 
+        return get_llvm_prim(sd::dyn_ptr_cast<sd::PrimType>(type));
 
-    case VarType::Void:
+    case type_kind::Void:
         return llvm::Type::getVoidTy(*llvm_ctx);
 
-    case VarType::Func:
-        return get_llvm_func(std::dynamic_pointer_cast<FuncType>(type));
+    case type_kind::Func:
+        return get_llvm_func(sd::dyn_ptr_cast<sd::FuncType>(type));
 
-    case VarType::Pointer:
-        return get_llvm_pointer(std::dynamic_pointer_cast<PointerType>(type));
+    case type_kind::Pointer:
+        return get_llvm_pointer(sd::dyn_ptr_cast<sd::PointerType>(type));
 
-    case VarType::Array:
-        return get_llvm_array(std::dynamic_pointer_cast<ArrayType>(type));
+    case type_kind::Array:
+        return get_llvm_array(sd::dyn_ptr_cast<sd::ArrayType>(type));
 
-    case VarType::Struct:
-        return get_llvm_struct(std::dynamic_pointer_cast<StructType>(type));
+    case type_kind::Struct:
+        return get_llvm_struct(sd::dyn_ptr_cast<sd::StructType>(type));
+    
+    case type_kind::Ref:
+        return get_llvm_ref(sd::dyn_ptr_cast<sd::RefType>(type));
     }
     throw std::invalid_argument("unsupport type: " + type->to_string());
 }
@@ -241,7 +250,7 @@ llvm_val_info add_var(var_info_ptr var, IRBuilder<>& builder){
     return {llvm_type, alloca};
 }
 
-void gen_llvm_struct(std::shared_ptr<StructType> st){
+void gen_llvm_struct(sd::StructType* st){
     std::vector<llvm::Type*> members;
     std::string simple_name = "";
     for(auto ch: st->name){
@@ -308,49 +317,49 @@ llvm::Function* gen_ext_func_def(AstNode* ast, IRBuilder<>& builder){
     return llvm_fn;
 }
 
-llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder) {
-    using namespace llvm;
-    auto func_ada = Adaptor<FuncDecl>(ast);
-    auto lambda_type = std::dynamic_pointer_cast<LambdaType>(ast->ret_var_type);
-    auto func_type = std::make_shared<FuncType>();
+// llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder) {
+//     using namespace llvm;
+//     auto func_ada = Adaptor<FuncDecl>(ast);
+//     auto lambda_type = std::dynamic_pointer_cast<LambdaType>(ast->ret_var_type);
+//     auto func_type = std::make_shared<FuncType>();
     
-    func_type->param_list = lambda_type->param_list;
-    func_type->param_list.push_back(std::make_shared<::PointerType>(lambda_type->obj));
-    func_type->ret_type = lambda_type->ret_type;
+//     func_type->param_list = lambda_type->param_list;
+//     func_type->param_list.push_back(std::make_shared<::PointerType>(lambda_type->obj));
+//     func_type->ret_type = lambda_type->ret_type;
 
-    func_ada.param_name.push_back("self");
+//     func_ada.param_name.push_back("self");
 
-    auto type_info = ast->get_info(lambda_type->obj->to_string() + "$" + func_ada.id);
-    if (!type_info->is_top)
-        throw std::invalid_argument("inner member function is not support.");
+//     auto type_info = ast->get_info(lambda_type->obj->to_string() + "$" + func_ada.id);
+//     if (!type_info->is_top)
+//         throw std::invalid_argument("inner member function is not support.");
     
-    auto llvm_fn_tp = (FunctionType*)get_llvm_type(func_type);
-    auto llvm_fn = Function::Create(llvm_fn_tp, Function::ExternalLinkage, func_ada.id, *llvm_mod);
+//     auto llvm_fn_tp = (FunctionType*)get_llvm_type(func_type);
+//     auto llvm_fn = Function::Create(llvm_fn_tp, Function::ExternalLinkage, func_ada.id, *llvm_mod);
 
-    auto bb = llvm::BasicBlock::Create(*llvm_ctx, func_ada.id, llvm_fn);
-    builder.SetInsertPoint(bb);
+//     auto bb = llvm::BasicBlock::Create(*llvm_ctx, func_ada.id, llvm_fn);
+//     builder.SetInsertPoint(bb);
 
-    int idx = 0;
-    for (auto &arg : llvm_fn->args()) {
-        auto id = func_ada.body->get_info(func_ada.param_name[idx++]);
-        llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
-        builder.CreateStore(&arg, alloca);
-        var_table[id->var_id] = { arg.getType(), alloca};
-    }
+//     int idx = 0;
+//     for (auto &arg : llvm_fn->args()) {
+//         auto id = func_ada.body->get_info(func_ada.param_name[idx++]);
+//         llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
+//         builder.CreateStore(&arg, alloca);
+//         var_table[id->var_id] = { arg.getType(), alloca};
+//     }
 
-    auto ret = gen_llvm_ir(func_ada.body, builder);
+//     auto ret = gen_llvm_ir(func_ada.body, builder);
 
-    if(func_ada.body->type == StmtsRet){
-        if(func_ada.no_return())
-            builder.CreateRetVoid();
-        else builder.CreateRet(ret);
-    }else if (builder.GetInsertBlock()->getTerminator() == nullptr) {
-        llvm::Type *ret_type = llvm_fn->getReturnType();
-        gen_default_ret(ret_type, builder);
-    }
+//     if(func_ada.body->type == StmtsRet){
+//         if(func_ada.no_return())
+//             builder.CreateRetVoid();
+//         else builder.CreateRet(ret);
+//     }else if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+//         llvm::Type *ret_type = llvm_fn->getReturnType();
+//         gen_default_ret(ret_type, builder);
+//     }
 
-    return llvm_fn;
-}
+//     return llvm_fn;
+// }
 
 void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
     using namespace llvm;
@@ -379,7 +388,7 @@ void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
         BasicBlock *bb = BasicBlock::Create(*llvm_ctx, "entry", init_val_fn);
         IRBuilder<> init_builder(bb);
 
-        Value *init_ret = gen_llvm_ir_to_type(decl.init_val, decl.init_val->ret_var_type, decay(info->type), init_builder);
+        Value *init_ret = gen_llvm_ir(decl.init_val, init_builder);
         if (!init_ret) {
             throw std::runtime_error("Failed to generate IR for init_expr.");
         }
@@ -407,8 +416,7 @@ void gen_var_decl(AstNode* ast, IRBuilder<>& builder){
     auto [var_tp, alloca] = add_var(var_info, builder);
 
     if(var_node.init_val){
-        auto val = 
-            gen_llvm_ir_to_type(var_node.init_val, var_node.init_val->ret_var_type, decay(var_info->type), builder);
+        auto val = gen_llvm_ir(var_node.init_val, builder);
         builder.CreateStore(val, alloca);
     }
 }
@@ -441,28 +449,8 @@ namespace gen_op{
 //     Ref, DeRef
 // };
 
-bool is_math_op(op_type type){
-    return op_type::Add <= type && type <= op_type::Xor;
-}
-
-bool is_logic_op(op_type type){
-    return op_type::And == type || type == op_type::Or;
-}
-
-bool is_uary_op(op_type type){
-    return op_type::Pos <= type && type <= op_type::Not;
-}
-
-bool is_cmp_op(op_type type){
-    return op_type::Eq <= type && type <= op_type::Gt;
-}
-
-bool is_assign_op(op_type type){
-    return op_type::Assign <= type && type <= op_type::DivEq;
-}
-
 llvm::Value* gen_unary_op(OperatorNode* ast, IRBuilder<>& builder){
-    auto val = gen_llvm_ir_to_type(ast->ch[0],ast->ch[0]->ret_var_type, ast->ret_var_type, builder);
+    auto val = gen_llvm_ir(ast->ch[0], builder);
 
     switch(ast->type){
     case op_type::Pos: return val;
@@ -483,18 +471,6 @@ llvm::Value* gen_math_op(OperatorNode *ast, IRBuilder<>& builder){
     auto lhs = gen_llvm_ir(ast->ch[0], builder);
     auto rhs = gen_llvm_ir(ast->ch[1], builder);
 
-    bool ptr_op = decay(ast_tp)->is_ptr() || decay(ast->ch[0]->ret_var_type)->is_ptr() || decay(ast->ch[1]->ret_var_type)->is_ptr();
-
-    if(!ptr_op){
-        lhs = gen_convert(lhs, ast->ch[0]->ret_var_type, ast_tp, builder);
-        rhs = gen_convert(rhs, ast->ch[1]->ret_var_type, ast_tp, builder);
-    }else{
-        if(!decay(ast->ch[0]->ret_var_type)->is_array())
-            lhs = gen_convert(lhs, ast->ch[0]->ret_var_type, decay(ast->ch[0]->ret_var_type), builder);
-        if(!decay(ast->ch[1]->ret_var_type)->is_array())
-            rhs = gen_convert(rhs, ast->ch[1]->ret_var_type, decay(ast->ch[1]->ret_var_type), builder);        
-    }
-
     switch(op){
     case op_type::Add:{
         if(res_tp->isIntegerTy())
@@ -502,38 +478,29 @@ llvm::Value* gen_math_op(OperatorNode *ast, IRBuilder<>& builder){
         else if(res_tp->isFloatingPointTy())
             return builder.CreateFAdd(lhs, rhs);
         else if (lhs->getType()->isPointerTy() && rhs->getType()->isIntegerTy()){
-            // lhs->print(llvm::outs());
-            lhs = gen_convert(lhs, decay(ast->ch[0]->ret_var_type), as_ptr_type(ast->ch[0]->ret_var_type), builder);
             return builder.CreateGEP(lhs, rhs);
         }
         else if (rhs->getType()->isPointerTy() && lhs->getType()->isIntegerTy()){
-            rhs = gen_convert(rhs, decay(ast->ch[1]->ret_var_type), as_ptr_type(ast->ch[1]->ret_var_type), builder);
             return builder.CreateGEP(rhs, lhs);
         }
             
-
         break;
     }
 
     case op_type::Sub:{
 
-        if(ptr_op){
-            if (lhs->getType()->isPointerTy() && rhs->getType()->isIntegerTy()) {
-                llvm::Value* neg_rhs = builder.CreateNeg(rhs);
-                return builder.CreateGEP(lhs, neg_rhs);
-            } else if (lhs->getType()->isPointerTy() && rhs->getType()->isPointerTy()) {
+        if (lhs->getType()->isPointerTy() && rhs->getType()->isIntegerTy()) {
+            llvm::Value* neg_rhs = builder.CreateNeg(rhs);
+            return builder.CreateGEP(lhs, neg_rhs);
+        } else if (lhs->getType()->isPointerTy() && rhs->getType()->isPointerTy()) {
 
-                auto elemSize = llvm::ConstantExpr::getSizeOf(
-                    lhs->getType()->getPointerElementType());
-                llvm::Value* lhsToInt = builder.CreatePtrToInt(lhs, builder.getInt64Ty());
-                llvm::Value* rhsToInt = builder.CreatePtrToInt(rhs, builder.getInt64Ty());
-                llvm::Value* diff = builder.CreateSub(lhsToInt, rhsToInt);
-                return builder.CreateExactSDiv(diff, elemSize);
-            }
-            break;
-        }
-
-        if(res_tp->isIntegerTy())
+            auto elemSize = llvm::ConstantExpr::getSizeOf(
+                lhs->getType()->getPointerElementType());
+            llvm::Value* lhsToInt = builder.CreatePtrToInt(lhs, builder.getInt64Ty());
+            llvm::Value* rhsToInt = builder.CreatePtrToInt(rhs, builder.getInt64Ty());
+            llvm::Value* diff = builder.CreateSub(lhsToInt, rhsToInt);
+            return builder.CreateExactSDiv(diff, elemSize);
+        }else if(res_tp->isIntegerTy())
             return builder.CreateSub(lhs, rhs);
         else if(res_tp->isFloatingPointTy())
             return builder.CreateFSub(lhs, rhs);
@@ -596,9 +563,9 @@ llvm::Value* gen_math_op(OperatorNode *ast, IRBuilder<>& builder){
 llvm::Value* gen_cmp_op(OperatorNode *ast, IRBuilder<>& builder){
     auto comm_tp = greater_type(ast->ch[0]->ret_var_type, ast->ch[1]->ret_var_type);
     auto llvm_comm_tp = get_llvm_type(comm_tp);
-    auto lhs = gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, comm_tp, builder);
-    auto rhs = gen_llvm_ir_to_type(ast->ch[1], ast->ch[1]->ret_var_type, comm_tp, builder);
-    
+    auto lhs = gen_llvm_ir(ast->ch[0], builder);
+    auto rhs = gen_llvm_ir(ast->ch[1], builder);
+
     switch (ast->type)
     {
     case op_type::Eq :{
@@ -646,11 +613,11 @@ llvm::Value* gen_cmp_op(OperatorNode *ast, IRBuilder<>& builder){
 
 llvm::Value* gen_assign_op(OperatorNode* ast, IRBuilder<>& builder){
     auto ast_tp = ast->ret_var_type;
-    auto res_tp = get_llvm_type(ast_tp);
+    auto res_tp = get_llvm_type(ast_tp->decay());
     op_type op = ast->type;
 
     auto lvalue = gen_llvm_ir(ast->ch[0], builder);
-    auto rhs = gen_llvm_ir_to_type(ast->ch[1], ast->ch[1]->ret_var_type, decay(ast_tp), builder);
+    auto rhs = gen_llvm_ir(ast->ch[1], builder);
 
     auto res = rhs;
     if(op != op_type::Assign){
@@ -701,41 +668,24 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
     //     throw std::invalid_argument("function pointer is not support yet");
 
     // auto func_info = ast->get_info(ast->ch[0]->str);
-    std::shared_ptr<FuncType> ast_fn_tp;
-    if(decay(ast->ch[0]->ret_var_type)->is_func()){
-        ast_fn_tp = std::dynamic_pointer_cast<FuncType>(decay(ast->ch[0]->ret_var_type));
+    sd::FuncType* ast_fn_tp;
+    auto lhs = ast->ch[0]->ret_var_type->decay();
+    if(lhs->is_func()){
+        ast_fn_tp = lhs->cast<sd::FuncType>();
     }else{
-        auto ptr = std::dynamic_pointer_cast<PointerType>(decay(ast->ch[0]->ret_var_type));
-        ast_fn_tp = std::dynamic_pointer_cast<FuncType>(ptr->subtype);
+        ast_fn_tp  = lhs->cast<sd::PointerType>()->subtype->cast<sd::FuncType>();
     }
 
-    auto function = gen_llvm_ir_decay(ast->ch[0], builder);
+    auto function = gen_llvm_ir(ast->ch[0], builder);
     auto ast_args = ast->ch[1];
     auto& params_tp = ast_fn_tp->param_list;
 
 
     std::vector<llvm::Value*> args;
 
-    auto upper_type = [](var_type_ptr tp)-> var_type_ptr{
-        tp = decay(tp);
-        if(tp->is_array())
-            return as_ptr_type(tp);
-        if(tp->is_prim()){
-            auto prim_tp = dyn_ptr_cast<PrimType>(tp);
-            auto lim = (prim_tp->pr_kind == PrimType::Float ? 64: 32);
-            return std::make_shared<PrimType>(std::max(prim_tp->pr_kind, PrimType::Int), std::max(lim, prim_tp->siz));
-        }
-        return tp;
-    };
-
     for(size_t i = 0; i < ast_args->ch.size(); ++i){
-        llvm::Value *arg;
+        llvm::Value *arg = gen_llvm_ir(ast_args->ch[i], builder);
         auto arg_tp = ast_args->ch[i]->ret_var_type;
-        if(i < params_tp.size()){
-            arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, params_tp[i], builder);
-        }else{
-            arg = gen_llvm_ir_to_type(ast_args->ch[i], arg_tp, upper_type(arg_tp), builder);
-        }
         args.push_back(arg);
     }
 
@@ -751,29 +701,27 @@ llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
     if(ast->type == op_type::At){
 
         auto arr = gen_llvm_ir(ast->ch[0], builder);
-        auto idx = gen_llvm_ir_to_type(ast->ch[1], ast->ch[1]->ret_var_type, get_type("uint64"), builder);
-        
+        auto idx = gen_llvm_ir(ast->ch[1], builder);
 
-        if(decay(ast->ch[0]->ret_var_type)->is_array())
+        if(ast->ch[0]->ret_var_type->decay()->is_array())
             return builder.CreateGEP(arr, {zero, idx});
-        else if(decay(ast->ch[0]->ret_var_type)->is_ptr()){
-            auto ptr = gen_convert(arr, ast->ch[0]->ret_var_type, decay(ast->ch[0]->ret_var_type), builder);
-            return builder.CreateGEP(ptr, idx);
+        else if(ast->ch[0]->ret_var_type->decay()->is_ptr()){
+            return builder.CreateGEP(arr, idx);
         }
         throw std::invalid_argument("unexpected type");
 
     }else if(ast->type == op_type::Access){
-        auto tp = decay(ast->ch[0]->ret_var_type);
+        auto tp = ast->ch[0]->ret_var_type->decay();
 
         if(tp->is_array()){
-            auto len = dyn_ptr_cast<ArrayType>(tp)->len;
+            auto len = tp->cast<sd::ArrayType>()->len;
             return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), len);
         }
 
-        assert(tp->is_type(VarType::Struct));
+        assert(tp->is_struct());
         assert(ast->ch[1]->type == Identifier);
 
-        auto st_tp = dyn_ptr_cast<StructType>(tp);
+        auto st_tp = tp->cast<sd::StructType>();
         auto llvm_st = get_llvm_type(st_tp);
         auto st = gen_llvm_ir(ast->ch[0], builder);
 
@@ -810,7 +758,7 @@ llvm::Value* gen_operator(OperatorNode* ast, IRBuilder<>& builder){
     if(is_assign_op(op))
         return gen_assign_op(ast, builder);
     
-    if(op == op_type::Convert){
+    if(op == op_type::Convert || op == op_type::ImpConvert){
         return gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, ast->ret_var_type, builder);
     }
 
@@ -826,7 +774,7 @@ llvm::Value* gen_operator(OperatorNode* ast, IRBuilder<>& builder){
     }
     
     if(op == op_type::DeRef){
-        auto ptr = gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, decay(ast->ch[0]->ret_var_type), builder);
+        auto ptr = gen_llvm_ir(ast->ch[0], builder);
         return ptr;
     }
     
@@ -958,16 +906,12 @@ llvm::Value* gen_if_ret_stmt(AstNode* ast, IRBuilder<>& builder){
 
     builder.SetInsertPoint(b_then);
     auto br_then = gen_llvm_ir(ast->ch[1], builder);
-    if(!no_ret)
-        br_then = gen_convert(br_then, ast->ch[1]->ret_var_type, ast->ret_var_type, builder);
     builder.CreateBr(b_end);
     BasicBlock *b_then_end = builder.GetInsertBlock();
 
     fn->getBasicBlockList().push_back(b_else);
     builder.SetInsertPoint(b_else);
     auto br_else = gen_llvm_ir(ast->ch[2], builder);
-    if(!no_ret)
-        br_else = gen_convert(br_else, ast->ch[2]->ret_var_type, ast->ret_var_type, builder);
 
     builder.CreateBr(b_end);
     BasicBlock *b_else_end = builder.GetInsertBlock();
@@ -1006,7 +950,7 @@ llvm::Value* gen_if_stmt(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_struct_inst(AstNode* ast, IRBuilder<>& builder){
-    auto st_tp = dyn_ptr_cast<StructType>(ast->ret_var_type);
+    auto st_tp = sd::dyn_ptr_cast<sd::StructType>(ast->ret_var_type);
     auto tp = get_llvm_type(ast->ret_var_type);
     auto st = builder.CreateAlloca(tp);
     auto mem = ast->ch[0];
@@ -1014,8 +958,7 @@ llvm::Value* gen_struct_inst(AstNode* ast, IRBuilder<>& builder){
     auto zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), 0);
     for(auto ch: mem->ch){
         auto nam = ch->ch[0]->str;
-        auto mem_tp = st_tp->type_of(nam);
-        auto val = gen_llvm_ir_to_type(ch->ch[1], ch->ch[1]->ret_var_type, decay(mem_tp), builder);
+        auto val = gen_llvm_ir(ch->ch[1], builder);
         auto idx = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), st_tp->index_of(nam));
         auto addr = builder.CreateGEP(st, {zero, idx});
         builder.CreateStore(val, addr);
@@ -1024,14 +967,14 @@ llvm::Value* gen_struct_inst(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_array_inst(AstNode* ast, IRBuilder<>& builder){
-    auto arr_tp = dyn_ptr_cast<ArrayType>(ast->ret_var_type);
+    auto arr_tp = sd::dyn_ptr_cast<sd::ArrayType>(ast->ret_var_type);
     auto tp = get_llvm_type(ast->ret_var_type);
     auto arr = builder.CreateAlloca(tp);
     //llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), val);
     auto zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), 0);
     for(size_t i = 0; i < ast->ch.size(); ++i){
         auto ch = ast->ch[i];
-        auto val = gen_llvm_ir_to_type(ch, ch->ret_var_type, decay(arr_tp->subtype), builder);
+        auto val = gen_llvm_ir(ch, builder);
         auto idx = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), i);
         auto addr = builder.CreateGEP(arr, {zero, idx});
         builder.CreateStore(val, addr);
@@ -1053,8 +996,6 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
         for(auto ch: ast->ch){
             ret = gen_llvm_ir(ch, builder);
         }
-        if(!ast->ret_var_type->is_void())
-            return gen_convert(ret, ast->ch.back()->ret_var_type, ast->ret_var_type, builder);
         return ret;
     }
 
@@ -1092,8 +1033,7 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
             llvm::Value* res;
             if(ast->ch.size()){
                 auto ast_fn = Adaptor<FuncDecl>(ast->get_func_parent());
-                auto ret = gen_llvm_ir_to_type(ast->ch[0], ast->ch[0]->ret_var_type, 
-                                                            ast_fn.type_info->ret_type, builder);
+                auto ret = gen_llvm_ir(ast->ch[0], builder);
                 res = builder.CreateRet(ret);
             }else{
                 res =  builder.CreateRetVoid();
@@ -1148,8 +1088,6 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
         llvm::Value* ret = nullptr;
         for(auto ch: ast->ch)
             ret = gen_llvm_ir(ch, builder);
-        if(!ast->ret_var_type->is_void())
-            return gen_convert(ret, ast->ch.back()->ret_var_type, ast->ret_var_type, builder);
         return ret;
     }
 
@@ -1177,38 +1115,38 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_ptr ast_to, IRBuilder<>& builder){
-    // std::cout << "trying covert: " << ast_from->to_string() << " to " << ast_to->to_string() << std::endl;
     auto from = get_llvm_type(ast_from);
     auto to = get_llvm_type(ast_to);
     auto from_signed = ast_from->is_signed();
     auto to_signed = ast_to->is_signed();
 
-    if (decay(ast_from)->is_array() && ast_to->is_ptr()) {
+    if(ast_from == ast_to)
+        return from_v;
+
+    if (ast_from->decay()->is_array() && ast_to->is_ptr()) {
         // Array to Pointer Conversion
         // Convert an array type to a pointer to its element type
         // std::cout << "decay1" << std::endl;
         return builder.CreateGEP(from_v, {builder.getInt32(0), builder.getInt32(0)});
     }
 
-    if(ast_from->is_ref() && !ast_to->is_ref()){
+    if(ast_from->is_ref()){
+        assert(!ast_to->is_ref());
         // std::cout << "deref" << std::endl;
-        if(ast_to->is_array() || ast_to->is_type(VarType::Struct)){
+        if(ast_to->is_array() || ast_to->is_struct()){
             auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
             auto arr = builder.CreateGEP(from_v, zero);
             // return from_v;
             return builder.CreateLoad(arr);
-        }else if(decay(ast_from)->is_func()){
-            return gen_convert(from_v, decay(ast_from), ast_to, builder);
+        }else if(ast_from->decay()->is_func()){
+            return gen_convert(from_v, ast_from->decay(), ast_to, builder);
         }else{
             auto res = builder.CreateLoad(from_v);
-            return gen_convert(res, decay(ast_from), decay(ast_to), builder);
+            return gen_convert(res, ast_from->decay(), ast_to, builder);
         }
     }
 
-    if(ast_from->is_same(ast_to.get()))
-        return from_v;
-
-    if(decay(ast_from)->is_func() && decay(ast_to)->is_ptr()){
+    if(ast_from->is_func() && ast_to->is_ptr()){
         return builder.CreatePointerCast(from_v, get_llvm_type(ast_to));
     }
 
@@ -1240,7 +1178,7 @@ llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_pt
             } else if (from_width > to_width) {
                 // Integer truncation
                 return builder.CreateTrunc(from_v, to, "trunc");
-            }
+            }else return from_v;
         }else if(to->isFPOrFPVectorTy()){
             // Integer to floating-point conversion
             return from_signed ? builder.CreateSIToFP(from_v, to, "sitofp")
@@ -1268,10 +1206,6 @@ llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_pt
 llvm::Value* gen_llvm_ir_to_type(AstNode* ast, var_type_ptr from, var_type_ptr to, IRBuilder<>& builder){
     auto res = gen_llvm_ir(ast, builder);
     return gen_convert(res, from, to, builder);
-}
-
-llvm::Value* gen_llvm_ir_decay(AstNode* ast, IRBuilder<>& builder){
-    return gen_llvm_ir_to_type(ast, ast->ret_var_type, decay(ast->ret_var_type), builder);
 }
 
 void write_llvm_ir(std::ostream& os){

@@ -93,14 +93,14 @@ func main(){
     {
         struct st{a: int, b: int}
         let a;
-        struct{a:1, b:2}; //ok
-        struct{a: 1};
+        st{a:1, b:2}; //ok
+        st{a: 1};
     }
 
     //C13: invalid function call
     {   
         main();  //ok
-        main(1);
+        main(1) + 1;
     }
 
     //C14: invalid declaration

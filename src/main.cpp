@@ -1,10 +1,8 @@
 #include "parse.h"
 #include "ast.h"
-#include "var_type.h"
 #include "context.h"
 #include "arg_parse.h"
 #include "util.h"
-#include "ir_node.h"
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
@@ -26,8 +24,12 @@ void print(AstNode* rt, int dep){
         //     print(ch, dep + 2);
         std::cout << "TypeDesc: " << ast_to_type(rt)->to_string() << std::endl;
     }else if(rt->type == StructDecl){
-        auto st = Adaptor<StructDecl>(rt).build_type();
+        auto st = Adaptor<StructDecl>(rt);
         std::cout << "StructDecl: " << st.id << std::endl;
+        if(!st.type_info){
+            std::cout << "#error" << std::endl;
+            return;
+        }
         for(auto [id, tp]: st.type_info->member){
             for(int i = 0; i < dep + 2; ++i)
                 std::cout << " ";
@@ -241,15 +243,8 @@ int main(int argc, char* argv[]){
     }
     
     try{
-        if(parser.ir_target == "spl"){
-            IRContext context;
-            auto ir_root = ast_to_spl_ir(program_root);
-            ir_root->gen_code(context);
-            context.export_ir_code(stdout);
-        }else{
-            gen_module(program_root, "test");
-            write_llvm_ir(std::cout);
-        }
+        gen_module(program_root, "test");
+        write_llvm_ir(std::cout);
     }catch(std::string s){
         std::cout << s << std::endl;
     }catch(std::exception& e){

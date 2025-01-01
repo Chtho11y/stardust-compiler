@@ -1,7 +1,7 @@
 #pragma once
 
 #include "parse.h"
-#include "var_type.h"
+#include "sdtype.h"
 #include "context.h"
 #include "error.h"
 #include <map>
@@ -30,9 +30,16 @@ enum class op_type{
     Add, Sub, Mul, Div, Mod, And, Or,
     BitAnd, BitOr, Xor, Eq, Neq, Le, Ge, Lt, Gt,
     Assign, AddEq, SubEq, MulEq, DivEq, At, Call, Comma, Access,
-    Pos, Neg, Not, Convert,
+    Pos, Neg, Not, ImpConvert, Convert,
     Ref, DeRef
 };
+
+bool is_math_op(op_type type);
+bool is_logic_op(op_type type);
+bool is_uary_op(op_type type);
+bool is_cmp_op(op_type type);
+bool is_assign_op(op_type type);
+
 
 struct AstNode{
     node_type type;
@@ -104,7 +111,7 @@ struct AstNode{
     var_type_ptr get_id(std::string name);
     bool set_id(std::string name, var_type_ptr type);
 
-    std::shared_ptr<VarInfo> get_info(std::string name);
+    var_info_ptr get_info(std::string name);
 
     AstNode* get_loop_parent();
     AstNode* get_func_parent();
@@ -125,8 +132,8 @@ struct AstNode{
     }
 };
 
-using sym_table = std::map<std::string, std::shared_ptr<VarInfo>>;
-using GenericType = GenericStructType<AstNode>;
+using sym_table = std::map<std::string, var_info_ptr>;
+using GenericType = sd::GenericStructType<AstNode>;
 
 struct OperatorNode: AstNode{
     op_type type;
@@ -206,10 +213,12 @@ AstNode* create_node_from(node_type type, AstNode* ch);
 std::string get_node_name(AstNode* node);
 std::string get_op_name(op_type type);
 
-std::shared_ptr<VarType> ast_to_type(AstNode* node);
-std::shared_ptr<VarType> build_sym_table(AstNode* node);
+var_type_ptr ast_to_type(AstNode* node);
+var_type_ptr build_sym_table(AstNode* node);
+var_type_ptr expect_ret_type(AstNode* node, var_type_ptr expect);
 
-std::shared_ptr<VarType> op_type_eval(op_type op, std::vector<std::shared_ptr<VarType>> args, Locator loc);
+var_type_ptr op_type_eval(OperatorNode* op, std::vector<var_type_ptr> args);
+
 
 void inject_builtin_func(BlockNode* block);
 
@@ -221,7 +230,7 @@ struct Adaptor<VarDecl>{
     std::string id;
     AstNode *init_val;
     AstNode *type;
-    std::shared_ptr<VarType> type_info;
+    var_type_ptr type_info;
     bool is_const;
 
     Locator id_loc;
@@ -231,7 +240,7 @@ struct Adaptor<VarDecl>{
             // throw "adaptor type mismatch";
             id = "@ERROR";
             type = new AstNode(TypeDesc, "#err");
-            type_info = get_type("#err");
+            type_info = sd::ErrorType::get();
             init_val = nullptr;
             id_loc = rt->loc;
             return;
@@ -253,10 +262,10 @@ struct Adaptor<VarDecl>{
     Adaptor<VarDecl>& check_type(){
         if(type_info->is_void()){
             append_invalid_decl_error("Variable cannot be declared as void type.", id_loc);
-            type_info = get_type("#err");
+            type_info = sd::ErrorType::get();
         }else if(type_info->is_generic()){
             append_invalid_decl_error("Variable cannot be declared as generic type directly.", id_loc);
-            type_info = get_type("#err");
+            type_info = sd::ErrorType::get();
         }else if(type_info->is_error()){
             append_invalid_decl_error("Unknown type of variable \'" + id + "\'.", id_loc);
         }
@@ -271,7 +280,7 @@ struct Adaptor<VarDecl>{
 template<>
 struct Adaptor<StructDecl>{
     std::string id;
-    std::shared_ptr<StructType> type_info;
+    sd::StructType* type_info;
     AstNode* mem;
 
     Locator id_loc;
@@ -280,12 +289,18 @@ struct Adaptor<StructDecl>{
     Adaptor(AstNode* node){
         if(node->type != StructDecl)
             throw "adaptor type mismatch";
+        
         id = node->ch[0]->str;
         id_loc = node->ch[0]->loc;
         mem = node->ch[1];
-
-        type_info = std::make_shared<StructType>();
-        type_info->name = id;
+        if(node->ret_var_type){
+            if(node->ret_var_type->is_error())
+                type_info = nullptr;
+            else type_info = dynamic_cast<sd::StructType*>(node->ret_var_type);
+        }else{
+            type_info = sd::StructType::create();
+            type_info->name = id;
+        }
     }
 
     Adaptor<StructDecl>& build_type(){
@@ -312,6 +327,12 @@ struct Adaptor<StructDecl>{
             }
             if(tp->is_void()){
                 append_invalid_decl_error("Struct member cannot be declared as void type.", mem_loc[i]);
+                type_info = nullptr;
+                return *this;
+            }
+
+            if(tp->is_generic()){
+                append_invalid_decl_error("Struct member cannot be declared as generic type.", mem_loc[i]);
                 type_info = nullptr;
                 return *this;
             }
@@ -344,7 +365,7 @@ struct Adaptor<FuncDecl>{
 
     Locator id_loc;
 
-    std::shared_ptr<FuncType> type_info;
+    sd::FuncType* type_info;
     std::vector<std::string> param_name;
 
     Adaptor(AstNode* node){
@@ -357,16 +378,20 @@ struct Adaptor<FuncDecl>{
         ret = node->ch[2];
         body = static_cast<BlockNode*>(node->ch[3]);
 
-        type_info = std::make_shared<FuncType>();
-        type_info->ret_type = ast_to_type(ret);
-        if(type_info->ret_type->is_auto())
-            type_info->ret_type = std::make_shared<VoidType>();
+        auto param_list = std::vector<var_type_ptr>();
+        auto ret_type = ast_to_type(ret);
+
+        if(ret_type->is_auto())
+            ret_type = sd::VoidType::get();
 
         for(auto ch: params->ch){
             auto var = Adaptor<VarDecl>(ch);
-            type_info->param_list.push_back(var.type_info);
+            param_list.push_back(var.type_info);
             param_name.push_back(var.id);
         }
+
+        type_info = sd::FuncType::get(param_list, ret_type);
+
         // std::cout << "func adaptor built" << std::endl;
     }
 

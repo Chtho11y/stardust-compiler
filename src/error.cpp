@@ -29,13 +29,24 @@ error_list& get_error_list(){
 std::string str(){
     return "";
 }
-#include "util.h"
 
-using util::str;
+std::string str(var_type_ptr tp){
+    return  "\'" + tp->to_string() + "\'";
+}
 
-template<class ...Args>
-std::string str(var_type_ptr tp, Args... args){
-    return  "\'" + tp->to_string() + "\'" + str(args...);
+template<class Tp>
+std::string str(Tp val){
+    std::stringstream ss;
+    ss << val;
+    return ss.str();
+}
+
+template<class Tp, class ...Args>
+std::string str(Tp val, Args... args){
+    if constexpr (sizeof...(args) > 0)
+        return str(val) + str(args...);
+    else
+        return str(val);
 }
 
 void append_multidef_error(std::string desc, std::string nam, Locator loc){

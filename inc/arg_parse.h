@@ -7,13 +7,11 @@
 struct ArgParser{
 
     std::string output_path = "";
-    std::string input_path = "../test_cases/test.sd";
+    std::string input_path = "../test/test.sd";
     bool show_warning = true;
     bool print_ast = false;
     bool print_ast_sym = false;
     bool no_color = false;
-
-    std::string ir_target = "llvm";
 
     clipp::group get_parser(){
         using namespace clipp;
@@ -47,10 +45,6 @@ struct ArgParser{
                 exit(0);
             }) % "usage lines",
 
-            option("--ir=spl").set(ir_target, std::string("spl")) |
-            option("--ir=llvm").set(ir_target, std::string("llvm")).if_conflicted([](){
-                std::cout << "conflict setting of --ir target" << std::endl;
-            }) % "set intermediate representation format",
             option("-nc", "--no-color").set(no_color, true)
         );
     }

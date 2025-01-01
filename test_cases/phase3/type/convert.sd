@@ -1,0 +1,12 @@
+
+
+func main()->int{
+    
+    let a = 1;
+    let b: uint32 = -1;
+    let c = a + 1.5;
+    let d = 2 + (int)1.5;
+
+    printf("a = %d, b = %u, c = %f, d = %d\n", a, b, c, d);
+    0
+}

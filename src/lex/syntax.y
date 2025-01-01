@@ -81,7 +81,7 @@
 
 program: {
         parser_context.push_block_env();
-        auto& tps = get_prim_list();
+        auto& tps = sd::get_prim_list();
         for(auto tp: tps)
             parser_context.set_type(tp->to_string());
         parser_context.set_type("int");
@@ -674,7 +674,7 @@ block_no_ret:
         $$->append_loc($1);
         $$->append_loc($3);
     }
-    | block_begin stmts YYEOF {
+    /* | block_begin stmts YYEOF {
         #ifndef AUTO_FIX
         $$ = new AstNode(Err);
         $$->loc = locator_merge($1, $2->loc);
@@ -686,7 +686,7 @@ block_no_ret:
         $$->append_loc(next_loc($2->loc));
         append_syntax_error("Unclosed {.", Lc($1), 1);
         #endif
-    }
+    } */
     ;
 
 stmts:

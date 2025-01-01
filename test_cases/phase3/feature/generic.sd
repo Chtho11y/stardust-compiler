@@ -1,0 +1,13 @@
+
+struct ptr<T>{
+    p: T*
+}
+
+struct list<T>{
+
+}
+
+func main(){
+    let a: pair<int, int> = {1, 2};
+    let b
+}

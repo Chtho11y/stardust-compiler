@@ -1,8 +1,10 @@
 #include "ast.h"
 #include "context.h"
-#include "var_type.h"
+#include "sdtype.h"
 #include "literal_process.h"
 #include <iostream>
+
+using namespace sd;
 
 AstContext ast_context;
 
@@ -31,10 +33,10 @@ std::string ast_node_name[] = {
 std::string ast_op_name[] = {"Add", "Sub", "Mul", "Div", "Mod", "And", "Or",
                              "BitAnd", "BitOr", "Xor", "Eq", "Neq", "Le", "Ge", "Lt", "Gt",
                              "Assign", "AddEq", "SubEq", "MulEq", "DivEq", "At", "Call", "Comma", "Access",
-                             "Pos", "Neg", "Not", "Convert", "Ref", "Deref"};
+                             "Pos", "Neg", "Not", "ImplicitConvert", "Convert", "Ref", "Deref"};
 
 void ast_info_init(){
-    init_type_pool();
+    sd::type_ctx_init();
     op_impl_init();
     ast_context = AstContext();
 }
@@ -51,6 +53,23 @@ std::string get_op_name(op_type type){
     return ast_op_name[(int)(type)];
 }
 
+var_type_ptr expect_ret_type(AstNode* node, var_type_ptr expect){
+    if(node->ret_var_type == nullptr)
+        build_sym_table_with_assum(node, expect);
+    if(node->ret_var_type == expect)
+        return expect;
+    require_convertable(node->ret_var_type, expect, node->loc);
+    auto parent = node->parent;
+    auto cvt = new OperatorNode(op_type::ImpConvert, node, node->loc);
+    cvt->ret_var_type = expect;
+    for(auto& ch: parent->ch)
+        if(ch == node){
+            ch = cvt;
+            cvt->parent = parent;
+        }
+    return expect;
+}
+
 var_type_ptr AstNode::get_type(std::string name){
     AstNode *rt = this;
     // std::cout << "@get_type: begin" << std::endl;
@@ -65,7 +84,9 @@ var_type_ptr AstNode::get_type(std::string name){
         rt = rt->parent;
     }
     // std::cout << "@get_type: end" << std::endl;
-    return ::get_type(name);
+    if(auto res = get_type_context().get(name))
+        return res;
+    return ErrorType::get();
 }
 
 bool AstNode::set_type(std::string name, var_type_ptr type){
@@ -105,14 +126,14 @@ var_type_ptr AstNode::get_id(std::string name){
         if(rt->is_block){
             auto block = static_cast<BlockNode*>(rt);
             if(block->var_table.count(name)){
-                return ref_type(block->var_table[name]->type);
+                return RefType::get(block->var_table[name]->type);
             }
         }
         rt = rt->parent;
         
     }
     // std::cout << "@get_id: end" << std::endl;
-    this->set_id(name, ::get_type("#err")); //add assumption
+    this->set_id(name, ErrorType::get()); //add assumption
     return nullptr; //not found
 }
 
@@ -154,54 +175,37 @@ bool AstNode::set_id(std::string name, var_type_ptr type){
 }
 
 void inject_builtin_func(BlockNode* block){
-    auto fn_read = std::make_shared<FuncType>();
-    fn_read->ret_type = get_type("int");
-    block->set_id("read", fn_read);
+    auto i32_tp = PrimType::get_int(32);
+    auto i64_tp = PrimType::get_int(64);
+    auto void_tp = VoidType::get();
+    auto char_ptr = PointerType::get(PrimType::get_char());
+    auto void_ptr = PointerType::get(void_tp);
 
-    auto fn_write = std::make_shared<FuncType>();
-    fn_write->param_list.push_back(get_type("int"));
-    fn_write->ret_type = get_type("void");
-    block->set_id("write", fn_write);
-    block->set_id("exit", fn_write);
+    auto fn_void_to_i32 = FuncType::get({}, i32_tp);
+    auto fn_i32_to_void = FuncType::get({i32_tp}, void_tp);
+    auto fn_i32_to_i32 = FuncType::get({i32_tp}, i32_tp);
+    auto fn_cptr_to_i32 = FuncType::get({char_ptr}, i32_tp); 
+    auto fn_cptr_to_i32_vary = FuncType::get({char_ptr}, i32_tp, true); 
+    auto fn_voidptr_to_i32 = FuncType::get({void_ptr}, i32_tp); 
+    auto fn_i64_to_voidptr = FuncType::get({i64_tp}, void_ptr); 
+    auto fn_void_to_i64 = FuncType::get({}, i64_tp); 
 
-    auto fn_putchar = std::make_shared<FuncType>();
-    fn_putchar->param_list.push_back(get_type("int32"));
-    fn_putchar->ret_type = get_type("int32");
-    block->set_id("putchar", fn_putchar);
+    block->set_id("read", fn_void_to_i32);
+    block->set_id("write", fn_i32_to_void);
 
-    auto fn_getchar = std::make_shared<FuncType>();
-    fn_getchar->ret_type = get_type("int32");
-    block->set_id("getchar", fn_getchar);
+    block->set_id("exit", fn_i32_to_void);
 
-    auto fn_puts = std::make_shared<FuncType>();
-    auto ptr = std::make_shared<PointerType>();
-    ptr->subtype = get_type("char");
-    fn_puts->param_list.push_back(ptr);
-    fn_puts->ret_type = get_type("int32");
-    block->set_id("puts", fn_puts);
+    block->set_id("putchar", fn_i32_to_i32);
+    block->set_id("getchar", fn_void_to_i32);
+    block->set_id("puts", fn_cptr_to_i32);
 
-    auto fn_free = std::make_shared<FuncType>();
-    auto void_ptr = std::make_shared<PointerType>();
-    void_ptr->subtype = get_type("void");
-    fn_free->param_list.push_back(void_ptr);
-    fn_free->ret_type = get_type("int32");
-    block->set_id("free", fn_free);
+    block->set_id("free", fn_voidptr_to_i32);
+    block->set_id("malloc", fn_i64_to_voidptr);
 
-    auto fn_malloc = std::make_shared<FuncType>();
-    fn_malloc->param_list.push_back(get_type("int64"));
-    fn_malloc->ret_type = void_ptr;
-    block->set_id("malloc", fn_malloc);
+    block->set_id("clock", fn_void_to_i64);
 
-    auto fn_clock = std::make_shared<FuncType>();
-    fn_clock->ret_type = get_type("int64");
-    block->set_id("clock", fn_clock);
-
-    auto fn_printf = std::make_shared<FuncType>(true);
-    ptr = std::make_shared<PointerType>(get_type("char"));
-    fn_printf->param_list.push_back(ptr);
-    fn_printf->ret_type = get_type("int32");
-    block->set_id("printf", fn_printf);
-    block->set_id("scanf", fn_printf);
+    block->set_id("printf", fn_cptr_to_i32_vary);
+    block->set_id("scanf", fn_cptr_to_i32_vary);
 }
 
 AstNode* AstNode::get_loop_parent(){
@@ -224,9 +228,6 @@ AstNode* AstNode::get_func_parent(){
     return rt;
 }
 
-//TODO: 
-//support for different base (i.e. 0x123)
-//error report for error-type or non-literal.
 size_t const_eval(AstNode* node){
     if(node->type == IntLiteral){
         return parse_int(node->str);
@@ -239,7 +240,7 @@ size_t const_eval(AstNode* node){
 var_type_ptr lookup_struct(AstNode* node, var_type_ptr assum = nullptr){
     bool err = false;
     StructType::member_list mem;
-    std::shared_ptr<StructType> st = nullptr;
+    StructType* st = nullptr;
     if(assum && assum->is_struct()){
         st = dyn_ptr_cast<StructType>(assum);
     }
@@ -259,54 +260,26 @@ var_type_ptr lookup_struct(AstNode* node, var_type_ptr assum = nullptr){
             mem.emplace_back(id, tp);
     }
     if(err)
-        return get_type("#err");
+        return ErrorType::get();
     
     if(st && st->match(mem))
         return st;
 
-    // auto p = node->parent;
-    // while(p){
-    //     if(p->is_block){
-    //         auto block = static_cast<BlockNode*>(p);
-    //         auto& tb = block->type_table;
-    //         var_type_ptr res;
-    //         int cnt = 0;
-    //         for(auto& [s, tp]: tb){
-    //             if(tp->is_type(VarType::Struct)){
-    //                 auto st = std::dynamic_pointer_cast<StructType>(tp);
-    //                 if(st->match(mem)){
-    //                     res = tp;
-    //                     cnt++;
-    //                 }
-    //             }
-    //         }
-    //         if(cnt == 1){
-    //             return res;
-    //         }else if(cnt > 1){
-    //             append_infer_failed_error("Failed to infer the type of struct.", node->loc);
-    //             // append_error("Failed to infer the type of struct.", node->loc);
-    //             return get_type("#err");
-    //         }
-    //     }
-    //     p = p->parent;
-    // }
     append_infer_failed_error("Memeber mismatch for struct instance.", node->loc);
-    // append_error("No matched type for struct instance.", node->loc);
-    return get_type("#err");
+    return ErrorType::get();
 }
 
 var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
     if(node->type != ArrayInstance){
         return build_sym_table(node);
     }
-    if(type_assump){
-        auto arr = std::dynamic_pointer_cast<ArrayType>(type_assump);
-        auto res = std::make_shared<ArrayType>();
-        res->subtype = arr->subtype;
-        res->len = std::max(node->ch.size(), arr->len);
+
+    if(type_assump && type_assump->is_array()){
+        ArrayType* arr = dyn_ptr_cast<ArrayType>(type_assump);
+        auto res = ArrayType::get(arr->subtype, std::max(node->ch.size(), arr->len));
+
         for(auto ch: node->ch){
-            auto tp = build_sym_table_with_assum(ch, arr->subtype);
-            require_convertable(tp, arr->subtype, ch->loc);
+            expect_ret_type(ch, arr->subtype);
         }
         return node->ret_var_type = res;
     }else{
@@ -317,12 +290,13 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
         }
         if(!comm_tp || comm_tp->is_void()){
             append_infer_failed_error("Failed to infer the type of array", node->loc);
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
+        }else{
+            for(auto ch: node->ch){
+                expect_ret_type(ch, comm_tp);
+            }
         }
-        auto res = std::make_shared<ArrayType>();
-        res->len = node->ch.size();
-        res->subtype = comm_tp;
-        return node->ret_var_type = res;
+        return node->ret_var_type = ArrayType::get(comm_tp, node->ch.size());
     }
 }
 
@@ -330,21 +304,24 @@ var_type_ptr add_generic_impl(AstNode* node, std::vector<var_type_ptr>& args, st
 
     if(ast_context.generic_sub_cnt > 20){
         append_generic_error("Generic recursive replacements exceeds the limit", node->loc);
-        return get_type("#err");
+        return ErrorType::get();
     }
 
     ast_context.generic_sub_cnt++;
-    var_type_ptr res = get_type("#err");
+    var_type_ptr res = ErrorType::get();
     AstNode* impl;
     std::string nam;
-    try{
-        auto gen = Adaptor<GenericBlock>(node);
-        auto rt = gen.rt;
-        nam = gen.name;
-        for(size_t i = 0; i < args.size(); ++i){
-            rt->type_table[gen.params[i]] = args[i]; 
-        }
 
+    auto gen = Adaptor<GenericBlock>(node);
+    auto rt = gen.rt;
+    nam = gen.name;
+    for(size_t i = 0; i < args.size(); ++i){
+        rt->type_table[gen.params[i]] = args[i]; 
+    }
+
+    auto buffer = rt->type_table;
+
+    try{
         impl = gen.proto->clone();
 
         impl->ch[0]->str = sig;
@@ -356,28 +333,32 @@ var_type_ptr add_generic_impl(AstNode* node, std::vector<var_type_ptr>& args, st
         gen.impl_list->append(impl);
 
     }catch(generic_exception _){
-        res = get_type("#err");
+        res = ErrorType::get();
+        delete impl;
     }
+
+    rt->type_table = buffer;
 
     ast_context.generic_sub_cnt--;
     return res;
 }
 
-std::shared_ptr<VarType> ast_to_type(AstNode* node){
+var_type_ptr ast_to_type(AstNode* node){
     // std::cout << get_node_name(node) << ": " << node->str << std::endl;
     if(node->ret_var_type)
         return node->ret_var_type;
 
     if(node->type == TypeDesc){
         if(node->str == "()"){
-            auto res = std::make_shared<FuncType>();
             auto params = node->ch[0];
             auto ret = node->ch[1];
+            std::vector<var_type_ptr> param_list;
+            var_type_ptr ret_type;
             for(auto ch: params->ch)
-                res->param_list.push_back(ast_to_type(ch));
-            res->ret_type = ast_to_type(ret);
-            auto ptr = std::make_shared<PointerType>();
-            ptr->subtype = res;
+                param_list.push_back(ast_to_type(ch));
+            ret_type = ast_to_type(ret);
+            auto res = FuncType::get(param_list, ret_type);
+            auto ptr = PointerType::get(res);
             return node->ret_var_type = ptr;
         }else if(node->str == "[]"){
             auto sub = node;
@@ -386,55 +367,54 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             
             auto res = ast_to_type(sub);
             if(res->is_error())
-                return node->ret_var_type = get_type("#err");
+                return node->ret_var_type = ErrorType::get();
 
             if(res->is_void()){
                 append_invalid_decl_error("Cannot declare array of void type.", sub->loc);
-                return node->ret_var_type = get_type("#err");
+                return node->ret_var_type = ErrorType::get();
             }
         
             for(auto nd = node; nd != sub; nd = nd->ch[0]){
-                auto arr = std::make_shared<ArrayType>();
-                arr->len = const_eval(nd->ch[1]);
-                if(arr->len == 0)
-                    return node->ret_var_type = get_type("#err");
-                arr->subtype = res;
-                res = arr;
+                auto len = const_eval(nd->ch[1]);
+                if(len == 0)
+                    return node->ret_var_type = ErrorType::get();
+                auto subtype = res;
+                res = ArrayType::get(subtype, len);
             }
             return res;
         }else if(node->str == "*"){
-            auto res = std::make_shared<PointerType>();
-            res->subtype = ast_to_type(node->ch[0]);
-            return node->ret_var_type = res;
+            auto subtype = ast_to_type(node->ch[0]);
+            if(subtype->is_error())
+                return ErrorType::get();
+            return node->ret_var_type = PointerType::get(subtype);
         }else if(node->str == "&") {
             auto res = build_sym_table(node->ch[0]);
             if (res->is_error()) 
                 append_infer_failed_error("Failed to infer the type of expression.", node->ch[0]->loc);
-            return node->ret_var_type = res;
+            return node->ret_var_type = res->decay();
         }else if(node->str == "<>"){
             auto proto = ast_to_type(node->ch[0]);
             if(!proto->is_generic()){
                 if(!proto->is_error())
                     append_generic_error("Cannot use " + proto->to_string() + " as generic type.", node->ch[0]->loc);
-                return node->ret_var_type = get_type("#err");
+                return node->ret_var_type = ErrorType::get();
             }
 
-            auto gen = dyn_ptr_cast<GenericType>(proto);
+            auto gen = proto->cast<GenericType>();
 
             auto args = node->ch[1];
             std::vector<var_type_ptr> arg_list;
             for(auto ch: args->ch){
                 auto tp = ast_to_type(ch);
                 if(tp->is_error())
-                    return node->ret_var_type = get_type("#err");
-                arg_list.push_back(decay(tp));
+                    return node->ret_var_type = ErrorType::get();
+                arg_list.push_back(tp);
             }
 
             if(arg_list.size() != gen->param_list.size()){
                 append_generic_error("Generic parameters mismatch.", node->loc);
-                return node->ret_var_type = get_type("#err");
+                return node->ret_var_type = ErrorType::get();
             }
-
 
             std::string signature = TupleType(arg_list).to_string();
             signature.front() = '<';
@@ -453,22 +433,22 @@ std::shared_ptr<VarType> ast_to_type(AstNode* node){
             return node->ret_var_type = res;
 
         }else if(node->str == "#auto"){
-            return node->ret_var_type = std::make_shared<AutoType>();
+            return node->ret_var_type = AutoType::get();
         }else if(node->str == "#err"){
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }else return node->ret_var_type = ast_to_type(node->ch[0]);
     }else if(node->type == TypeList){
         if(node->ch.size() == 0){
-            return node->ret_var_type = get_type("void");
+            return node->ret_var_type = VoidType::get();
         }else if(node->ch.size() == 1){
             return node->ret_var_type = ast_to_type(node->ch[0]);
         }else{
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }
     }else if(node->type == Identifier){
         return node->ret_var_type = node->get_type(node->str);
     }else if(node->type == Err){
-        return node->ret_var_type = get_type("#err");
+        return node->ret_var_type = ErrorType::get();
     }
     return nullptr;
 }
@@ -478,23 +458,21 @@ var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum){
         return node->ret_var_type = build_sym_table(node);
     if(node->type == ArrayInstance){
         return node->ret_var_type = infer_array(node, assum);
-    }else if(node->type == StructInstance){
-        return node->ret_var_type = lookup_struct(node, assum);
-    }else if(node->is_literal()){
+    }else  if(node->is_literal()){
         switch (node->type){
             case IntLiteral: {
                 if(!assum->is_prim()) return build_sym_table(node);
                 auto assum_tp = dyn_ptr_cast<PrimType>(assum);
-                auto literal_tp = dyn_ptr_cast<PrimType>(get_type("int32"));
-                if(assum_tp->pr_kind > literal_tp->pr_kind)
+                auto literal_tp = PrimType::get_int(32);
+                if(assum_tp->kind > literal_tp->kind)
                     return build_sym_table(node);
                 return node->ret_var_type = assum_tp;
             }
             case DoubleLiteral:{
                 if(!assum->is_prim()) return build_sym_table(node);
                 auto assum_tp = dyn_ptr_cast<PrimType>(assum);
-                auto literal_tp =  dyn_ptr_cast<PrimType>(get_type("float64"));
-                if(assum_tp->pr_kind != literal_tp->pr_kind)
+                auto literal_tp =  PrimType::get_float(64);
+                if(assum_tp->kind != literal_tp->kind)
                     return build_sym_table(node);
                 return node->ret_var_type = assum_tp;
             }
@@ -503,14 +481,15 @@ var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum){
             }
             default: return build_sym_table(node);
         }
-    }else if(node->type == StmtsRet){
-        return build_sym_table_with_assum(node, assum);
     }else return build_sym_table(node);
 }
-
-#define CHECK_PRIM_SHADOW(x, loc)\
-    if (get_type(x)->is_prim()) \
-        append_prim_shadowed_warning(x, loc)
+    
+void check_prim_shadow(std::string id, Locator loc){
+    if(auto tp = get_type_context().get(id)){
+        if(tp->is_prim())
+            append_prim_shadowed_warning(id, loc);
+    }
+}
 
 // void impl_mem_func(AstNode* &node) {
 //     for (auto &ch : node->ch)
@@ -523,12 +502,12 @@ var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum){
 //     }
 // }
 
-void build_funcbody(AstNode* node, std::vector<std::pair<std::string, std::shared_ptr<VarType>>> inject_var_list = {}) {
+void build_funcbody(AstNode* node, std::vector<std::pair<std::string, var_type_ptr>> inject_var_list = {}) {
     auto func = Adaptor<FuncDecl>(node);
 
     for(auto ch: func.params->ch){
         auto var = Adaptor<VarDecl>(ch).check_type();
-        CHECK_PRIM_SHADOW(var.id, var.id_loc);
+        check_prim_shadow(var.id, var.id_loc);
         if(!var.type_info->is_error())
             func.body->var_table[var.id] = std::make_shared<VarInfo>(VarInfo{var.id, var.type_info, 0, ast_context.var_id++});
     }
@@ -550,8 +529,8 @@ void build_funcbody(AstNode* node, std::vector<std::pair<std::string, std::share
     }
 }
 
-std::shared_ptr<VarType> build_sym_table(AstNode* node){
-    // std::cout << get_node_name(node) << " : " << node->str << std::endl;
+var_type_ptr build_sym_table(AstNode* node){
+    std::cout << get_node_name(node) << ":" << node->str << std::endl;
     if(node->type == GenericBlock){
         auto block = static_cast<BlockNode*>(node);
         auto param = block->ch[1];
@@ -560,30 +539,30 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             if(block->type_table.count(ch->str))
                 append_multidef_error("Generic parameter", ch->str, ch->loc);
             else
-                block->type_table[ch->str] = std::make_shared<GenericParamType>(ch->str);
+                block->type_table[ch->str] = GenericParamType::get(ch->str);
             param_list.push_back(ch->str);
         }
         auto name = node->ch[0]->ch[0]->str;
-        auto id = ++ast_context.type_id;
-        auto tp = std::make_shared<GenericType>(node, id, name, param_list);
+        auto tp = GenericType::create(node, name, param_list);
         node->set_type(name, tp);
         node->append(new AstNode(GenericImpl));
-        return get_type("void");
+        return node->ret_var_type = VoidType::get();
     }else if(node->is_block){
 
         auto block = static_cast<BlockNode*>(node);
-        std::shared_ptr<VarType> res;
+        var_type_ptr res;
         for(auto ch: block->ch)
             res = build_sym_table(ch);
         
-        if(node->type == StmtsRet)
-            return node->ret_var_type = decay(res);
-        return node->ret_var_type = get_type("void");  
+        if(node->type == StmtsRet){
+            return node->ret_var_type = expect_ret_type(block->ch.back(), res->decay());
+        }
+        return node->ret_var_type = VoidType::get();  
 
     }else if(node->type == FuncDecl){
 
         auto func = Adaptor<FuncDecl>(node);
-        CHECK_PRIM_SHADOW(func.id, func.id_loc);
+        check_prim_shadow(func.id, func.id_loc);
         auto flag = node->set_id(func.id, func.type_info);
         node->ret_var_type = func.type_info;
 
@@ -591,15 +570,13 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
 
         if(!flag){
             append_multidef_error("Function", func.id, func.id_loc);
-            node->ret_var_type = get_type("#err");
+            node->ret_var_type = ErrorType::get();
         }
         return node->ret_var_type;
 
     }else if(node->type == VarDecl){
-
         auto var = Adaptor<VarDecl>(node).check_type();
-
-        std::shared_ptr<VarType> res_type = nullptr;
+        var_type_ptr res_type = nullptr;
         if(var.init_val){
             res_type = build_sym_table_with_assum(var.init_val, var.type_info);
         }
@@ -607,24 +584,23 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             if(res_type == nullptr){
                 // append_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
                 append_infer_failed_error("Failed to infer the type of \'" + var.id + "\'.", var.id_loc);
-                return node->ret_var_type = get_type("#err");
+                return node->ret_var_type = ErrorType::get();
             }
 
-            if(decay(res_type)->is_type(VarType::Func))
-                var.type_info = std::make_shared<PointerType>(res_type);
-            else var.type_info = decay(res_type);
+            if(res_type->decay()->is_func())
+                var.type_info = PointerType::get(res_type);
+            else var.type_info = res_type->decay();
         }
-
-        if(res_type){
-            require_convertable(res_type, var.type_info, var.init_val->loc);
-        }
-        CHECK_PRIM_SHADOW(var.id, var.id_loc);
+        if(res_type)
+            expect_ret_type(var.init_val, var.type_info);
+        
+        check_prim_shadow(var.id, var.id_loc);
         if(!node->set_id(var.id, var.type_info)){
             // append_error("Variable \'" + var.id + "\' has been declared.", var.id_loc);
             append_multidef_error("Variable", var.id, var.id_loc);   
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         };
-        return node->ret_var_type = get_type("void");
+        return node->ret_var_type = VoidType::get();
 
     }else if(node->type == StructDecl){
 
@@ -635,10 +611,8 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         if(!node->set_type(st.id, st.type_info)){
             // append_error("type " + st.id + " has been declared.", st.id_loc);
             append_multidef_error("Type", st.id, st.id_loc);
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }
-
-        st.type_info->id = ++ast_context.type_id;
 
         st.build_type().check_type();
 
@@ -646,35 +620,35 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             node->del_type(st.id);
             if(ast_context.generic_sub_cnt > 0)
                 throw generic_exception();
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }
         
-        CHECK_PRIM_SHADOW(st.id, st.id_loc);
+        check_prim_shadow(st.id, st.id_loc);
 
-        return node->ret_var_type = get_type("void");
+        return node->ret_var_type = st.type_info;
 
     }else if (node->type == TypeDef) {
         auto tp_name = node->ch[0]->str;
         auto type_info = ast_to_type(node->ch[1]);
         if (type_info->is_error()) {
             append_invalid_decl_error("Invalid type of \'" + tp_name + "\'.", node->ch[0]->loc);
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }
-        CHECK_PRIM_SHADOW(tp_name, node->ch[0]->loc);
+        check_prim_shadow(tp_name, node->ch[0]->loc);
         if (!node->set_type(tp_name, type_info)) {
             append_multidef_error("Type", tp_name, node->ch[0]->loc);
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }
-        return node->ret_var_type = get_type("void");
+        return node->ret_var_type = VoidType::get();
 
     }else if(node->type == Identifier){
 
-        CHECK_PRIM_SHADOW(node->str, node->loc);
+        // CHECK_PRIM_SHADOW(node->str, node->loc);
         auto res = node->get_id(node->str);
         if(res == nullptr){
             // append_error("variable \'" + node->str + "\' is not declared", node->loc);
             append_nodef_error("Variable", node->str, node->loc);
-            res = get_type("#err");
+            res = ErrorType::get();
         }
         return node->ret_var_type = res;
     }else if(node->type == Operator){
@@ -693,17 +667,16 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
             if(t->is_error())
                 return node->ret_var_type = t;
             bool is_ref = t->is_ref() | t->is_ptr();
-            t = decay(t);
-            t = deref(t);
-            if(t->is_type(VarType::Struct)){
-                auto st = std::dynamic_pointer_cast<StructType>(t);
+            t = t->decay()->deref();
+            if(t->is_struct()){
+                auto st = dyn_ptr_cast<StructType>(t);
                 for(auto [n, tp]: st->member){
                     if(n == id)
-                        return node->ret_var_type = is_ref ? ref_type(tp): tp;
+                        return node->ret_var_type = is_ref ? RefType::get(tp): tp;
                 }
             }else if(t->is_array()){
                 if(id == "length")
-                    return node->ret_var_type = get_type("int32");
+                    return node->ret_var_type = PrimType::get_int(32);
             }
             auto mem_func_id = t->to_string() + "$" + id;
             auto mem_func_type = op->get_id(mem_func_id);
@@ -711,12 +684,12 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
                 return node->ret_var_type = mem_func_type;
             }
             append_invalid_access_error(t, id, node->loc_list[0]);
-            return node->ret_var_type = get_type("#err");
+            return node->ret_var_type = ErrorType::get();
         }else{     
             for(auto ch: node->ch)
                 tp.push_back(build_sym_table(ch));
         }
-        return node->ret_var_type = op_type_eval(op->type, tp, op->type != op_type::Convert ? node->loc_list[0] : op->ch[1]->loc);
+        return node->ret_var_type = op_type_eval(op, tp);
 
     }else if(node->type == ArrayInstance) {
         return node->ret_var_type = infer_array(node);
@@ -725,120 +698,121 @@ std::shared_ptr<VarType> build_sym_table(AstNode* node){
         return node->ret_var_type = lookup_struct(node->ch[0], tp);
     }else if(node->type == IfStmt){
 
-        auto cond = build_sym_table(node->ch[0]);
-        require_convertable(cond, get_type("bool"), node->ch[0]->loc);
+        expect_ret_type(node->ch[0], PrimType::get_bool());
         auto ret1 = build_sym_table(node->ch[1]);
-        auto ret2 = get_type("void");
+        var_type_ptr ret2 = VoidType::get();
         if(node->ch.size() > 2)
             ret2 = build_sym_table(node->ch[2]);
 
-        return node->ret_var_type = greater_type(ret1, ret2);
+        auto comm = greater_type(ret1, ret2);
+        if(!comm->is_void()){
+            expect_ret_type(node->ch[0], comm);
+            expect_ret_type(node->ch[1], comm);
+        }
+
+        return node->ret_var_type = comm;
 
     }else if(node->type == WhileStmt){
 
-        auto cond = build_sym_table(node->ch[0]);
-        require_convertable(cond, get_type("bool"), node->ch[0]->loc);
+        expect_ret_type(node->ch[0], PrimType::get_bool());
         build_sym_table(node->ch[1]);
-        return node->ret_var_type = get_type("void");
+        return node->ret_var_type = VoidType::get();
 
     }else if(node->type == ForStmt){
 
         build_sym_table(node->ch[0]);
         if(node->ch[1]->type != Stmt){
-            auto cond = build_sym_table(node->ch[1]);
-            require_convertable(cond, get_type("bool"), node->ch[1]->loc);
+            expect_ret_type(node->ch[1], PrimType::get_bool());
         }
         build_sym_table(node->ch[2]);
         build_sym_table(node->ch[3]);
-        return node->ret_var_type = get_type("void");
+        return node->ret_var_type = VoidType::get();
 
     }else if(node->is_literal()){
         switch (node->type){
-            case IntLiteral: return node->ret_var_type = get_type("int32");
-            case DoubleLiteral: return node->ret_var_type = get_type("float64");
-            case BoolLiteral: return node->ret_var_type = get_type("bool");
-            case CharLiteral: return node->ret_var_type = get_type("char");
+            case IntLiteral: return node->ret_var_type = PrimType::get_int(32);
+            case DoubleLiteral: return node->ret_var_type = PrimType::get_float(64);
+            case BoolLiteral: return node->ret_var_type = PrimType::get_bool();
+            case CharLiteral: return node->ret_var_type = PrimType::get_char();
             case PointerLiteral:{
-                return node->ret_var_type = std::make_shared<PointerType>(get_type("void"));
+                return node->ret_var_type = PointerType::get(VoidType::get());
             }
             case StringLiteral:{
-                auto res = std::make_shared<ArrayType>();
-                res->len = parse_string(node->str).size() + 1;
-                res->subtype = get_type("char");
-                auto ret = node->ret_var_type = ref_type(res, true);
+                auto len = parse_string(node->str).size() + 1;
+                auto res = ArrayType::get(PrimType::get_char(), len);
+                auto ret = node->ret_var_type = RefType::get(res, true);
                 return ret;
             }
-            default: return node->ret_var_type = get_type("#err");
+            default: return node->ret_var_type = ErrorType::get();
         }
 
     }else if(node->type == ExprList){
         var_type_ptr res;
         for(auto ch: node->ch)
             res = build_sym_table(ch);
-        return node->ret_var_type = decay(res);
+        return node->ret_var_type = expect_ret_type(node->ch.back(), res->decay());
     }else if(node->type == Stmt){
         if(node->str == "return"){
             auto p = node->get_func_parent();
             if(!p){
                 // append_error("return statement out of function body.", node->loc);
                 append_misplace_error("return", "function", node->loc);
-                return node->ret_var_type = get_type("void");
+                return node->ret_var_type =VoidType::get();
             }
-            auto ret_type = std::dynamic_pointer_cast<FuncType>(p->ret_var_type)->ret_type;
-            var_type_ptr res = get_type("void");
+            auto ret_type = dyn_ptr_cast<FuncType>(p->ret_var_type)->ret_type;
+            var_type_ptr res = VoidType::get();
             if(node->ch.size()){
-                res = build_sym_table(node->ch[0]);
-                res = decay(res);
-                require_convertable(res, ret_type, node->ch[0]->loc);
+                expect_ret_type(node->ch[0], ret_type);
             }
-            return node->ret_var_type = get_type("void");
+            return node->ret_var_type = VoidType::get();
         }else if(node->str == "break" || node->str == "continue"){
             auto p = node->get_loop_parent();
             if(!p){
                 // append_error(node->str + " statement out of loop statement.", node->loc);
                 append_misplace_error(node->str, "loop", node->loc);
             }
-            return node->ret_var_type = get_type("void");
+            return node->ret_var_type = VoidType::get();
         }else{
             //noop
-            return node->ret_var_type = get_type("void");
+            return node->ret_var_type = VoidType::get();
         }
     }else if(node->type == FuncArgs){
-        auto args = std::make_shared<TupleType>();
+        std::vector<var_type_ptr> mem;
         for(auto ch: node->ch){
-            args->members.push_back(build_sym_table(ch));
+            mem.push_back(build_sym_table(ch));
         }
+        auto args = TupleType::get(mem);
         return node->ret_var_type = args;
     }
     else if (node->type == StructImpl) {
-        auto id_type = ast_to_type(node->ch[0]);
-        auto id = id_type->to_string();
-        // if(id_type == nullptr){
+        // auto id_type = ast_to_type(node->ch[0]);
+        // auto id = id_type->to_string();
+        // if(id_type->is_error()){
         //     append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
-        //     return get_type("#err");
+        //     return ErrorType::get();
         // }
-        for (auto &ch : node->ch[1]->ch) {
-            auto func = Adaptor<FuncDecl>(ch);
-            CHECK_PRIM_SHADOW(func.id, func.id_loc);
-            auto mem_func_type = std::make_shared<LambdaType>(id_type, func.type_info);
-            auto flag = node->set_id(id + "$" + func.id, mem_func_type);
-            node->ret_var_type = mem_func_type;
+        // for (auto &ch : node->ch[1]->ch) {
+        //     auto func = Adaptor<FuncDecl>(ch);
+        //     check_prim_shadow(func.id, func.id_loc);
+        //     auto mem_func_type = TraitType::get_callable(func.type_info);
+        //     auto flag = node->set_id(id + "$" + func.id, mem_func_type);
+        //     node->ret_var_type = mem_func_type;
 
-            build_funcbody(ch, {std::make_pair("self", std::make_shared<PointerType>(id_type))});
+        //     build_funcbody(ch, {std::make_pair("self", PointerType::get(id_type))});
 
-            if(!flag){
-                append_multidef_error("Member Function", id + "." + func.id, func.id_loc);
-                node->ret_var_type = get_type("#err");
-            }
-        }
-        return get_type("void");
+        //     if(!flag){
+        //         append_multidef_error("Member Function", id + "." + func.id, func.id_loc);
+        //         node->ret_var_type = ErrorType::get();
+        //     }
+        // }
+        // return node->ret_var_type = VoidType::get();
     }else if(node->type == Err){
-        return node->ret_var_type = get_type("#err");
+        return node->ret_var_type = ErrorType::get();
     }else{
-        //unreachable
+        assert(false && "unreachable line: build_sym_table fall through");
         for(auto ch: node->ch)
             build_sym_table(ch);
-        return node->ret_var_type = get_type("void");
+        return node->ret_var_type = VoidType::get();
     }
 
 }

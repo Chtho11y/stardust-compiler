@@ -1,6 +1,6 @@
 #pragma once
 
-#include "var_type.h"
+#include "sdtype.h"
 
 void append_error(Locator);
 void append_error(std::string);
