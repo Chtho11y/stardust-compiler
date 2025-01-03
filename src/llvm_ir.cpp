@@ -11,7 +11,7 @@ std::string module_name;
 
 bool ir_is_generated = false;
 
-using llvm_val_info = std::pair<llvm::Type*, llvm::AllocaInst*>;
+using llvm_val_info = std::pair<llvm::Type*, llvm::Value*>;
 // std::stack<std::map<std::string, llvm_val_info>> var_stack;
 std::map<size_t, llvm_val_info> var_table;
 std::map<size_t, llvm::GlobalVariable*> global_var_table;
@@ -296,9 +296,15 @@ llvm::Function* gen_ext_func_def(AstNode* ast, IRBuilder<>& builder){
     int idx = 0;
     for (auto &arg : llvm_fn->args()) {
         auto id = func.body->get_info(func.param_name[idx++]);
-        llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
-        builder.CreateStore(&arg, alloca);
-        var_table[id->var_id] = { arg.getType(), alloca};
+        if(id->type->is_ref()){
+            auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
+            auto dst = builder.CreateGEP(&arg, zero, id->name);
+            var_table[id->var_id] = { arg.getType(), dst};
+        }else{
+            llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
+            builder.CreateStore(&arg, alloca);
+            var_table[id->var_id] = { arg.getType(), alloca};
+        }
     }
 
     auto ret = gen_llvm_ir(func.body, builder);
@@ -367,6 +373,7 @@ void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
     auto decl = Adaptor<VarDecl>(ast);
     auto info = ast->get_info(decl.id);
     auto var_tp = get_llvm_type(info->type);
+
     auto var = new llvm::GlobalVariable(
         *llvm_mod, var_tp, false,
         llvm::GlobalValue::ExternalLinkage,
@@ -412,6 +419,13 @@ void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
 void gen_var_decl(AstNode* ast, IRBuilder<>& builder){
     auto var_node = Adaptor<VarDecl>(ast);
     auto var_info = ast->get_info(var_node.id);
+
+    if(var_info->type->is_ref()){
+        assert(var_node.init_val);
+        auto val = gen_llvm_ir(var_node.init_val, builder);
+        var_table[var_info->var_id] = {val->getType(), val};
+        return;
+    }
 
     auto [var_tp, alloca] = add_var(var_info, builder);
 

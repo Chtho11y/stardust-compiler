@@ -21,7 +21,6 @@ void type_ctx_init(){
 
 bool PrimType::is_convertable(Type* tp){
     if(tp->is_error()) return true;
-    tp = tp->decay();
     auto pm = dynamic_cast<PrimType*>(tp);
     if(!pm) return false;
 
@@ -35,7 +34,6 @@ bool PrimType::is_convertable(Type* tp){
 
 bool PrimType::is_force_convertable(Type* tp){
     if(tp->is_error()) return true;
-    tp = tp->decay();
     if(tp->is_prim())
         return true;
     if(kind == prim_kind::Int && tp->is_ptr())

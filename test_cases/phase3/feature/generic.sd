@@ -4,10 +4,11 @@ struct ptr<T>{
 }
 
 struct list<T>{
-
+    pre: ptr<list<T>>;
+    nxt: ptr<list<T>>;
+    val: T
 }
 
 func main(){
-    let a: pair<int, int> = {1, 2};
-    let b
+    
 }

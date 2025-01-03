@@ -24,7 +24,7 @@
 
 %token<str> INT NAME TYPENAME INVALID_NAME TTRUE TFALSE TNULL
 %token<str> HEX BINARY STRING FLOAT CHAR 
-%token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT
+%token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT 
 %token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
 %token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN TTYPE TTYPEOF TIMPL
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
@@ -156,6 +156,11 @@ type_desc:
         $$->append_loc(Lc($3));
         $$->append_loc(Lc($4));
     }
+    | BITAND type_desc {
+        $$ = new AstNode(TypeDesc, "&"); 
+        $$->append($2);
+        $$->append_loc($1);
+    }
     | LP type_list RP ARROW error {
         $$ = new AstNode(TypeDesc, "#err");
         $$->append_loc($1);
@@ -213,7 +218,7 @@ type_item:
         $$->append_loc($2);
     }
     | TTYPEOF LP expr RP {
-        $$ = new AstNode(TypeDesc, "&");
+        $$ = new AstNode(TypeDesc, "@");
         $$->append($3);
         $$->append_loc($1);
         $$->append_loc($2);

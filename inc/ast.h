@@ -336,6 +336,12 @@ struct Adaptor<StructDecl>{
                 type_info = nullptr;
                 return *this;
             }
+
+            if(tp->is_ref()){
+                append_invalid_decl_error("Struct member cannot be declared as reference type.", mem_loc[i]);
+                type_info = nullptr;
+                return *this;
+            }
         }
 
         for(int i = 0; i < cnt; ++i)

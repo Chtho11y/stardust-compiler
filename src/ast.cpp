@@ -369,8 +369,8 @@ var_type_ptr ast_to_type(AstNode* node){
             if(res->is_error())
                 return node->ret_var_type = ErrorType::get();
 
-            if(res->is_void()){
-                append_invalid_decl_error("Cannot declare array of void type.", sub->loc);
+            if(res->is_void() || res->is_generic() || res->is_ref()){
+                append_invalid_decl_error("Cannot declare array of type \'" + res->to_string() + "\'.", sub->loc);
                 return node->ret_var_type = ErrorType::get();
             }
         
@@ -386,8 +386,19 @@ var_type_ptr ast_to_type(AstNode* node){
             auto subtype = ast_to_type(node->ch[0]);
             if(subtype->is_error())
                 return ErrorType::get();
+            if(subtype->is_ref()){
+                append_invalid_decl_error("Cannot declare pointer of type \'" + subtype->to_string() + "\'.", node->ch[0]->loc);
+                return node->ret_var_type = ErrorType::get();
+            }
             return node->ret_var_type = PointerType::get(subtype);
-        }else if(node->str == "&") {
+        }else if(node->str == "&"){
+            auto subtype = ast_to_type(node->ch[0]);
+            if(subtype->is_error())
+                return ErrorType::get();
+            if(subtype->is_ref() || subtype->is_void() || subtype->is_generic())
+                append_invalid_decl_error("Invalid reference for type \'" + subtype->to_string() + "\'.", node->ch[0]->loc);
+            return node->ret_var_type = RefType::get(subtype);
+        }else if(node->str == "@") {
             auto res = build_sym_table(node->ch[0]);
             if (res->is_error()) 
                 append_infer_failed_error("Failed to infer the type of expression.", node->ch[0]->loc);
@@ -530,7 +541,7 @@ void build_funcbody(AstNode* node, std::vector<std::pair<std::string, var_type_p
 }
 
 var_type_ptr build_sym_table(AstNode* node){
-    std::cout << get_node_name(node) << ":" << node->str << std::endl;
+    // std::cout << get_node_name(node) << ":" << node->str << std::endl;
     if(node->type == GenericBlock){
         auto block = static_cast<BlockNode*>(node);
         auto param = block->ch[1];
@@ -555,7 +566,7 @@ var_type_ptr build_sym_table(AstNode* node){
             res = build_sym_table(ch);
         
         if(node->type == StmtsRet){
-            return node->ret_var_type = expect_ret_type(block->ch.back(), res->decay());
+            return node->ret_var_type = res;
         }
         return node->ret_var_type = VoidType::get();  
 
@@ -577,6 +588,7 @@ var_type_ptr build_sym_table(AstNode* node){
     }else if(node->type == VarDecl){
         auto var = Adaptor<VarDecl>(node).check_type();
         var_type_ptr res_type = nullptr;
+
         if(var.init_val){
             res_type = build_sym_table_with_assum(var.init_val, var.type_info);
         }
@@ -590,7 +602,13 @@ var_type_ptr build_sym_table(AstNode* node){
             if(res_type->decay()->is_func())
                 var.type_info = PointerType::get(res_type);
             else var.type_info = res_type->decay();
+        }else if(var.type_info->is_ref()){
+            if(!node->get_func_parent())
+                append_invalid_decl_error("Reference for global variable is not supported.", var.id_loc);
+            else if(!var.init_val)
+                append_invalid_decl_error("Declare reference without initial value.", var.id_loc);
         }
+
         if(res_type)
             expect_ret_type(var.init_val, var.type_info);
         
@@ -805,7 +823,7 @@ var_type_ptr build_sym_table(AstNode* node){
         //         node->ret_var_type = ErrorType::get();
         //     }
         // }
-        // return node->ret_var_type = VoidType::get();
+        return node->ret_var_type = VoidType::get();
     }else if(node->type == Err){
         return node->ret_var_type = ErrorType::get();
     }else{

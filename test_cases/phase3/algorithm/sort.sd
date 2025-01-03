@@ -6,10 +6,10 @@ func print_array(begin: int*, end: int*){
     putchar('\n');
 }
 
-func swap(a: int*, b: int*){
-    let tmp = *a;
-    *a = *b;
-    *b = tmp;
+func swap(a: &int, b: &int){
+    let tmp = a;
+    a = b;
+    b = tmp;
 }
 
 func qsort(begin: int*, end: int*){
@@ -28,57 +28,57 @@ func qsort(begin: int*, end: int*){
 		}
 
 		if *p < pivot {
-			swap(lt, p);
+			swap(*lt, *p);
 			lt = lt + 1;
 			p = p + 1;
 		}else{
 			gt = gt  + (- 1);
-			swap(gt, p);
+			swap(*gt, *p);
 		}
 	}
 	qsort(begin, lt);
 	qsort(gt, end);
 }
 
-// func heapify(arr: int*, n: int, i: int) {
-//     let left = 2 * i;
-//     let right = 2 * i + 1;
-//     let largest = i;
+func heapify(arr: int*, n: int, i: int) {
+    let left = 2 * i;
+    let right = 2 * i + 1;
+    let largest = i;
 
-//     if left <= n &&  arr[left] > arr[largest]{
-//         largest = left;
-//     }
+    if left <= n &&  arr[left] > arr[largest]{
+        largest = left;
+    }
 
-//     if right <= n && arr[right] > arr[largest]{
-//         largest = right;
-//     }
+    if right <= n && arr[right] > arr[largest]{
+        largest = right;
+    }
 
-//     if largest != i {
-//         swap(arr + i, arr + largest);
-//         heapify(arr, n, largest);
-//     }
-// }
+    if largest != i {
+        swap(arr[i], arr[largest]);
+        heapify(arr, n, largest);
+    }
+}
 
-// func heap_sort(begin: int*, end: int*) {
-//     let len = (int)(end - begin);
-//     let base = begin - 1;
+func heap_sort(begin: int*, end: int*) {
+    let len = (int)(end - begin);
+    let base = begin - 1;
 
-//     for let i = (len + 1)/2; i >= 1; i -= 1 {
-//         heapify(base, len, i);
-//     }
+    for let i = (len + 1)/2; i >= 1; i -= 1 {
+        heapify(base, len, i);
+    }
 
-//     for let i = len; i >= 1; i -= 1 {
-//         swap(base + 1, base + i);
-//         heapify(base, i - 1, 1);
-//     }
-// }
+    for let i = len; i >= 1; i -= 1 {
+        swap(base[1], base[i]);
+        heapify(base, i - 1, 1);
+    }
+}
 
 func bubble_sort(begin: int*, end: int*){
     let len = end - begin;
     for let i = 0; i < len; i += 1{
         for let j = 1; j + i < len; j += 1{
             if begin[j] < begin[j - 1]{
-                swap(begin + j, begin + j - 1);
+                swap(begin[j], begin[j - 1]);
             }
         }
     }
@@ -107,27 +107,27 @@ func main() -> int{
         b[i] = a[i];
     }
 
-    // st = clock();
-    // qsort(b, b + n);
-    // ed = clock();
+    st = clock();
+    qsort(b, b + n);
+    ed = clock();
 
-    // puts("quick_sort result:");
-    // print_array(b, b + n);
+    puts("quick_sort result:");
+    print_array(b, b + n);
     
-    // printf("time used: %dms.\n", ed - st);
+    printf("time used: %dms.\n", ed - st);
 
-    // for let i = 0; i < n; i += 1{
-    //     b[i] = a[i];
-    // }
+    for let i = 0; i < n; i += 1{
+        b[i] = a[i];
+    }
 
-    // st = clock();
-    // heap_sort(b, b + n);
-    // ed = clock();
+    st = clock();
+    heap_sort(b, b + n);
+    ed = clock();
 
-    // puts("heap_sort result:");
-    // print_array(b, b + n);
+    puts("heap_sort result:");
+    print_array(b, b + n);
     
-    // printf("time used: %dms.\n", ed - st);
+    printf("time used: %dms.\n", ed - st);
 
     free(a);
     free(b);
