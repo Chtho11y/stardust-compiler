@@ -120,17 +120,19 @@ void AstNode::del_type(std::string name){
 
 var_type_ptr AstNode::get_id(std::string name){
     AstNode *rt = this;
-    // std::cout << "@get_id: begin" << std::endl;
+    bool skip = false;
     while(rt){
         // std::cout << "@get_id: #" << rt << std::endl;
-        if(rt->is_block){
+        if(rt->is_block && (rt->type == ExtDecl || !skip)){
             auto block = static_cast<BlockNode*>(rt);
             if(block->var_table.count(name)){
                 return RefType::get(block->var_table[name]->type);
             }
         }
-        rt = rt->parent;
         
+        rt = rt->parent;
+        if(rt && rt->type == FuncDecl)
+            skip = true;
     }
     // std::cout << "@get_id: end" << std::endl;
     this->set_id(name, ErrorType::get()); //add assumption
@@ -566,7 +568,7 @@ var_type_ptr build_sym_table(AstNode* node){
             res = build_sym_table(ch);
         
         if(node->type == StmtsRet){
-            return node->ret_var_type = res;
+            return node->ret_var_type = expect_ret_type(block->ch.back(), res->decay());
         }
         return node->ret_var_type = VoidType::get();  
 
@@ -803,26 +805,27 @@ var_type_ptr build_sym_table(AstNode* node){
         return node->ret_var_type = args;
     }
     else if (node->type == StructImpl) {
-        // auto id_type = ast_to_type(node->ch[0]);
-        // auto id = id_type->to_string();
-        // if(id_type->is_error()){
-        //     append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
-        //     return ErrorType::get();
-        // }
-        // for (auto &ch : node->ch[1]->ch) {
-        //     auto func = Adaptor<FuncDecl>(ch);
-        //     check_prim_shadow(func.id, func.id_loc);
-        //     auto mem_func_type = TraitType::get_callable(func.type_info);
-        //     auto flag = node->set_id(id + "$" + func.id, mem_func_type);
-        //     node->ret_var_type = mem_func_type;
+        auto id_type = ast_to_type(node->ch[0]);
+        auto id = id_type->to_string();
+        if(id_type->is_error()){
+            append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
+            return ErrorType::get();
+        }
+        for (auto &ch : node->ch[1]->ch) {
+            auto func = Adaptor<FuncDecl>(ch);
+            check_prim_shadow(func.id, func.id_loc);
+            auto mem_func_type = MemFuncType::get(id_type, func.type_info);
 
-        //     build_funcbody(ch, {std::make_pair("self", PointerType::get(id_type))});
+            auto flag = node->set_id(id + "$" + func.id, mem_func_type);
+            ch->ret_var_type = mem_func_type;
 
-        //     if(!flag){
-        //         append_multidef_error("Member Function", id + "." + func.id, func.id_loc);
-        //         node->ret_var_type = ErrorType::get();
-        //     }
-        // }
+            build_funcbody(ch, {std::make_pair("self", RefType::get(id_type))});
+
+            if(!flag){
+                append_multidef_error("Member Function", id + "." + func.id, func.id_loc);
+                node->ret_var_type = ErrorType::get();
+            }
+        }
         return node->ret_var_type = VoidType::get();
     }else if(node->type == Err){
         return node->ret_var_type = ErrorType::get();

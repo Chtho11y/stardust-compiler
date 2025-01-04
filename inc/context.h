@@ -59,6 +59,8 @@ struct AstContext{
     int var_id = 0;
     
     int generic_sub_cnt = 0;
+
+    std::set<size_t> gen_callable_list;
 };
 
 struct generic_exception {};

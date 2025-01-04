@@ -384,6 +384,11 @@ struct Adaptor<FuncDecl>{
         ret = node->ch[2];
         body = static_cast<BlockNode*>(node->ch[3]);
 
+        if(node->ret_var_type){
+            type_info = node->ret_var_type->cast<sd::FuncType>();
+            return;
+        }
+
         auto param_list = std::vector<var_type_ptr>();
         auto ret_type = ast_to_type(ret);
 

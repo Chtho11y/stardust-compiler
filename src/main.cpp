@@ -249,5 +249,7 @@ int main(int argc, char* argv[]){
         std::cout << s << std::endl;
     }catch(std::exception& e){
         std::cout << e.what() << std::endl;
+    }catch(const char* s){
+        std::cout << s <<std::endl;
     }
 }

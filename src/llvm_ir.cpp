@@ -136,6 +136,14 @@ llvm::Value* get_var_inst(size_t id){
     return nullptr;
 }
 
+llvm::Value* get_llvm_int(int64_t x){
+    return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), x);
+}
+
+llvm::Value* get_llvm_int32(int64_t x){
+    return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), x);
+}
+
 namespace type_aux{
 
 llvm::Type* get_llvm_prim(sd::PrimType* type){
@@ -207,6 +215,18 @@ llvm::FunctionType* get_llvm_func(sd::FuncType* type){
     return llvm::FunctionType::get(ret, args, type->is_vary);
 }
 
+llvm::FunctionType* get_llvm_mem_func(sd::MemFuncType* type){
+    std::vector<llvm::Type*> args;
+    
+    auto ret = get_llvm_type(type->ret_type);
+
+    for(auto tp: type->param_list)
+        args.push_back(get_llvm_type(tp));
+    args.push_back(get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
+
+    return llvm::FunctionType::get(ret, args, type->is_vary);
+}
+
 };// type_aux
 
 llvm::Type* get_llvm_type(var_type_ptr type){
@@ -223,6 +243,9 @@ llvm::Type* get_llvm_type(var_type_ptr type){
 
     case type_kind::Func:
         return get_llvm_func(sd::dyn_ptr_cast<sd::FuncType>(type));
+    
+    case type_kind::MemFunc:
+        return get_llvm_mem_func(type->cast<sd::MemFuncType>());
 
     case type_kind::Pointer:
         return get_llvm_pointer(sd::dyn_ptr_cast<sd::PointerType>(type));
@@ -237,6 +260,19 @@ llvm::Type* get_llvm_type(var_type_ptr type){
         return get_llvm_ref(sd::dyn_ptr_cast<sd::RefType>(type));
     }
     throw std::invalid_argument("unsupport type: " + type->to_string());
+}
+
+llvm::Type* get_trait_proto(){
+    if(!struct_table.count(-1)){
+        auto proto = llvm::StructType::create(*llvm_ctx, "trait.proto");
+        std::vector<llvm::Type*> mem;
+        auto void_ptr = sd::PointerType::get(sd::VoidType::get());
+        mem.push_back(get_llvm_type(void_ptr));
+        mem.push_back(get_llvm_type(void_ptr));
+        proto->setBody(mem);
+        struct_table[-1] = proto;
+    }
+    return struct_table[-1];
 }
 
 llvm_val_info add_var(var_info_ptr var, IRBuilder<>& builder){
@@ -275,97 +311,104 @@ void gen_default_ret(llvm::Type* type, IRBuilder<>& builder){
         builder.CreateRet(llvm::Constant::getNullValue(type));
 }
 
-llvm::Function* gen_ext_func_def(AstNode* ast, IRBuilder<>& builder){
+llvm::Function* gen_func_def(AstNode* ast, IRBuilder<>& builder){
     using namespace llvm;
 
     auto func = Adaptor<FuncDecl>(ast);
 
     auto info = ast->get_info(func.id);
-    if(!info->is_top)
-        throw std::invalid_argument("inner function is not support.");
     
     auto llvm_fn_tp = (FunctionType*)get_llvm_type(func.type_info);
-    auto llvm_fn = Function::Create(llvm_fn_tp, Function::ExternalLinkage, func.id, *llvm_mod);
+    auto func_id = info->id_name();
+    auto llvm_fn = Function::Create(llvm_fn_tp, Function::ExternalLinkage, func_id, *llvm_mod);
 
     if(func.id == "main")
         main_fn = llvm_fn;
 
-    auto bb = llvm::BasicBlock::Create(*llvm_ctx, func.id, llvm_fn);
-    builder.SetInsertPoint(bb);
+    auto bb = llvm::BasicBlock::Create(*llvm_ctx, func_id, llvm_fn);
+    auto n_builder = builder;
+    n_builder.SetInsertPoint(bb);
 
     int idx = 0;
     for (auto &arg : llvm_fn->args()) {
         auto id = func.body->get_info(func.param_name[idx++]);
         if(id->type->is_ref()){
             auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
-            auto dst = builder.CreateGEP(&arg, zero, id->name);
+            auto dst = n_builder.CreateGEP(&arg, zero, id->name);
             var_table[id->var_id] = { arg.getType(), dst};
         }else{
             llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
-            builder.CreateStore(&arg, alloca);
+            n_builder.CreateStore(&arg, alloca);
             var_table[id->var_id] = { arg.getType(), alloca};
         }
     }
 
-    auto ret = gen_llvm_ir(func.body, builder);
+    auto ret = gen_llvm_ir(func.body, n_builder);
 
     if(func.body->type == StmtsRet){
         if(func.no_return())
-            builder.CreateRetVoid();
-        else builder.CreateRet(ret);
-    }else if (builder.GetInsertBlock()->getTerminator() == nullptr) {
+            n_builder.CreateRetVoid();
+        else n_builder.CreateRet(ret);
+    }else if (n_builder.GetInsertBlock()->getTerminator() == nullptr) {
         llvm::Type *ret_type = llvm_fn->getReturnType();
-        gen_default_ret(ret_type, builder);
+        gen_default_ret(ret_type, n_builder);
     }
-
-    // func_ptr_table[info->var_id] = llvm::ConstantExpr::getBitCast(llvm_fn, llvm::PointerType::get(llvm_fn_tp, 0));
 
     return llvm_fn;
 }
 
-// llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder) {
-//     using namespace llvm;
-//     auto func_ada = Adaptor<FuncDecl>(ast);
-//     auto lambda_type = std::dynamic_pointer_cast<LambdaType>(ast->ret_var_type);
-//     auto func_type = std::make_shared<FuncType>();
+llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder) {
+    using namespace llvm;
     
-//     func_type->param_list = lambda_type->param_list;
-//     func_type->param_list.push_back(std::make_shared<::PointerType>(lambda_type->obj));
-//     func_type->ret_type = lambda_type->ret_type;
+    auto func_ada = Adaptor<FuncDecl>(ast);
+    auto lambda_type = func_ada.type_info->cast<sd::MemFuncType>();
 
-//     func_ada.param_name.push_back("self");
+    func_ada.param_name.push_back("self");
 
-//     auto type_info = ast->get_info(lambda_type->obj->to_string() + "$" + func_ada.id);
-//     if (!type_info->is_top)
-//         throw std::invalid_argument("inner member function is not support.");
-    
-//     auto llvm_fn_tp = (FunctionType*)get_llvm_type(func_type);
-//     auto llvm_fn = Function::Create(llvm_fn_tp, Function::ExternalLinkage, func_ada.id, *llvm_mod);
+    auto type_info = ast->get_info(lambda_type->parent_type->to_string() + "$" + func_ada.id);
+    auto parent = lambda_type->parent_type;
+    if (!type_info->is_top)
+        throw std::invalid_argument("inner member function is not support.");
+   
+    auto llvm_fn_tp = (FunctionType*)get_llvm_type(lambda_type);
+    auto llvm_fn = Function::Create(
+        llvm_fn_tp, Function::ExternalLinkage, parent->get_prefix() + func_ada.id, *llvm_mod);
 
-//     auto bb = llvm::BasicBlock::Create(*llvm_ctx, func_ada.id, llvm_fn);
-//     builder.SetInsertPoint(bb);
+    auto bb = llvm::BasicBlock::Create(*llvm_ctx, func_ada.id, llvm_fn);
+    auto n_builder = builder;
+    n_builder.SetInsertPoint(bb);
 
-//     int idx = 0;
-//     for (auto &arg : llvm_fn->args()) {
-//         auto id = func_ada.body->get_info(func_ada.param_name[idx++]);
-//         llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
-//         builder.CreateStore(&arg, alloca);
-//         var_table[id->var_id] = { arg.getType(), alloca};
-//     }
+    int idx = 0;
+    for (auto &arg : llvm_fn->args()) {
+        auto id = func_ada.body->get_info(func_ada.param_name[idx++]);
+        llvm::Value* val = &arg;
+        if(idx == func_ada.param_name.size()){
+            val = n_builder.CreatePointerCast(&arg, get_llvm_type(sd::PointerType::get(parent)));
+        }
+        if(id->type->is_ref()){
+            auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
+            auto dst = n_builder.CreateGEP(val, zero, id->name);
+            var_table[id->var_id] = { val->getType(), dst};
+        }else{
+            llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, val->getType(), id->name);
+            n_builder.CreateStore(val, alloca);
+            var_table[id->var_id] = { val->getType(), alloca};
+        }
+    }
 
-//     auto ret = gen_llvm_ir(func_ada.body, builder);
+    auto ret = gen_llvm_ir(func_ada.body, n_builder);
 
-//     if(func_ada.body->type == StmtsRet){
-//         if(func_ada.no_return())
-//             builder.CreateRetVoid();
-//         else builder.CreateRet(ret);
-//     }else if (builder.GetInsertBlock()->getTerminator() == nullptr) {
-//         llvm::Type *ret_type = llvm_fn->getReturnType();
-//         gen_default_ret(ret_type, builder);
-//     }
+    if(func_ada.body->type == StmtsRet){
+        if(func_ada.no_return())
+            n_builder.CreateRetVoid();
+        else n_builder.CreateRet(ret);
+    }else if (n_builder.GetInsertBlock()->getTerminator() == nullptr) {
+        llvm::Type *ret_type = llvm_fn->getReturnType();
+        gen_default_ret(ret_type, n_builder);
+    }
 
-//     return llvm_fn;
-// }
+    return llvm_fn;
+}
 
 void gen_ext_var_decl(AstNode* ast, IRBuilder<>& builder){
     using namespace llvm;
@@ -438,14 +481,15 @@ void gen_var_decl(AstNode* ast, IRBuilder<>& builder){
 void gen_ext_decl_list(AstNode* ast, IRBuilder<>& builder){
     for(auto ch: ast->ch){
         if(ch->type == FuncDecl){
-            gen_ext_func_def(ch, builder);
+            gen_func_def(ch, builder);
         }else if(ch->type == VarDecl){
             gen_ext_var_decl(ch, builder);
         }
-        // else if (ch->type == StructImpl) {
-        //     for (auto ch : ast->ch[1]->ch)
-        //         gen_ext_mem_func_def(ch, builder);
-        // }
+        else if (ch->type == StructImpl) {
+            for (auto mem_fn : ch->ch[1]->ch){
+                gen_ext_mem_func_def(mem_fn, builder);
+            }
+        }
         else {
             assert(ch->type == StructDecl || ch->type == GenericBlock || ch->type == TypeDef);
             //skip Struct&Generic Decl
@@ -676,12 +720,42 @@ llvm::Value* gen_assign_op(OperatorNode* ast, IRBuilder<>& builder){
     return lvalue;
 }
 
-llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
-    // TODO: support function pointer
-    // if(ast->ch[0]->type != Identifier)
-    //     throw std::invalid_argument("function pointer is not support yet");
+llvm::Value* gen_trait_call(llvm::Value* trait, size_t fn_idx, sd::FuncType* fn_tp, AstNode *args, IRBuilder<>& builder){
+    auto zero = get_llvm_int(0);
+    auto self = builder.CreateGEP(trait, {zero, get_llvm_int32(0)});
+    self = builder.CreateLoad(self, "self");
+    auto fn_base = builder.CreateGEP(trait, {zero, get_llvm_int32(1)});
+    auto llvm_fn_tp = get_llvm_type(sd::PointerType::get(fn_tp));
 
-    // auto func_info = ast->get_info(ast->ch[0]->str);
+    llvm::Value* fn_addr = builder.CreateLoad(fn_base);
+    fn_addr = builder.CreateGEP(fn_addr, get_llvm_int(fn_idx));
+    auto fn = builder.CreatePointerCast(fn_addr, llvm_fn_tp);
+
+    auto& params_tp = fn_tp->param_list;
+
+    std::vector<llvm::Value*> args_list;
+
+    for(size_t i = 0; i < args->ch.size(); ++i){
+        llvm::Value *arg = gen_llvm_ir(args->ch[i], builder);
+        auto arg_tp = args->ch[i]->ret_var_type;
+        args_list.push_back(arg);
+    }
+
+    args_list.push_back(self);
+
+    if(fn_tp->ret_type->is_void())
+        return builder.CreateCall(fn, args_list);
+
+    return builder.CreateCall(fn, args_list, "ret");    
+}
+
+llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
+
+    if(ast->ch[0]->ret_var_type->decay()->is_mem_func()){
+        auto trait = gen_llvm_ir(ast->ch[0], builder);
+        return gen_trait_call(trait, 0, ast->ch[0]->ret_var_type->decay()->cast<sd::MemFuncType>(), ast->ch[1], builder);
+    }
+
     sd::FuncType* ast_fn_tp;
     auto lhs = ast->ch[0]->ret_var_type->decay();
     if(lhs->is_func()){
@@ -689,11 +763,9 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
     }else{
         ast_fn_tp  = lhs->cast<sd::PointerType>()->subtype->cast<sd::FuncType>();
     }
-
     auto function = gen_llvm_ir(ast->ch[0], builder);
     auto ast_args = ast->ch[1];
     auto& params_tp = ast_fn_tp->param_list;
-
 
     std::vector<llvm::Value*> args;
 
@@ -702,7 +774,6 @@ llvm::Value* gen_call_op(OperatorNode *ast, IRBuilder<>& builder){
         auto arg_tp = ast_args->ch[i]->ret_var_type;
         args.push_back(arg);
     }
-
     if(ast_fn_tp->ret_type->is_void())
         return builder.CreateCall(function, args);
 
@@ -725,27 +796,48 @@ llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
         throw std::invalid_argument("unexpected type");
 
     }else if(ast->type == op_type::Access){
-        auto tp = ast->ch[0]->ret_var_type->decay();
 
+        auto tp = ast->ch[0]->ret_var_type->decay();
+        assert(ast->ch[1]->type == Identifier);
+        
+        if(ast->ret_var_type->decay()->is_mem_func()){
+            auto base = builder.CreateAlloca(get_trait_proto());
+
+            auto obj = gen_llvm_ir(ast->ch[0], builder);
+            
+            if(!ast->ch[0]->ret_var_type->is_ref()){
+                auto obj_addr = builder.CreateAlloca(get_llvm_type(tp));
+                builder.CreateStore(obj, obj_addr);
+                obj = obj_addr;
+            }
+
+            obj = builder.CreatePointerCast(obj, get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
+
+            auto fn = llvm_mod->getFunction(tp->get_prefix() + ast->ch[1]->str);
+            auto zero = get_llvm_int(0);
+            auto obj_ptr = builder.CreateGEP(base, {zero, get_llvm_int32(0)}, "obj");
+            builder.CreateStore(obj, obj_ptr);
+
+            auto fn_ptr = builder.CreateGEP(base, {zero, get_llvm_int32(1)}, "fn");
+            auto fn_addr = builder.CreatePointerCast(fn, get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
+            builder.CreateStore(fn_addr, fn_ptr);
+
+            return base;          
+        }
+
+        assert(tp->is_struct());
+        
         if(tp->is_array()){
             auto len = tp->cast<sd::ArrayType>()->len;
             return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), len);
         }
 
-        assert(tp->is_struct());
-        assert(ast->ch[1]->type == Identifier);
-
         auto st_tp = tp->cast<sd::StructType>();
         auto llvm_st = get_llvm_type(st_tp);
         auto st = gen_llvm_ir(ast->ch[0], builder);
 
-        // st->print(llvm::outs());
-        // st->getType()->print(llvm::outs());
-
-        // auto ptr = gen_convert(st, ast->ch[0]->ret_var_type, tp, builder);
         auto idx = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*llvm_ctx), 
                                             st_tp->index_of(ast->ch[1]->str));
-        // std::cout << " " << st_tp->index_of(ast->ch[1]->str) << std::endl;
 
         return builder.CreateGEP(st, {zero, idx});
     }
@@ -1092,7 +1184,7 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
         if(auto res = get_var_inst(info->var_id))
             return res;
 
-        if(auto res = llvm_mod->getFunction(info->name))
+        if(auto res = llvm_mod->getFunction(info->id_name()))
             return res;
         
         throw std::runtime_error("identifier not found: "+ info->name);
@@ -1106,7 +1198,8 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
     }
 
     case FuncDecl:{
-        throw std::invalid_argument("inner function is not support");
+        // throw std::invalid_argument("inner function is not support");
+        return gen_func_def(ast, builder);
         return nullptr;
     }
 

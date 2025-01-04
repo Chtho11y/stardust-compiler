@@ -48,7 +48,7 @@ Type* Type::deref(){
 }
 
 int Type::trait_index(size_t id){
-    auto base = mem_func_table.size();
+    auto base = 0;
     for(auto trait: traits){
         if(trait->id == id)
             return base;
@@ -62,6 +62,15 @@ bool Type::is_func_ptr(){
     return ptr && ptr->subtype->is_func();
 }
 
+FuncType::FuncType(std::vector<Type*>& param_list, Type* ret, bool is_vary):
+    Type(type_kind::Func), param_list(param_list), ret_type(ret), is_vary(is_vary){}
+
+MemFuncType::MemFuncType(Type* parent, std::vector<Type*>& param_list, Type* ret):
+    FuncType(type_kind::MemFunc, param_list, ret), parent_type(parent){
+        auto fn = FuncType::get(param_list, ret);
+        // traits.push_back(TraitType::get_callable(fn));
+    }
+
 template<class Tp, class... Args>
 Tp* get_or_create(Args... args){
     Tp* tp = new Tp(args...);
@@ -69,8 +78,8 @@ Tp* get_or_create(Args... args){
         delete tp;
         return dynamic_cast<Tp*>(ptr);
     }
-    
     sd_type_ctx.create(tp);
+
     return tp;
 }
 
@@ -124,6 +133,14 @@ ArrayType* ArrayType::get(Type* subtype, size_t len){
 
 FuncType* FuncType::get(std::vector<Type*> param_list, Type* ret, bool is_vary){
     return get_or_create<FuncType>(param_list, ret, is_vary);
+}
+
+MemFuncType* MemFuncType::get(Type* parent, std::vector<Type*> param_list, Type* ret){
+    return get_or_create<MemFuncType>(parent, param_list, ret);
+}
+
+MemFuncType* MemFuncType::get(Type* parent, FuncType* func){
+    return get(parent, func->param_list, func->ret_type);
 }
 
 TupleType* TupleType::get(const std::vector<Type*>& mem){

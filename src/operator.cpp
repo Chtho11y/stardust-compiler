@@ -130,7 +130,7 @@ var_type_ptr sp_op_eval(OperatorNode* ast, std::vector<var_type_ptr>& args){
             fn = dyn_ptr_cast<PointerType>(fn)->subtype;
             expect_ret_type(ast->ch[0], args[0]->decay());
         }
-        if(!fn->is_func()){
+        if(!fn->is_func() && !fn->is_mem_func()){
             // append_error("Expression should be function type, but it is " + fn->to_string(), loc);
             append_mismatch_op_error("function", fn, ast->ch[0]->loc);
             return ErrorType::get();

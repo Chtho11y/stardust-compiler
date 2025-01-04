@@ -14,7 +14,7 @@ namespace sd{
 void type_ctx_init();
 
 enum class type_kind{
-    Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Generic, GenericParam, Trait, Ref, Error, Auto
+    Prim, Void, Pointer, Array, Struct, Func, FuncList, Tuple, Generic, GenericParam, Trait, MemFunc, Ref, Error, Auto
 };
 
 struct TraitType;
@@ -22,7 +22,7 @@ struct FuncType;
 
 struct Type{
     type_kind type;
-    std::vector<FuncType*> mem_func_table; 
+    // std::vector<FuncType*> mem_func_table; 
     std::vector<TraitType*> traits;
 
     size_t id;
@@ -35,6 +35,7 @@ struct Type{
     bool is_array()const {return is_type(type_kind::Array);}
     bool is_struct() const{return is_type(type_kind::Struct);}
     bool is_func() const {return is_type(type_kind::Func);}
+    bool is_mem_func() const {return is_type(type_kind::MemFunc);}
     bool is_tuple() const{return is_type(type_kind::Tuple);}
     bool is_generic() const{return is_type(type_kind::Generic);}
     bool is_generic_param() const{return is_type(type_kind::GenericParam);}
@@ -61,6 +62,10 @@ struct Type{
     //unique label supported by the LLVM IR
     virtual std::string to_label() const {
         return to_string();
+    }
+
+    std::string get_prefix() const{
+        return  "type." + std::to_string(id) + "$"; 
     }
 
     virtual bool is_signed() const{return true;}
@@ -404,8 +409,10 @@ struct FuncType: Type{
 
     bool is_vary;
 
-    FuncType(std::vector<Type*>& param_list, Type* ret, bool is_vary = false):
-        Type(type_kind::Func), param_list(param_list), ret_type(ret), is_vary(is_vary){}
+    FuncType(std::vector<Type*>& param_list, Type* ret, bool is_vary = false);
+    
+    FuncType(type_kind sub_kind, std::vector<Type*>& param_list, Type* ret):
+        Type(sub_kind), param_list(param_list), ret_type(ret), is_vary(false){}
 
     std::string to_string() const override{
         std::string res = "fn(";
@@ -471,6 +478,38 @@ struct FuncType: Type{
 
     size_t size() const override{
         return 8;
+    }
+};
+
+struct MemFuncType: FuncType{
+
+    Type* parent_type;
+
+    static MemFuncType* get(Type* parent, std::vector<Type*> param_list, Type* ret);
+    static MemFuncType* get(Type* parent, FuncType* func);
+
+    MemFuncType(Type* parent, std::vector<Type*>& param_list, Type* ret);
+    
+    std::string to_string() const override{
+        std::string res = parent_type->to_barket_string()+ "::(";
+        for(size_t i = 0; i < param_list.size(); ++i){
+            if(i) res += ", ";
+            res += param_list[i]->to_string();
+        }
+        res += ") -> ";
+        res += ret_type->to_string();
+        return res;
+    }
+
+    std::string unique_type_name() const override{
+        std::string res = std::to_string(parent_type->id) + "::(";
+        for(size_t i = 0; i < param_list.size(); ++i){
+            if(i) res += ", ";
+            res += std::to_string(param_list[i]->id);
+        }
+        res += ") -> ";
+        res += std::to_string(ret_type->id);
+        return res;
     }
 };
 
@@ -687,7 +726,7 @@ struct VarInfo{
     int var_id;
 
     std::string id_name() const{
-        return is_top && type->is_func() ? name: "var_" + name + "_" + std::to_string(var_id);
+        return is_top ? name: name + "." + std::to_string(var_id);
     }
 
     std::string ptr_name() const{
@@ -743,6 +782,10 @@ struct TypeContext{
         tp->id = tp_counter++;
         type_ptr_table[tp->unique_type_name()] = tp;
         id_ptr_table[tp->id] = tp;
+        // if(tp->is_func_ptr() || tp->is_func()){
+        //     tp->traits.push_back(TraitType::get_callable(tp->deref()->cast<FuncType>()));
+        //     ast_context.gen_callable_list.push_back(tp->id);
+        // }
     }
 
     void create_global_alias(std::string name, sd_type_ptr type){
