@@ -16,6 +16,7 @@ using llvm_val_info = std::pair<llvm::Type*, llvm::Value*>;
 std::map<size_t, llvm_val_info> var_table;
 std::map<size_t, llvm::GlobalVariable*> global_var_table;
 std::map<size_t, llvm::StructType*> struct_table;
+std::map<std::string, llvm::GlobalVariable*> impl_trait_table;
 // std::map<size_t, llvm::Value*> func_ptr_table;
 
 std::stack<std::pair<llvm::BasicBlock*, llvm::BasicBlock*>> loop_stack;
@@ -126,8 +127,11 @@ get_alloc_inst(llvm::Function *func, llvm::Type *type, const std::string& name,
 }
 
 llvm::Value* get_var_inst(size_t id){
-    if(var_table.count(id))
+
+    if(var_table.count(id)) {
         return var_table[id].second;
+    }
+        
     // if(func_ptr_table.count(id))
     //     return func_ptr_table[id];
     if(global_var_table.count(id))
@@ -229,6 +233,8 @@ llvm::FunctionType* get_llvm_mem_func(sd::MemFuncType* type){
 
 };// type_aux
 
+llvm::Type* get_trait_proto();
+
 llvm::Type* get_llvm_type(var_type_ptr type){
     using namespace type_aux;
     using sd::type_kind;
@@ -258,6 +264,9 @@ llvm::Type* get_llvm_type(var_type_ptr type){
     
     case type_kind::Ref:
         return get_llvm_ref(sd::dyn_ptr_cast<sd::RefType>(type));
+    
+    case type_kind::Trait:
+        return get_trait_proto();
     }
     throw std::invalid_argument("unsupport type: " + type->to_string());
 }
@@ -359,19 +368,19 @@ llvm::Function* gen_func_def(AstNode* ast, IRBuilder<>& builder){
     return llvm_fn;
 }
 
-llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder) {
+llvm::Function* gen_ext_mem_func_def(AstNode* ast, IRBuilder<>& builder, std::string trait_name = "") {
     using namespace llvm;
-    
     auto func_ada = Adaptor<FuncDecl>(ast);
     auto lambda_type = func_ada.type_info->cast<sd::MemFuncType>();
-
     func_ada.param_name.push_back("self");
-
-    auto type_info = ast->get_info(lambda_type->parent_type->to_string() + "$" + func_ada.id);
+    var_info_ptr type_info;
+    if (trait_name == "")
+        type_info = ast->get_info(lambda_type->parent_type->to_string() + "$" + func_ada.id);
+    else 
+        type_info = ast->get_info(lambda_type->parent_type->to_string() + "$" + trait_name + "$" + func_ada.id);
     auto parent = lambda_type->parent_type;
     if (!type_info->is_top)
         throw std::invalid_argument("inner member function is not support.");
-   
     auto llvm_fn_tp = (FunctionType*)get_llvm_type(lambda_type);
     auto llvm_fn = Function::Create(
         llvm_fn_tp, Function::ExternalLinkage, parent->get_prefix() + func_ada.id, *llvm_mod);
@@ -491,6 +500,84 @@ void gen_ext_decl_list(AstNode* ast, IRBuilder<>& builder){
             for (auto mem_fn : ch->ch[1]->ch){
                 gen_ext_mem_func_def(mem_fn, builder);
             }
+        }
+        else if (ch->type == TraitDecl) {
+            std::vector<llvm::Type*> members;
+            std::string simple_name = "";
+            auto st = ast_to_type(ch->ch[0]);
+            for(auto ch: st->to_string()){
+                if(!isalnum(ch) && ch != '$' && ch != '_')
+                    break;
+                simple_name.push_back(ch);
+            }
+            auto res = llvm::StructType::create(*llvm_ctx, simple_name + "." + std::to_string(st->id));
+            struct_table[st->id] = res;
+            auto void_ptr = sd::PointerType::get(sd::VoidType::get());
+            for (int i = 0; i < ch->ch[1]->ch.size(); i++)
+                members.push_back(get_llvm_type(void_ptr));
+            res->setBody(members);
+        }
+        else if (ch->type == TraitImpl) {
+            auto trait_type = sd::dyn_ptr_cast<sd::TraitType>(ast_to_type(ch->ch[0]));
+            auto impl_type = ast_to_type(ch->ch[1]);
+            auto trait_llvm_type = struct_table[trait_type->id];
+            auto trait_impl_name = trait_type->to_string() + "$" + impl_type->to_string();
+            auto var = new llvm::GlobalVariable(
+                *llvm_mod, trait_llvm_type, false,
+                llvm::GlobalValue::ExternalLinkage,
+                llvm::UndefValue::get(trait_llvm_type),
+                trait_impl_name              
+            );
+
+            impl_trait_table[trait_impl_name] = var;
+
+            using namespace llvm;
+            auto init_val_fn_tp = llvm::FunctionType::get(trait_llvm_type, false);
+            auto init_val_fn = Function::Create(
+                init_val_fn_tp,
+                GlobalValue::InternalLinkage,
+                trait_impl_name + ".init",
+                *llvm_mod
+            );
+            BasicBlock *bb = BasicBlock::Create(*llvm_ctx, "entry", init_val_fn);
+            IRBuilder<> init_builder(bb);
+
+            // Value *init_ret = gen_llvm_ir(decl.init_val, init_builder);
+            std::vector<llvm::Function*> llvm_func_list;
+            llvm_func_list.resize(ch->ch[2]->ch.size());
+            for (auto ch1 : ch->ch[2]->ch) {
+                int pos = -1;
+                auto trait_func_ada = Adaptor<FuncDecl>(ch1);
+                // std::cout << trait_func_ada.id << ' ' << trait_func_ada.type_info->to_string() << '\n';
+                for (int i = 0; i < trait_type->func_list.size(); i++)
+                    if (trait_func_ada.id == trait_type->func_list[i].first 
+                        //&& trait_func_ada.type_info == trait_type->func_list[i].second
+                    )
+                        pos = i;
+                assert(pos != -1);
+                llvm_func_list[pos] = gen_ext_mem_func_def(ch1, init_builder, ch->ch[0]->str);
+            }
+            auto base = init_builder.CreateAlloca(trait_llvm_type);
+            for (int i = 0; i < llvm_func_list.size(); i++) {
+                auto fn_ptr = init_builder.CreateGEP(base, {get_llvm_int(0), get_llvm_int32(i)});
+                auto fn_addr = init_builder.CreatePointerCast(llvm_func_list[i], get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
+                init_builder.CreateStore(fn_addr, fn_ptr);
+            }
+
+            init_builder.CreateRet(base);
+
+            if(!init_fn){
+                auto void_call = llvm::FunctionType::get(llvm::Type::getVoidTy(*llvm_ctx), false);
+                init_fn = llvm::Function::Create(void_call, llvm::Function::ExternalLinkage, "global.var.init", *llvm_mod);
+                auto bb = llvm::BasicBlock::Create(*llvm_ctx, "entry", init_fn);
+                IRBuilder<>(bb).CreateRetVoid();
+            }
+
+            IRBuilder<> init_fn_builder(&init_fn->getEntryBlock(), --(init_fn->getEntryBlock().end()));
+
+            auto init_ret = init_fn_builder.CreateCall(init_val_fn);
+            init_fn_builder.CreateStore(init_ret, var);
+
         }
         else {
             assert(ch->type == StructDecl || ch->type == GenericBlock || ch->type == TypeDef);
@@ -804,14 +891,38 @@ llvm::Value* gen_access_op(OperatorNode *ast, IRBuilder<>& builder){
         
         if(ast->ret_var_type->decay()->is_mem_func()){
             auto base = builder.CreateAlloca(get_trait_proto());
-
+            assert(ast->ch[0]->type == Identifier);
             auto obj = gen_llvm_ir(ast->ch[0], builder);
-            
+
             if(!ast->ch[0]->ret_var_type->is_ref()){
                 auto obj_addr = builder.CreateAlloca(get_llvm_type(tp));
                 builder.CreateStore(obj, obj_addr);
                 obj = obj_addr;
             }
+
+            if(ast->ch[0]->ret_var_type->decay()->is_trait()) {
+                auto func_id = ast->ch[1]->str;
+                auto trait_type = sd::dyn_ptr_cast<sd::TraitType>(ast->ch[0]->ret_var_type->decay());
+                int pos = -1;
+                for (int i = 0; i < trait_type->func_list.size(); i++)
+                    if (trait_type->func_list[i].first == func_id) {
+                        pos = i;
+                        break;
+                    }
+                assert(pos != -1);
+
+                auto zero = get_llvm_int(0);
+                auto fn_base_addr = builder.CreateGEP(obj, {zero, get_llvm_int32(1)});
+                llvm::Value* fn_base = builder.CreateLoad(fn_base_addr);
+                auto trait_llvm_type = struct_table[trait_type->id];
+                fn_base = builder.CreatePointerCast(fn_base, llvm::PointerType::get(trait_llvm_type, 0));
+                auto dest_func_addr = builder.CreateGEP(fn_base, {zero, get_llvm_int32(pos)});
+                llvm::Value* dest_func = builder.CreateLoad(dest_func_addr);
+                builder.CreateStore(builder.CreatePointerCast(dest_func, get_llvm_type(sd::PointerType::get(sd::VoidType::get()))), fn_base_addr);
+                return base;
+            }
+            
+
 
             obj = builder.CreatePointerCast(obj, get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
 
@@ -1183,8 +1294,10 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
         //     auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
         //     return builder.CreateGEP(get_var_inst(info->var_id), zero);
         // }else return get_var_inst(info->var_id);
-        if(auto res = get_var_inst(info->var_id))
+        if(auto res = get_var_inst(info->var_id)) {
             return res;
+        }
+            
 
         if(auto res = llvm_mod->getFunction(info->id_name()))
             return res;
@@ -1224,6 +1337,34 @@ llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_ptr ast_to, IRBuilder<>& builder){
+    if (ast_to->is_trait()) {
+        auto base = builder.CreateAlloca(get_trait_proto());
+        auto tp = ast_from->decay();
+        auto obj = from_v;
+
+        if(!ast_from->is_ref()){
+            auto obj_addr = builder.CreateAlloca(get_llvm_type(tp));
+            builder.CreateStore(obj, obj_addr);
+            obj = obj_addr;
+        }
+
+        obj = builder.CreatePointerCast(obj, get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
+
+        auto impl_trait_id = ast_to->to_string() + "$" + ast_from->decay()->to_string();
+        assert(impl_trait_table.count(impl_trait_id) && "Error with impl_trait_id!");
+        auto fn = impl_trait_table[impl_trait_id];
+
+        // auto fn = llvm_mod->getFunction(tp->get_prefix() + ast->ch[1]->str);
+        auto zero = get_llvm_int(0);
+        auto obj_ptr = builder.CreateGEP(base, {zero, get_llvm_int32(0)}, "obj");
+        builder.CreateStore(obj, obj_ptr);
+
+        auto fn_ptr = builder.CreateGEP(base, {zero, get_llvm_int32(1)}, "fn");
+        auto fn_addr = builder.CreatePointerCast(fn, get_llvm_type(sd::PointerType::get(sd::VoidType::get())));
+        builder.CreateStore(fn_addr, fn_ptr);
+
+        return base;         
+    }
     auto from = get_llvm_type(ast_from);
     auto to = get_llvm_type(ast_to);
     auto from_signed = ast_from->is_signed();

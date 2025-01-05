@@ -42,6 +42,7 @@ struct Type{
     bool is_error()const {return is_type(type_kind::Error);}
     bool is_auto() const{return is_type(type_kind::Auto);}
     bool is_ref() const {return is_type(type_kind::Ref);}
+    bool is_trait() const {return is_type(type_kind::Trait);}
 
     bool is_func_ptr();
 
@@ -97,12 +98,21 @@ struct Type{
 
     int trait_index(size_t id);
 
+    bool with_trait(TraitType* trait);
+
     virtual ~Type(){}
 
 protected:
     Type(){}
     Type(type_kind type): type(type), id(id){}
 };
+
+
+using sd_type_ptr = sd::Type*;
+using var_type_ptr = sd::Type*;
+
+template<class T>
+T* dyn_ptr_cast(var_type_ptr ptr);
 
 struct VoidType: Type{
     static VoidType* get();
@@ -328,7 +338,8 @@ struct ArrayType: Type{
     bool is_convertable(Type* tp)  override{
         if(tp == this || tp->is_error())
             return true;
-        
+        if(tp->is_trait() && with_trait(dyn_ptr_cast<TraitType>(tp)))
+            return true;
         if(auto ptr = dynamic_cast<PointerType*>(tp)){
             return ptr->subtype == subtype;
         }
@@ -382,7 +393,7 @@ struct TupleType: Type{
     }
 
     bool is_convertable(Type* tp)  override{
-        return tp == this || tp->is_error();
+        return tp == this || tp->is_error() || tp->is_trait() && with_trait(dyn_ptr_cast<TraitType>(tp));
     }
 
     bool is_force_convertable(Type* tp)  override{
@@ -465,6 +476,8 @@ struct FuncType: Type{
 
     bool is_convertable(Type* tp) override{
         if(this == tp || tp->is_error())
+            return true;
+        if(tp->is_trait() && with_trait(dyn_ptr_cast<TraitType>(tp)))
             return true;
         if(auto ptr = dynamic_cast<PointerType*>(tp)){
             return ptr->subtype == this;
@@ -605,7 +618,7 @@ struct StructType: Type{
     }
 
     bool is_convertable(Type* tp) override{
-        return tp->is_error() || tp == this;
+        return tp->is_error() || tp == this || tp->is_trait() && with_trait(dyn_ptr_cast<TraitType>(tp));
     }
 
     bool is_force_convertable(Type* tp) override{
@@ -687,10 +700,14 @@ struct TraitType: Type{
     static TraitType* create(std::string name, std::vector<std::pair<std::string, FuncType*>> func_list);
     static TraitType* get_callable(FuncType* fn);
 
-    TraitType(std::string name, std::vector<std::pair<std::string, FuncType*>> func): name(name), func_list(func_list){}
+    TraitType(std::string name, std::vector<std::pair<std::string, FuncType*>> func): Type(type_kind::Trait), name(name), func_list(func){}
 
     size_t trait_size() const{
         return func_list.size();
+    }
+
+    std::vector<std::pair<std::string, FuncType*>> get_func_list() {
+        return func_list;
     }
 
     std::string to_string() const override{
@@ -716,8 +733,6 @@ struct TraitType: Type{
     }
 };
 
-using sd_type_ptr = sd::Type*;
-using var_type_ptr = sd::Type*;
 
 struct VarInfo{
     std::string name;

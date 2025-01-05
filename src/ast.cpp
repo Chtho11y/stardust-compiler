@@ -19,7 +19,7 @@ var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum);
 
 std::string ast_node_name[] = {
     "Program", "ExtDecl",
-    "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", "FuncType", 
+    "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", 
     "GenericParams", "GenericBlock", "GenericImpl",
     "TypeDesc", "ConstDesc",
     "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem", "StructImpl", "MemFuncList", 
@@ -701,6 +701,7 @@ var_type_ptr build_sym_table(AstNode* node){
             }
             auto mem_func_id = t->to_string() + "$" + id;
             auto mem_func_type = op->get_id(mem_func_id);
+            std::cout << mem_func_id << ' ' << (mem_func_type->is_mem_func() ? "1" : "0") << '\n';
             if (mem_func_type != nullptr) {
                 return node->ret_var_type = mem_func_type;
             }
@@ -809,7 +810,7 @@ var_type_ptr build_sym_table(AstNode* node){
         auto id_type = ast_to_type(node->ch[0]);
         auto id = id_type->to_string();
         if(id_type->is_error()){
-            append_nodef_error("Variable", node->ch[0]->str, node->ch[0]->loc);
+            append_nodef_error("Type", node->ch[0]->str, node->ch[0]->loc);
             return ErrorType::get();
         }
         for (auto &ch : node->ch[1]->ch) {
@@ -824,11 +825,120 @@ var_type_ptr build_sym_table(AstNode* node){
 
             if(!flag){
                 append_multidef_error("Member Function", id + "." + func.id, func.id_loc);
-                node->ret_var_type = ErrorType::get();
+                ch->ret_var_type = ErrorType::get();
             }
         }
         return node->ret_var_type = VoidType::get();
-    }else if(node->type == Err){
+    }else if (node->type == TraitDecl) {
+        auto trait_id = node->ch[0]->str;
+        check_prim_shadow(trait_id, node->ch[0]->loc);
+        std::vector<std::pair<std::string, FuncType*>> func_list;
+        for (auto &ch : node->ch[1]->ch) {
+            auto func_ada = Adaptor<FuncDecl>(ch);
+            check_prim_shadow(func_ada.id, func_ada.id_loc);
+            // ch->ret_var_type = func_ada.type_info;
+            // if (!node->set_id(trait_id + "$" + func_ada.id, func_ada.type_info)) {
+            //     flag = false;
+            //     ch->ret_var_type = ErrorType::get();
+            // }
+            func_list.push_back(std::make_pair(func_ada.id, func_ada.type_info));
+        }
+        auto trait_type = TraitType::create(trait_id, func_list);
+        // if (trait_type->is_error())
+
+        if(!node->set_type(trait_id, trait_type)) {
+            append_multidef_error("Trait", trait_id, node->ch[0]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+
+        trait_id = trait_type->to_string();
+        node->ret_var_type = trait_type;
+        for (auto &ch : node->ch[1]->ch) {
+            auto func_ada = Adaptor<FuncDecl>(ch);
+            ch->ret_var_type = MemFuncType::get(trait_type, func_ada.type_info);
+            if (!node->set_id(trait_id + "$" + func_ada.id, MemFuncType::get(trait_type, func_ada.type_info))) {
+                append_multidef_error("Trait Func", node->ch[0]->str + '.' + func_ada.id, func_ada.id_loc);
+                ch->ret_var_type = ErrorType::get();
+            }
+        }
+        return node->ret_var_type;
+    }
+    else if (node->type == TraitImpl) {
+        auto trait_id = node->ch[0]->str;
+        auto raw_trait_type = ast_to_type(node->ch[0]);
+        auto impl_type = ast_to_type(node->ch[1]);
+        auto impl_id = impl_type->to_string();
+
+        if (raw_trait_type->is_error()) {
+            append_nodef_error("Trait", node->ch[0]->str, node->ch[0]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+        if (!raw_trait_type->is_trait()) {
+            append_invalid_impl_error("Cannot implement non-trait type " + node->ch[0]->str + ".", node->ch[0]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+        auto trait_type = dyn_ptr_cast<TraitType>(raw_trait_type);
+        if(impl_type->is_error()) {
+            append_nodef_error("Type", node->ch[1]->str, node->ch[1]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+        if (impl_type->is_ref()) {
+            append_invalid_impl_error("Cannot implemnt trait for reference.", node->ch[0]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+        if (impl_type->is_trait()) {
+            append_invalid_impl_error("Cannot implement for trait type " + impl_id + ".", node->ch[1]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+
+        for (auto tt : impl_type->traits)
+            if (tt == trait_type) {
+                append_invalid_impl_error("Trait " + trait_id + " is already implemented for " + impl_id + ".", node->ch[1]->loc);
+                return node->ret_var_type = ErrorType::get();
+            }
+
+        auto trait_list = trait_type->get_func_list();
+        if (node->ch[2]->ch.size() != trait_list.size()) {
+            append_invalid_impl_error("Mismatch function list size.", node->ch[0]->loc);
+            return node->ret_var_type = ErrorType::get();
+        }
+        std::vector<std::pair<Adaptor<FuncDecl>, AstNode*>> impl_list;
+        for (auto ch : node->ch[2]->ch)
+            impl_list.push_back(std::make_pair(Adaptor<FuncDecl>(ch), ch));
+        
+        for (auto &[id, tp] : trait_list) {
+            bool tg = false;
+            for (auto [ada, _] : impl_list)
+                if (ada.id == id && ada.type_info == tp)
+                    tg = true;
+            if (!tg) {
+                append_invalid_impl_error("Unimplemented function " + id + ".", node->ch[0]->loc);
+                return node->ret_var_type = ErrorType::get();
+            }
+        }
+
+        for (auto &[id, tp] : trait_list) 
+            for (auto [ada, ch] : impl_list)
+                if (ada.id == id && ada.type_info == tp) {
+                    auto sym_id = impl_id + "$" + trait_id + "$" + id;
+                    auto trait_func_type = MemFuncType::get(impl_type, tp);
+
+                    auto flag = node->set_id(sym_id, trait_func_type);
+                    ch->ret_var_type = trait_func_type;
+
+                    build_funcbody(ch, {std::make_pair("self", RefType::get(impl_type))});
+
+                    if(!flag){
+                        append_multidef_error("Trait Function", trait_id + "." + id, ada.id_loc);
+                        ch->ret_var_type = ErrorType::get();
+                    }
+                }
+        impl_type->traits.push_back(trait_type);
+
+        return node->ret_var_type = VoidType::get();
+
+    }
+    else if(node->type == Err){
         return node->ret_var_type = ErrorType::get();
     }else{
         assert(false && "unreachable line: build_sym_table fall through");

@@ -992,7 +992,7 @@ struct_impl:
 /**************trait**************/
 func_type:
     func_decl_ident LP ident_type_list RP func_decl_ret_type {
-        $$ = new AstNode(FuncDeclType);
+        $$ = new AstNode(FuncDecl);
         $$->append($1);
         $$->append($3);
         $$->append($5);
@@ -1016,6 +1016,7 @@ trait_decl:
         $$->append_loc($1);
         $$->append_loc($3);
         $$->append_loc($5);
+        parser_context.set_type($2->str);
     }
     | TTRAIT error {
         $$ = new AstNode(Err);
@@ -1025,7 +1026,7 @@ trait_decl:
     ;
 
 trait_impl:
-    TIMPL ident_all TFOR ident_all LBRACE member_func_list RBRACE {
+    TIMPL ident_all TFOR type_desc LBRACE member_func_list RBRACE {
         $$ = new AstNode(TraitImpl);
         $$->append($2);
         $$->append($4);

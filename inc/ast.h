@@ -9,7 +9,7 @@
 
 enum node_type{
     Program, 
-    ExtDecl, FuncDecl, VarDecl, StructDecl, StructMem, TypeDef, FuncDeclType,
+    ExtDecl, FuncDecl, VarDecl, StructDecl, StructMem, TypeDef,
     GenericParams, GenericBlock, GenericImpl,
     TypeDesc, ConstDesc,
     ArrayInstance, StructInstance, StructInstanceMems, StructInstanceMem, StructImpl, MemFuncList,
@@ -375,7 +375,7 @@ struct Adaptor<FuncDecl>{
     sd::FuncType* type_info;
     std::vector<std::string> param_name;
 
-    Adaptor(AstNode* node){
+    Adaptor(AstNode* node, bool has_body = true){
         // std::cout << "func adaptor build begin" << std::endl;
         if(node->type != FuncDecl)
             throw "adaptor type mismatch";
@@ -383,7 +383,8 @@ struct Adaptor<FuncDecl>{
         id_loc = node->ch[0]->loc;
         params = node->ch[1];
         ret = node->ch[2];
-        body = static_cast<BlockNode*>(node->ch[3]);
+        if (has_body)
+            body = static_cast<BlockNode*>(node->ch[3]);
 
         if(node->ret_var_type){
             type_info = node->ret_var_type->cast<sd::FuncType>();

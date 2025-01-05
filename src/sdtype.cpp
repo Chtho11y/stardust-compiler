@@ -21,6 +21,8 @@ void type_ctx_init(){
 
 bool PrimType::is_convertable(Type* tp){
     if(tp->is_error()) return true;
+    if(tp->is_trait() && with_trait(dyn_ptr_cast<TraitType>(tp)))
+        return true;
     auto pm = dynamic_cast<PrimType*>(tp);
     if(!pm) return false;
 
@@ -55,6 +57,10 @@ int Type::trait_index(size_t id){
         base += trait->trait_size();
     }
     return -1;
+}
+
+bool Type::with_trait(TraitType* trait) {
+    return trait_index(trait->id) != -1;
 }
 
 bool Type::is_func_ptr(){
