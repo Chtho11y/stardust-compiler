@@ -26,7 +26,7 @@
 %token<str> HEX BINARY STRING FLOAT CHAR 
 %token<token_id> ADD SUB MUL DIV MOD DOT LT GT LE GE EQ NEQ AND OR XOR BITAND BITOR NOT 
 %token<token_id> ADDEQ SUBEQ MULEQ DIVEQ
-%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN TTYPE TTYPEOF TIMPL
+%token<token_id> TFUNC TLET TSTRUCT TIF TELSE TWHILE TCONST TRETURN TBREAK TFOR TCONTIN TTYPE TTYPEOF TIMPL TTRAIT
 %token<token_id> SEMI COLON LP RP LBRACE RBRACE ASSIGN ARROW COMMA LBRACKET RBRACKET
 %token<token_id> UNCLOSED_COMMENT
 %type<token_id> block_begin block_end
@@ -34,7 +34,8 @@
 %type<node> program
 %type<node> ext_decl single_decl
 %type<node> var_decl func_decl struct_decl struct_impl
-%type<node> struct_decl_ident generic_decl generic_params func_decl_ident func_decl_ret_type
+%type<node> trait_decl trait_impl trait_func_list
+%type<node> struct_decl_ident generic_decl generic_params func_decl_ident func_decl_ret_type func_type
 %type<node> type_def
 %type<node> ident ident_all ident_type_list ident_type_member ident_value_list  ident_value_member member_func_list
 %type<node> const_desc 
@@ -122,7 +123,7 @@ ext_decl:{
     }
     ;
 
-single_decl: var_decl | func_decl | struct_decl | type_def | struct_impl;
+single_decl: var_decl | func_decl | struct_decl | type_def | struct_impl | trait_decl | trait_impl;
 
 /**************type**************/
 opt_type_desc: 
@@ -969,13 +970,13 @@ member_func_list:
     }
 ;
 struct_impl:
-    TIMPL {
+    TIMPL type_desc {
         parser_context.push_block_env();
         parser_context.set_var("self");
-    } type_desc LBRACE member_func_list RBRACE { 
+    } LBRACE member_func_list RBRACE { 
         parser_context.pop_block_env();
         $$ = new AstNode(StructImpl);
-        $$->append($3);
+        $$->append($2);
         $$->append($5);
         $$->append_loc($1);
         $$->append_loc($4);
@@ -987,6 +988,54 @@ struct_impl:
         append_syntax_error("Invalid implement block.", Lc($1));
     }
 ;
+
+/**************trait**************/
+func_type:
+    func_decl_ident LP ident_type_list RP func_decl_ret_type {
+        $$ = new AstNode(FuncDeclType);
+        $$->append($1);
+        $$->append($3);
+        $$->append($5);
+        $$->append_loc($2);
+        $$->append_loc($4);
+    }
+    ;
+trait_func_list: {
+        $$ = new AstNode(TraitFuncList);
+    }
+    | trait_func_list func_type SEMI {
+        $$ = $1;
+        $$->append($2);
+        $$->append_loc($3);
+    }
+trait_decl:
+    TTRAIT ident_all LBRACE trait_func_list RBRACE {
+        $$ = new AstNode(TraitDecl);
+        $$->append($2);
+        $$->append($4);
+        $$->append_loc($1);
+        $$->append_loc($3);
+        $$->append_loc($5);
+    }
+    | TTRAIT error {
+        $$ = new AstNode(Err);
+        $$->loc = $1;
+        append_syntax_error("Invalid trait declaration block.", Lc($1));
+    }
+    ;
+
+trait_impl:
+    TIMPL ident_all TFOR ident_all LBRACE member_func_list RBRACE {
+        $$ = new AstNode(TraitImpl);
+        $$->append($2);
+        $$->append($4);
+        $$->append($6);
+        $$->append_loc($1);
+        $$->append_loc($3);
+        $$->append_loc($5);
+        $$->append_loc($7);
+    }
+    ;
 
 /**************expr**************/
 expr:

@@ -9,10 +9,11 @@
 
 enum node_type{
     Program, 
-    ExtDecl, FuncDecl, VarDecl, StructDecl, StructMem, TypeDef,
+    ExtDecl, FuncDecl, VarDecl, StructDecl, StructMem, TypeDef, FuncDeclType,
     GenericParams, GenericBlock, GenericImpl,
     TypeDesc, ConstDesc,
     ArrayInstance, StructInstance, StructInstanceMems, StructInstanceMem, StructImpl, MemFuncList,
+    TraitDecl, TraitImpl, TraitFuncList,
     FuncParams, FuncArgs, TypeList,
     Stmts, StmtsRet, Stmt, Expr, ExprList, Operator,
     Identifier,

@@ -47,6 +47,7 @@ return {return make_token(TRETURN);}
 type {return make_token(TTYPE);}
 typeof {return make_token(TTYPEOF);}
 impl {return make_token(TIMPL);}
+trait {return make_token(TTRAIT);}
 
 null {return make_token(TNULL, true);}
 true {return make_token(TTRUE, true);}

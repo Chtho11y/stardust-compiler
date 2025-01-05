@@ -19,10 +19,11 @@ var_type_ptr build_sym_table_with_assum(AstNode* node, var_type_ptr assum);
 
 std::string ast_node_name[] = {
     "Program", "ExtDecl",
-    "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", 
+    "FuncDecl", "VarDecl", "StructDecl", "StructMem", "TypeDef", "FuncType", 
     "GenericParams", "GenericBlock", "GenericImpl",
     "TypeDesc", "ConstDesc",
     "ArrayInstance", "StructInstance", "StructInstanceMems", "StructInstanceMem", "StructImpl", "MemFuncList", 
+    "TraitDecl", "TraitImpl", "TraitFuncList",
     "FuncParams", "FuncArgs", "TypeList", 
     "Stmts", "StmtsRet", "Stmt", "Expr", "ExprList",
     "Operator", "Identifier", 
