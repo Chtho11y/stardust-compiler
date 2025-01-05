@@ -467,7 +467,7 @@ struct FuncType: Type{
         if(this == tp || tp->is_error())
             return true;
         if(auto ptr = dynamic_cast<PointerType*>(tp)){
-            return ptr->subtype == this;
+            return ptr->subtype == this || ptr->subtype->is_void();
         }
         return false;
     }

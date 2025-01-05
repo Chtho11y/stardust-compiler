@@ -346,6 +346,8 @@ llvm::Function* gen_func_def(AstNode* ast, IRBuilder<>& builder){
     }
 
     auto ret = gen_llvm_ir(func.body, n_builder);
+    if(!func.body->ret_var_type->is_void())
+        ret = gen_convert(ret, func.body->ret_var_type, func.type_info->ret_type, n_builder);
 
     if(func.body->type == StmtsRet){
         if(func.no_return())
@@ -1091,7 +1093,7 @@ llvm::Value* gen_array_inst(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
-    // std::cout << get_node_name(ast) << std::endl;
+    // std::cout << get_node_name(ast) << ":" << ast->str << std::endl;
     switch (ast->type)
     {
     case Program:{
@@ -1228,6 +1230,8 @@ llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_pt
     auto to = get_llvm_type(ast_to);
     auto from_signed = ast_from->is_signed();
     auto to_signed = ast_to->is_signed();
+
+    // std::cout << "convert " << ast_from->to_string() << " to " << ast_to->to_string() <<std::endl;
 
     if(ast_from == ast_to)
         return from_v;

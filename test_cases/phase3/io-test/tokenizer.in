@@ -1,0 +1,236 @@
+
+let token_name: char*[10] = ["NUMBER", "STRING", "CHAR", "KEYWORD", "ID", "SYMBOL", "COMMENT", ""];
+let symbols: char*[100] = ["+", "-", "*", "/", "+=", "-=", "*=", "/=", "=", "&", "[", "]", "(", ")", "{", "}", "->", 
+                            "==", "!=", "<=", ">=", "<", ">", ":", ",", ";", "^", "|", "||", "&&", ".", "!", ""];
+let keywords: char*[20] = ["func", "let", "struct", "for", "while", "if", "else", "return", "impl", ""];
+
+let NUMBER = 0;
+let STRING = 1;
+let CHAR = 2;
+let KEYWORD = 3;
+let ID = 4;
+let SYMBOL = 5;
+let COMMENT = 6;
+
+struct Token{
+    str: char[20],
+    siz: int,
+    kind: int,
+    flag: bool
+}
+
+impl Token{
+    func clear(){
+        self.siz = 0;
+        self.str = (char[20])[];
+        self.kind = 0;
+        self.flag = false;
+    }
+
+    func push(c: char){
+        self.str[self.siz] = c;
+        self.siz += 1;
+    }
+
+    func pop(){
+        self.siz -= 1;
+        self.str[self.siz] = '\0';
+    }
+
+    func print(){
+        if(self.siz == 0){
+            return;
+        }
+        self.str[self.siz] = '\0';
+        printf("[%s] ", token_name[self.kind]);
+        puts(self.str);
+        self.clear()
+    }
+}
+
+impl char*{
+    func eq(b: char*)->bool{
+        let a = self;
+        while *a != '\0' && *b !='\0'{
+            if *a != *b {
+                return false;
+            }
+            a = a + 1;
+            b = b + 1;
+        }
+        return *a == *b;
+    }
+}
+
+impl char{
+    func is_alpha()->bool{
+        'a' <= self && self <= 'z' || 'A' <= self && self <= 'Z'
+    }
+    
+    func is_digit()->bool{
+        '0' <= self && self <= '9'
+    }
+    
+    func is_alnum()->bool{
+        self.is_alpha() || self.is_digit()
+    }
+}
+
+func contain(table: char**, str: char*)->bool{
+    for let item = table; !(*item).eq(""); item = item + 1{
+        if (*item).eq(str){
+            return true;
+        }
+    }
+    return false;
+}
+
+type State = (&Token, char)-> ()*;
+
+func state_refuse(token: &Token, c: char)-> ()*{
+    null
+}
+
+//keyword&id
+func state1(token: &Token, c: char)-> ()*{
+    if c.is_alnum() || c == '_'{
+        token.push(c);
+        state1
+    }else{
+        if contain(keywords, token.str){
+            token.kind = KEYWORD;
+        }
+        null
+    }
+}
+
+//digit
+func state2(token: &Token, c: char)-> ()*{
+    if c.is_digit() || c == '.'{
+        token.push(c);
+        state2
+    }else{
+        null
+    }
+}
+
+//char
+func state3(token: &Token, c: char)-> ()*{
+    if c == '\''{
+        token.push(c);
+        if token.flag{
+            token.flag = false;
+            state3
+        }else{
+            state_refuse
+        }
+    }else if c == '\\'{
+        token.push(c);
+        token.flag = (bool) (token.flag ^ 1);
+        state3
+    }else{
+        token.push(c);
+        token.flag = false;
+        state3
+    }
+}
+
+//string
+func state4(token: &Token, c: char)-> ()*{
+    if c == '"'{
+        token.push(c);
+        if token.flag{
+            token.flag = false;
+            state4
+        }else{
+            state_refuse
+        }
+    }else if c == '\\'{
+        token.push(c);
+        token.flag = (bool) (token.flag ^ 1);
+        state4
+    }else{
+        token.push(c);
+        token.flag = false;
+        state4
+    }
+}
+
+//comment
+func state6(token: &Token, c: char)-> ()*{
+    if c == '\n'{
+        null
+    }else{
+        token.push(c);
+        state6
+    }
+}
+
+//symbol
+func state5(token: &Token, c: char)-> ()*{
+
+    token.push(c);
+    let str: char* = token.str;
+    if(str.eq("//")){
+        token.kind = COMMENT;
+        state6
+    }else if contain(symbols, str){
+        state5
+    }else{
+        token.pop();
+        null
+    }
+}
+
+//start
+func state0(token: &Token, c: char)-> ()*{
+    if c.is_alpha() || c == '_'{
+        token.push(c);
+        token.kind = ID;
+        state1
+    }else if c.is_digit(){
+        token.push(c);
+        token.kind = NUMBER;
+        state2
+    }else if c == '\''{
+        token.push(c);
+        token.kind = CHAR;
+        state3
+    }else if c == '"'{
+        token.push(c);
+        token.kind = STRING;
+        state4
+    }else if (c == '\t') || (c == '\n') || (c == ' '){
+        state0
+    }else{
+        let s = [c, '\0'];
+        if contain(symbols, s){
+            token.kind = SYMBOL;
+            token.push(c);
+            state5
+        }else{
+            null
+        }
+    }
+}
+
+func main()->int{
+    let ch: char = (char)getchar();
+    let state = state0;
+
+    let token: Token;
+    token.clear();
+
+    while ch != -1{
+        let n_state: State = state(token, ch);
+        state = if n_state == null{
+            token.print();
+            state0
+        }else{
+            ch = (char)getchar();
+            n_state
+        };
+    }
+    token.print();
+    0
+}

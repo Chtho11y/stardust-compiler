@@ -72,13 +72,13 @@ void op_impl_init(){
     
     auto logic_op = {op_type::And, op_type::Or, op_type::Not};
     for(auto op: logic_op)
-        impl_op(op, 2, PrimType::get_bool());
+        impl_op(op, 1 + (op != op_type::Not), PrimType::get_bool());
     
     for(int i = (int)op_type::BitAnd; i <= (int)op_type::Xor; ++i)
         impl_int_op((op_type)i, 2);
 
     for(int i = (int)op_type::Eq; i <= (int)op_type::Gt; ++i)
-        impl_int_op((op_type)i, 2, PrimType::get_bool());
+        impl_prim_op((op_type)i, 2, PrimType::get_bool());
     
     impl_int_op(op_type::Mod, 2);
     impl_prim_op(op_type::Pos, 1);
