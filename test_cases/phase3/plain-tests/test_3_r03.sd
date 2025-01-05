@@ -1,0 +1,23 @@
+// simple calculation
+
+func main() -> int {
+    let N: int = 30;
+    let num: int = 0;
+    let i: int = 1;
+    let k: int = 1;
+    while(k <= N){
+        while(i <= k){
+            if(k == (k / i * i)){
+                num = num + 1;
+            }
+            i = i + 1;
+        }
+        if(num == 2){
+            write(k);
+        }
+        i = 1;
+        num = 0;
+        k = k + 1;
+    }
+    0
+}

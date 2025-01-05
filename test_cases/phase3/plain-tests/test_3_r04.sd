@@ -1,0 +1,36 @@
+// Perfect Numbers = sum of positive factors e.g. 6 = 1 + 2 + 3
+
+func mod(x: int, n: int) -> int{
+    let res = x -(x / n) * n;
+    res
+}
+
+func isPerfectNumber(number: int) -> int {
+    let sum = 0;
+    let j = 1;
+    while( j <= number / 2) {
+        if ( mod(number , j) == 0) {
+            sum = sum + j;
+        }
+        j = j + 1; 
+    }
+
+    if (sum == number) {
+        1
+    } else {
+        0
+    }
+}
+
+func main() -> int {
+    let count: int = 0;
+    let i: int = 1;
+    while(i <= 100) {
+        if (isPerfectNumber(i) == 1 ) {
+            write(i);
+        }
+        i = i + 1;  
+    }
+
+    0
+}

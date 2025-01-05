@@ -1,0 +1,8 @@
+func main() -> int {
+    let a: int = 110;
+    let b: int = 97;
+    let c: int = 3;
+    c = a - b + c*2;
+    write(c);
+    0
+}
