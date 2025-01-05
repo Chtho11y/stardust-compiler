@@ -141,7 +141,7 @@ var_type_ptr AstNode::get_id(std::string name){
 
 var_info_ptr AstNode::get_info(std::string name){
     AstNode *rt = this;
-    // std::cout << "@get_info: begin" << std::endl;
+    // std::cout << "@get_info: begin: " << name << std::endl;
     while(rt){
         // std::cout << "@get_info: #" << rt << std::endl;
         if(rt->is_block){

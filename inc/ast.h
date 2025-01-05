@@ -386,6 +386,10 @@ struct Adaptor<FuncDecl>{
 
         if(node->ret_var_type){
             type_info = node->ret_var_type->cast<sd::FuncType>();
+            for(auto ch: params->ch){
+                auto var = Adaptor<VarDecl>(ch);
+                param_name.push_back(var.id);
+            }
             return;
         }
 

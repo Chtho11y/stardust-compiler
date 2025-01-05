@@ -332,12 +332,14 @@ llvm::Function* gen_func_def(AstNode* ast, IRBuilder<>& builder){
     int idx = 0;
     for (auto &arg : llvm_fn->args()) {
         auto id = func.body->get_info(func.param_name[idx++]);
+
         if(id->type->is_ref()){
             auto zero = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*llvm_ctx), 0);
             auto dst = n_builder.CreateGEP(&arg, zero, id->name);
             var_table[id->var_id] = { arg.getType(), dst};
         }else{
-            llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
+            // llvm::AllocaInst *alloca = get_alloc_inst(llvm_fn, arg.getType(), id->name);
+            llvm::AllocaInst *alloca = n_builder.CreateAlloca(arg.getType(), 0, nullptr, id->name);
             n_builder.CreateStore(&arg, alloca);
             var_table[id->var_id] = { arg.getType(), alloca};
         }
