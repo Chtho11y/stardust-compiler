@@ -55,6 +55,7 @@ std::string parse_string(const std::string &literal) {
                 case 'f': result.push_back('\f'); break;
                 case 'r': result.push_back('\r'); break;
                 case '\\': result.push_back('\\'); break;
+                case '0': result.push_back('\0'); break;
                 case '"': result.push_back('"'); break;
                 default:
                     result.push_back('\\');
@@ -87,6 +88,7 @@ char parse_char(const std::string &literal) {
             case 'r': return '\r';
             case '\\': return '\\';
             case '\'': return '\'';
+            case '0': return '\0';
             default:
                 throw std::invalid_argument("Invalid escape character in char literal: " + literal);
         }

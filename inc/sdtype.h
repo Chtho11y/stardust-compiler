@@ -480,7 +480,7 @@ struct FuncType: Type{
         if(tp->is_trait() && with_trait(dyn_ptr_cast<TraitType>(tp)))
             return true;
         if(auto ptr = dynamic_cast<PointerType*>(tp)){
-            return ptr->subtype == this;
+            return ptr->subtype == this || ptr->subtype->is_void();
         }
         return false;
     }

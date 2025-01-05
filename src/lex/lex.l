@@ -59,8 +59,8 @@ false {return make_token(TFALSE, true);}
 0[bB][01]+ {return make_token(BINARY, true);}
 {digit}*"."{digit}+([eE][+-]?{digit}+)? {return make_token(FLOAT, true);}
 {digit}+[eE][+-]?{digit}+ {return make_token(FLOAT, true);}
-\"([^\"\\]|\\["\\ntbfr])*\" {return make_token(STRING, true);}
-'([^'\\]|\\['\\ntbfr])' {return make_token(CHAR, true);}
+\"([^\"\\]|\\["\\ntbfr0])*\" {return make_token(STRING, true);}
+'([^'\\]|\\['\\ntbfr0])' {return make_token(CHAR, true);}
 ({letter_}|{digit})+ {
     auto token_id = make_token(INVALID_NAME, true);
     append_lexeme_error("Invalid identifier.", CurrentCursor);
@@ -99,6 +99,7 @@ false {return make_token(TFALSE, true);}
 "|" {return make_token(BITOR);}
 "^" {return make_token(XOR);}
 "=" {return make_token(ASSIGN);}
+"!" {return make_token(NOT);}
 [/][*].* {append_lexeme_error("Unclosed comments!", CurrentCursor);}
 . {append_lexeme_error(std::string("Undefined symbol: ") + yytext, CurrentCursor);}
 %%

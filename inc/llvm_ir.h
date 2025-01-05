@@ -7,3 +7,4 @@ llvm::Type* get_llvm_type(var_type_ptr type);
 llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder);
 void gen_module(AstNode* ast, std::string module_name);
 void write_llvm_ir(std::ostream& os);
+void write_llvm_file(std::string path, llvm::CodeGenFileType file_tp);

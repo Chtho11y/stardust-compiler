@@ -6,6 +6,7 @@
 std::unique_ptr<LLVMContext> llvm_ctx;
 std::unique_ptr<Module> llvm_mod;
 std::unique_ptr<IRBuilder<>> builder;
+llvm::TargetMachine* target_machine;
 llvm::Function* init_fn = nullptr, *main_fn = nullptr;
 std::string module_name;
 
@@ -91,14 +92,14 @@ void set_module_target(){
 
     llvm::TargetOptions targetOptions;
     
-    llvm::TargetMachine *targetMachine = target->createTargetMachine(targetTriple, "generic", "", 
+    target_machine = target->createTargetMachine(targetTriple, "generic", "", 
                                     targetOptions, llvm::Optional<llvm::Reloc::Model>());
 
-    if (!targetMachine) {
+    if (!target_machine) {
         throw std::runtime_error("Error: Unable to create target machine");
     }
 
-    llvm_mod->setDataLayout(targetMachine->createDataLayout());
+    llvm_mod->setDataLayout(target_machine->createDataLayout());
     llvm_mod->setTargetTriple(targetTriple);
 }
 
@@ -355,6 +356,8 @@ llvm::Function* gen_func_def(AstNode* ast, IRBuilder<>& builder){
     }
 
     auto ret = gen_llvm_ir(func.body, n_builder);
+    if(!func.body->ret_var_type->is_void())
+        ret = gen_convert(ret, func.body->ret_var_type, func.type_info->ret_type, n_builder);
 
     if(func.body->type == StmtsRet){
         if(func.no_return())
@@ -1202,7 +1205,7 @@ llvm::Value* gen_array_inst(AstNode* ast, IRBuilder<>& builder){
 }
 
 llvm::Value* gen_llvm_ir(AstNode* ast, IRBuilder<>& builder){
-    // std::cout << get_node_name(ast) << std::endl;
+    // std::cout << get_node_name(ast) << ":" << ast->str << std::endl;
     switch (ast->type)
     {
     case Program:{
@@ -1370,6 +1373,8 @@ llvm::Value* gen_convert(llvm::Value* from_v, var_type_ptr ast_from, var_type_pt
     auto from_signed = ast_from->is_signed();
     auto to_signed = ast_to->is_signed();
 
+    // std::cout << "convert " << ast_from->to_string() << " to " << ast_to->to_string() <<std::endl;
+
     if(ast_from == ast_to)
         return from_v;
 
@@ -1461,4 +1466,24 @@ llvm::Value* gen_llvm_ir_to_type(AstNode* ast, var_type_ptr from, var_type_ptr t
 void write_llvm_ir(std::ostream& os){
     llvm::raw_os_ostream raw_os{os};
     llvm_mod->print(raw_os, nullptr);
+}
+
+void write_llvm_file(std::string path, llvm::CodeGenFileType file_tp){
+    std::error_code err;
+    llvm::raw_fd_ostream dest(path, err, llvm::sys::fs::OF_None);
+
+    if (err) {
+        std::cout << "cannot open file: " << err.message();
+        return;
+    }
+
+    llvm::legacy::PassManager pass;
+
+    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, file_tp)) {
+        throw std::invalid_argument("unsupport file type");
+        return;
+    }
+
+    pass.run(*llvm_mod);
+    dest.flush();
 }

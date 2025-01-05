@@ -227,12 +227,12 @@ int main(int argc, char* argv[]){
         return lhs.second < rhs.second;
     });
     if(err.size() > 0){
-        std::cout << "/******************************Error Detected******************************/" << std::endl;
+        std::cerr << "/******************************Error Detected******************************/" << std::endl;
         for(auto [s, loc]: err){
             if(s == ""){
-                std::cout << "undefined error" << std::endl;
+                std::cerr << "undefined error" << std::endl;
             }else{
-                std::cout << color_if(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
+                std::cerr << color_if(ansi::BOLD) << parser.input_path << ":" << loc.line_st + 1 << ":" << loc.col_l + 1 << ": "
                         << color_if(ansi::RESET) << s << std::endl;
                 // std::cout  << loc.col_l << " " << loc.col_r << std::endl;
                 pretty_print_line(loc);
@@ -242,9 +242,18 @@ int main(int argc, char* argv[]){
         return 0;
     }
     
+    std::string sdlib_path = "../sdlib";
+
     try{
         gen_module(program_root, "test");
-        write_llvm_ir(std::cout);
+        if(parser.output_type == "ir"){
+            write_llvm_ir(std::cout);
+        }else if(parser.output_type == "asm"){
+            write_llvm_file(parser.output_path, llvm::CodeGenFileType::CGFT_AssemblyFile);
+        }else if(parser.output_type == "obj"){
+            write_llvm_file(parser.output_path + ".o", llvm::CodeGenFileType::CGFT_ObjectFile);
+            system(("clang " + parser.output_path + ".o " + " -L " + sdlib_path + " -lsd -o \"" + parser.output_path+ "\"").c_str());
+        }
     }catch(std::string s){
         std::cout << s << std::endl;
     }catch(std::exception& e){

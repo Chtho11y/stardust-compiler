@@ -12,6 +12,7 @@ struct ArgParser{
     bool print_ast = false;
     bool print_ast_sym = false;
     bool no_color = false;
+    std::string output_type = "obj";
 
     clipp::group get_parser(){
         using namespace clipp;
@@ -44,6 +45,9 @@ struct ArgParser{
                 std::cout << clipp::make_man_page(this->get_parser(), "stardust") << std::endl;
                 exit(0);
             }) % "usage lines",
+
+            option("-s").set(output_type, std::string("asm")) % "output as asm file",
+            option("-c").set(output_type, std::string("ir")) % "output as LLVM IR",
 
             option("-nc", "--no-color").set(no_color, true)
         );

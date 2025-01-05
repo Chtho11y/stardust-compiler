@@ -110,7 +110,7 @@ PrimType* PrimType::get_bool(){
 }
 
 PrimType* PrimType::get_char(){
-    return get(prim_kind::Char, 8, true);
+    return get(prim_kind::Char, 8, false);
 }
 
 PrimType* PrimType::get_uint(int siz){
@@ -190,6 +190,11 @@ void require_convertable(var_type_ptr from, var_type_ptr to, Locator loc){
 var_type_ptr greater_type(var_type_ptr a, var_type_ptr b){
     a = a->decay();
     b = b->decay();
+    if(a == b){
+        if(a->is_func())
+            return PointerType::get(a);
+        return a;
+    }
     if(a->is_convertable(b)) return b;
     if(b->is_convertable(a)) return a;
     return VoidType::get();

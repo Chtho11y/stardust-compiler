@@ -291,6 +291,7 @@ var_type_ptr infer_array(AstNode* node, var_type_ptr type_assump = nullptr){
             auto ch_tp = build_sym_table(ch);
             comm_tp = comm_tp? greater_type(comm_tp, ch_tp): ch_tp;   
         }
+        comm_tp = comm_tp->decay();
         if(!comm_tp || comm_tp->is_void()){
             append_infer_failed_error("Failed to infer the type of array", node->loc);
             return node->ret_var_type = ErrorType::get();
@@ -687,8 +688,8 @@ var_type_ptr build_sym_table(AstNode* node){
             auto id = op->ch[1]->str;
             if(t->is_error())
                 return node->ret_var_type = t;
-            bool is_ref = t->is_ref() | t->is_ptr();
-            t = t->decay()->deref();
+            bool is_ref = t->is_ref();
+            t = t->decay();
             if(t->is_struct()){
                 auto st = dyn_ptr_cast<StructType>(t);
                 for(auto [n, tp]: st->member){
@@ -728,8 +729,8 @@ var_type_ptr build_sym_table(AstNode* node){
 
         auto comm = greater_type(ret1, ret2);
         if(!comm->is_void()){
-            expect_ret_type(node->ch[0], comm);
             expect_ret_type(node->ch[1], comm);
+            expect_ret_type(node->ch[2], comm);
         }
 
         return node->ret_var_type = comm;
