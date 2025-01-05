@@ -6,6 +6,7 @@
 std::unique_ptr<LLVMContext> llvm_ctx;
 std::unique_ptr<Module> llvm_mod;
 std::unique_ptr<IRBuilder<>> builder;
+llvm::TargetMachine* target_machine;
 llvm::Function* init_fn = nullptr, *main_fn = nullptr;
 std::string module_name;
 
@@ -90,14 +91,14 @@ void set_module_target(){
 
     llvm::TargetOptions targetOptions;
     
-    llvm::TargetMachine *targetMachine = target->createTargetMachine(targetTriple, "generic", "", 
+    target_machine = target->createTargetMachine(targetTriple, "generic", "", 
                                     targetOptions, llvm::Optional<llvm::Reloc::Model>());
 
-    if (!targetMachine) {
+    if (!target_machine) {
         throw std::runtime_error("Error: Unable to create target machine");
     }
 
-    llvm_mod->setDataLayout(targetMachine->createDataLayout());
+    llvm_mod->setDataLayout(target_machine->createDataLayout());
     llvm_mod->setTargetTriple(targetTriple);
 }
 
@@ -1324,4 +1325,24 @@ llvm::Value* gen_llvm_ir_to_type(AstNode* ast, var_type_ptr from, var_type_ptr t
 void write_llvm_ir(std::ostream& os){
     llvm::raw_os_ostream raw_os{os};
     llvm_mod->print(raw_os, nullptr);
+}
+
+void write_llvm_file(std::string path, llvm::CodeGenFileType file_tp){
+    std::error_code err;
+    llvm::raw_fd_ostream dest(path, err, llvm::sys::fs::OF_None);
+
+    if (err) {
+        std::cout << "cannot open file: " << err.message();
+        return;
+    }
+
+    llvm::legacy::PassManager pass;
+
+    if (target_machine->addPassesToEmitFile(pass, dest, nullptr, file_tp)) {
+        throw std::invalid_argument("unsupport file type");
+        return;
+    }
+
+    pass.run(*llvm_mod);
+    dest.flush();
 }
