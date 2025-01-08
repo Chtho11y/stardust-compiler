@@ -252,7 +252,7 @@ int main(int argc, char* argv[]){
             write_llvm_file(parser.output_path, llvm::CodeGenFileType::CGFT_AssemblyFile);
         }else if(parser.output_type == "obj"){
             write_llvm_file(parser.output_path + ".o", llvm::CodeGenFileType::CGFT_ObjectFile);
-            system(("clang " + parser.output_path + ".o " + " -L " + sdlib_path + " -lsd -o \"" + parser.output_path+ "\"").c_str());
+            system(("clang-11 " + parser.output_path + ".o " + " -L " + sdlib_path + " -lsd -o \"" + parser.output_path+ "\"").c_str());
         }
     }catch(std::string s){
         std::cout << s << std::endl;

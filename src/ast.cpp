@@ -702,7 +702,6 @@ var_type_ptr build_sym_table(AstNode* node){
             }
             auto mem_func_id = t->to_string() + "$" + id;
             auto mem_func_type = op->get_id(mem_func_id);
-            std::cout << mem_func_id << ' ' << (mem_func_type->is_mem_func() ? "1" : "0") << '\n';
             if (mem_func_type != nullptr) {
                 return node->ret_var_type = mem_func_type;
             }
